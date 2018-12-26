@@ -1163,6 +1163,7 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 			if (dc_numlights)
 			{
 				lighttable_t **xwalllights;
+				lighttable32_t **xwalllights_tc;
 				fixed_t height;
 				fixed_t bheight = 0;
 				INT32 solid = 0;
