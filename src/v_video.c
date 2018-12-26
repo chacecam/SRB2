@@ -811,6 +811,36 @@ void V_DrawFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c)
 	}
 }
 
+static UINT8 V_GetSWConsBackColor(void)
+{
+	UINT8 palindex;
+	switch (cons_backcolor.value)
+	{
+		case 0:		palindex = 0; 	break; 	// White
+		case 1:		palindex = 31;	break; 	// Black
+		case 2:		palindex = 48;	break;	// Sepia
+		case 3:		palindex = 60;	break; 	// Brown
+		case 4:		palindex = 144; break; 	// Pink
+		case 5:		palindex = 124;	break; 	// Raspberry
+		case 6:		palindex = 128;	break; 	// Red
+		case 7:		palindex = 112;	break;	// Creamsicle
+		case 8:		palindex = 90;	break; 	// Orange
+		case 9:		palindex = 115;	break; 	// Gold
+		case 10:	palindex = 103;	break; 	// Yellow
+		case 11:	palindex = 160; break; 	// Emerald
+		case 12:	palindex = 184;	break; 	// Green
+		case 13:	palindex = 247;	break; 	// Cyan
+		case 14:	palindex = 207;	break; 	// Steel
+		case 15:	palindex = 203;	break; 	// Periwinkle
+		case 16:	palindex = 230;	break; 	// Blue
+		case 17:	palindex = 196; break; 	// Purple
+		case 18:	palindex = 248; break; 	// Lavender
+		// Default green
+		default:	palindex = 184;	break; 	// Green
+	}
+	return palindex;
+}
+
 #ifdef HWRENDER
 // This is now a function since it's otherwise repeated 2 times and honestly looks retarded:
 static UINT32 V_GetHWConsBackColor(void)
@@ -819,7 +849,7 @@ static UINT32 V_GetHWConsBackColor(void)
 	switch (cons_backcolor.value)
 	{
 		case 0:		hwcolor = 0xffffff00;	break; 	// White
-		case 1:		hwcolor = 0x80808000;	break; 	// Gray
+		case 1:		hwcolor = 0x80808000;	break; 	// Black
 		case 2:		hwcolor = 0xdeb88700;	break;	// Sepia
 		case 3:		hwcolor = 0x40201000;	break; 	// Brown
 		case 4:		hwcolor = 0xfa807200;	break; 	// Pink
@@ -844,21 +874,20 @@ static UINT32 V_GetHWConsBackColor(void)
 }
 #endif
 
-
-// THANK YOU MPC!!!
-
 void V_DrawFillConsoleMap(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c)
 {
-	UINT8 *dest;
-	INT32 u, v;
-	UINT8 *fadetable;
-	UINT32 alphalevel = 0;
+	UINT32 *dest;
+	const UINT32 *deststop;
+
+	// Jimita: True-color
+	int count = w, line = 0;
+	UINT8 palindex = V_GetSWConsBackColor();
 
 	if (rendermode == render_none)
 		return;
 
 #ifdef HWRENDER
-	if (rendermode != render_soft && rendermode != render_none)
+	if (rendermode == render_opengl && !con_startup)
 	{
 		UINT32 hwcolor = V_GetHWConsBackColor();
 		HWR_DrawConsoleFill(x, y, w, h, hwcolor, c);	// we still use the regular color stuff but only for flags. actual draw color is "hwcolor" for this.
@@ -870,9 +899,10 @@ void V_DrawFillConsoleMap(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c)
 	{
 		INT32 dupx = vid.dupx, dupy = vid.dupy;
 
+		// Clear the entire screen, from dest to deststop. Yes, this really works.
 		if (x == 0 && y == 0 && w == BASEVIDWIDTH && h == BASEVIDHEIGHT)
-		{ // Clear the entire screen, from dest to deststop. Yes, this really works.
-			memset(screens[0], (UINT8)(c&255), vid.width * vid.height * vid.bpp);
+		{
+			M_Memset32(screen_main, V_GetTrueColor(palindex), vid.width * vid.height * 4);
 			return;
 		}
 
@@ -903,11 +933,13 @@ void V_DrawFillConsoleMap(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c)
 
 	if (x >= vid.width || y >= vid.height)
 		return; // off the screen
-	if (x < 0) {
+	if (x < 0)
+	{
 		w += x;
 		x = 0;
 	}
-	if (y < 0) {
+	if (y < 0)
+	{
 		h += y;
 		y = 0;
 	}
@@ -915,39 +947,23 @@ void V_DrawFillConsoleMap(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c)
 	if (w <= 0 || h <= 0)
 		return; // zero width/height wouldn't draw anything
 	if (x + w > vid.width)
-		w = vid.width-x;
+		w = vid.width - x;
 	if (y + h > vid.height)
-		h = vid.height-y;
+		h = vid.height - y;
 
-	dest = screens[0] + y*vid.width + x;
+	dest = screen_main + y*vid.width + x;
+	deststop = screen_main + vid.width * vid.height;
 
-	if ((alphalevel = ((c & V_ALPHAMASK) >> V_ALPHASHIFT)))
+	for (;(--h >= 0) && dest < deststop; dest += vid.width)
 	{
-		if (alphalevel == 13)
-			alphalevel = hudminusalpha[cv_translucenthud.value];
-		else if (alphalevel == 14)
-			alphalevel = 10 - cv_translucenthud.value;
-		else if (alphalevel == 15)
-			alphalevel = hudplusalpha[cv_translucenthud.value];
-
-		if (alphalevel >= 10)
-			return; // invis
-	}
-
-	c &= 255;
-
-	// Jimita (12-04-2018)
-	w = min(w, vid.width);
-	h = min(h, vid.height);
-	fadetable = ((UINT8 *)transtables + ((alphalevel-1)<<FF_TRANSSHIFT) + (c*256));
-	for (v = 0; v < h; v++, dest += vid.width)
-		for (u = 0; u < w; u++)
+		count = w;
+		line = 0;
+		while (count > 0)
 		{
-			if (!alphalevel)
-				dest[u] = consolebgmap[dest[u]];
-			else
-				dest[u] = fadetable[consolebgmap[dest[u]]];
+			V_DrawPixelTrueColor((dest+line), V_BlendTrueColor(*(dest+line),V_GetTrueColor(palindex),128));
+			count--; line++;
 		}
+	}
 }
 
 //
@@ -1068,7 +1084,6 @@ void V_DrawPatchFill(patch_t *pat)
 //
 void V_DrawFadeScreen(void)
 {
-	//const UINT8 *fadetable = (UINT8 *)colormaps + 16*256;
 	const UINT32 *deststop = screen_main + vid.width * vid.height;
 	UINT32 *buf = screen_main;
 
@@ -1090,7 +1105,7 @@ void V_DrawFadeScreen(void)
 void V_DrawFadeConsBack(INT32 plines)
 {
 	UINT32 *deststop, *buf;
-	UINT32 swcolor;
+	UINT8 palindex = V_GetSWConsBackColor();
 
 #ifdef HWRENDER // not win32 only 19990829 by Kin
 	if (rendermode != render_soft && rendermode != render_none)
@@ -1101,25 +1116,11 @@ void V_DrawFadeConsBack(INT32 plines)
 	}
 #endif
 
-	switch (cons_backcolor.value)
-	{
-		case 0:		swcolor = 0; 	break; // White
-		case 1:		swcolor = 25;	break; // Gray
-		case 2:		swcolor = 59;	break; // Brown
-		case 3:		swcolor = 128;	break; // Red
-		case 4:		swcolor = 90;	break; // Orange
-		case 5:		swcolor = 105;	break; // Yellow
-		case 6:		swcolor = 167;	break; // Green
-		case 7:		swcolor = 231;	break; // Blue
-		case 8:		swcolor = 214;	break; // Cyan
-		// Default green
-		default:	swcolor = 160; break;
-	}
 	// heavily simplified -- we don't need to know x or y position,
 	// just the stop position
 	deststop = screen_main + vid.width * min(plines, vid.height);
 	for (buf = screen_main; buf < deststop; ++buf)
-		V_DrawPixelTrueColor(buf, V_BlendTrueColor(*buf,V_GetTrueColor(swcolor),128));
+		V_DrawPixelTrueColor(buf, V_BlendTrueColor(*buf,V_GetTrueColor(palindex),128));
 }
 
 // Gets string colormap, used for 0x80 color codes

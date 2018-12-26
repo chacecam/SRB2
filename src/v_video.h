@@ -30,13 +30,6 @@ UINT32 V_TrueColormapRGBA_DS(INT32 c);
 UINT32 V_BlendTrueColor(UINT32 bg, UINT32 fg, UINT8 alpha);
 UINT8 V_AlphaTrans(INT32 num);
 
-/*union ColorTable32k
-{
-	UINT32 RGB[256][256][256];
-	UINT32 All[256*256*256];
-};
-extern ColorTable32k RGB32k;*/
-
 void V_DrawPixelTrueColor(UINT32 *dest, UINT32 rgb_color);
 
 // Jimita
