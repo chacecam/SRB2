@@ -310,7 +310,8 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 	texnum = R_GetTextureNum(curline->sidedef->midtexture);
 	windowbottom = windowtop = sprbotscreen = INT32_MAX;
 
-	// hack translucent linedef types (900-909 for transtables 1-9)
+	// hack translucent linedef types
+	dc_transmap = 255;
 	ldef = curline->linedef;
 	switch (ldef->special)
 	{
@@ -323,7 +324,7 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 		case 906:
 		case 907:
 		case 908:
-			V_AlphaTrans(ldef->special-900);
+			dc_transmap = V_AlphaTrans(ldef->special-900);
 			colfunc = fuzzcolfunc;
 			break;
 		case 909:
@@ -336,7 +337,6 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 			break;
 	}
 
-	dc_transmap = 255;
 	if (curline->polyseg && curline->polyseg->translucency > 0)
 	{
 		if (curline->polyseg->translucency >= NUMTRANSMAPS)
@@ -1584,6 +1584,7 @@ static void R_RenderSegLoop (void)
 				// a midtexture blocks the view
 				ceilingclip[rw_x] = (INT16)viewheight;
 				floorclip[rw_x] = -1;
+				colfunc();
 			}
 			else
 			{

@@ -2141,10 +2141,10 @@ void V_DoPostProcessor(INT32 view, postimg_t type, INT32 param)
 			{
 				// Shift this row of pixels to the right by 2
 				tmpscr[y*vid.width] = srcscr[y*vid.width];
-				M_Memcpy(&tmpscr[y*vid.width+vid.dupx], &srcscr[y*vid.width], vid.width-vid.dupx);
+				M_Memcpy(&tmpscr[y*vid.width+vid.dupx], &srcscr[y*vid.width], (vid.width-vid.dupx)*4);
 			}
 			else
-				M_Memcpy(&tmpscr[y*vid.width], &srcscr[y*vid.width], vid.width);
+				M_Memcpy(&tmpscr[y*vid.width], &srcscr[y*vid.width], vid.width*4);
 
 			heatindex[view] %= height;
 		}
