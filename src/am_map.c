@@ -2,7 +2,7 @@
 //-----------------------------------------------------------------------------
 // Copyright (C) 1993-1996 by id Software, Inc.
 // Copyright (C) 1998-2000 by DooM Legacy Team.
-// Copyright (C) 1999-2016 by Sonic Team Junior.
+// Copyright (C) 1999-2018 by Sonic Team Junior.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -11,8 +11,8 @@
 /// \file  am_map.c
 /// \brief Code for the 'automap', former Doom feature used for DEVMODE testing
 
-#include "g_game.h"
 #include "am_map.h"
+#include "g_game.h"
 #include "g_input.h"
 #include "p_local.h"
 #include "p_slopes.h"
@@ -20,7 +20,6 @@
 #include "i_video.h"
 #include "r_state.h"
 #include "r_draw.h"
-#include "m_misc.h"		// M_Memset32
 
 #ifdef HWRENDER
 #include "hardware/hw_main.h"
@@ -34,7 +33,6 @@ static const UINT8 GRAYSRANGE  = 16;
 static const UINT8 BROWNS      = (3*16);
 static const UINT8 YELLOWS     = (7*16);
 static const UINT8 GREENS      = (10*16);
-static const UINT8 GREENRANGE  = 16;
 static const UINT8 DBLACK      = 31;
 static const UINT8 DWHITE      = 0;
 
@@ -51,8 +49,6 @@ static const UINT8 NOCLIMBYELLOWS     = (11*16);
 
 // Automap colors
 #define BACKGROUND            DBLACK
-#define YOURCOLORS            DWHITE
-#define YOURRANGE             0
 #define WALLCOLORS            (REDS + REDRANGE/2)
 #define WALLRANGE             (REDRANGE/2)
 #define NOCLIMBWALLCOLORS     (NOCLIMBREDS + NOCLIMBREDRANGE/2)
@@ -69,27 +65,23 @@ static const UINT8 NOCLIMBYELLOWS     = (11*16);
 #define CDWALLCOLORS          YELLOWS
 #define NOCLIMBCDWALLCOLORS   NOCLIMBYELLOWS
 #define THINGCOLORS           GREENS
-#define THINGRANGE            GREENRANGE
-#define SECRETWALLCOLORS      WALLCOLORS
-#define SECRETWALLRANGE       WALLRANGE
 #define GRIDCOLORS            (GRAYS + GRAYSRANGE/2)
-#define GRIDRANGE             0
 #define XHAIRCOLORS           GRAYS
 
-// drawing stuff
-#define FB 0
-
-#define AM_PANDOWNKEY   KEY_DOWNARROW
+// controls
 #define AM_PANUPKEY     KEY_UPARROW
-#define AM_PANRIGHTKEY  KEY_RIGHTARROW
+#define AM_PANDOWNKEY   KEY_DOWNARROW
 #define AM_PANLEFTKEY   KEY_LEFTARROW
+#define AM_PANRIGHTKEY  KEY_RIGHTARROW
+
 #define AM_ZOOMINKEY    '='
 #define AM_ZOOMOUTKEY   '-'
-#define AM_STARTKEY     KEY_TAB
-#define AM_ENDKEY       KEY_TAB
 #define AM_GOBIGKEY     '0'
+
 #define AM_FOLLOWKEY    'f'
 #define AM_GRIDKEY      'g'
+
+#define AM_TOGGLEKEY    KEY_TAB
 
 // scale on entry
 #define INITSCALEMTOF (FRACUNIT/5)
@@ -109,6 +101,9 @@ static const UINT8 NOCLIMBYELLOWS     = (11*16);
 // translates between frame-buffer and map coordinates
 #define CXMTOF(x) (f_x + MTOF((x)-m_x))
 #define CYMTOF(y) (f_y + (f_h - MTOF((y)-m_y)))
+
+#define MAPBITS (FRACBITS-4)
+#define FRACTOMAPBITS (FRACBITS-MAPBITS)
 
 typedef struct
 {
@@ -130,7 +125,10 @@ typedef struct
 // A line drawing of the player pointing right,
 //   starting from the middle.
 //
+
+#define PLAYERRADIUS (16*(1<<MAPBITS))
 #define R ((8*PLAYERRADIUS)/7)
+
 static const mline_t player_arrow[] = {
 	{ { -R+R/8, 0 }, { R, 0 } }, // -----
 	{ { R, 0 }, { R-R/2, R/4 } }, // ----->
@@ -163,25 +161,15 @@ static const mline_t thintriangle_guy[] = {
 #undef R
 #define NUMTHINTRIANGLEGUYLINES (sizeof (thintriangle_guy)/sizeof (mline_t))
 
-static INT32 bigstate; //added : 24-01-98 : moved here, toggle between
-                     // user view and large view (full map view)
-
-static INT32 grid = 0;
-
-static INT32 leveljuststarted = 1; // kluge until AM_LevelInit() is called
+static boolean bigstate;	// user view and large view (full map view)
+static boolean draw_grid = false;
 
 boolean automapactive = false;
 boolean am_recalc = false; //added : 05-02-98 : true when screen size changes
+static boolean am_stopped = true;
 
-// location of window on screen
-static INT32 f_x;
-static INT32 f_y;
-
-// size of window on screen
-static INT32 f_w;
-static INT32 f_h;
-
-static UINT32 *fb; // frame buffer
+static INT32 f_x, f_y;	// location of window on screen (always zero for both)
+static INT32 f_w, f_h;	// size of window on screen (always the screen width and height respectively)
 
 static mpoint_t m_paninc; // how far the window pans each tic (map coords)
 static fixed_t mtof_zoommul; // how far the window zooms in each tic (map coords)
@@ -205,11 +193,6 @@ static fixed_t max_y;
 static fixed_t max_w; // max_x-min_x,
 static fixed_t max_h; // max_y-min_y
 
-// based on player size
-static fixed_t min_w;
-static fixed_t min_h;
-
-
 static fixed_t min_scale_mtof; // used to tell when to stop zooming out
 static fixed_t max_scale_mtof; // used to tell when to stop zooming in
 
@@ -227,9 +210,7 @@ static fixed_t scale_ftom;
 
 static player_t *plr; // the player represented by an arrow
 
-static INT32 followplayer = 1; // specifies whether to follow the player around
-
-static boolean stopped = true;
+static INT32 followplayer = true; // specifies whether to follow the player around
 
 // function for drawing lines, depends on rendermode
 typedef void (*AMDRAWFLINEFUNC) (const fline_t *fl, INT32 color);
@@ -268,8 +249,8 @@ static inline void AM_restoreScaleAndLoc(void)
 	}
 	else
 	{
-		m_x = plr->mo->x - m_w/2;
-		m_y = plr->mo->y - m_h/2;
+		m_x = (plr->mo->x >> FRACTOMAPBITS) - m_w/2;
+		m_y = (plr->mo->y >> FRACTOMAPBITS) - m_h/2;
 	}
 	m_x2 = m_x + m_w;
 	m_y2 = m_y + m_h;
@@ -304,11 +285,8 @@ static void AM_findMinMaxBoundaries(void)
 			max_y = vertexes[i].y;
 	}
 
-	max_w = max_x - min_x;
-	max_h = max_y - min_y;
-
-	min_w = 2*PLAYERRADIUS; // const? never changed?
-	min_h = 2*PLAYERRADIUS;
+	max_w = (max_x >>= FRACTOMAPBITS) - (min_x >>= FRACTOMAPBITS);
+	max_h = (max_y >>= FRACTOMAPBITS) - (min_y >>= FRACTOMAPBITS);
 
 	a = FixedDiv(f_w<<FRACBITS, max_w);
 	b = FixedDiv(f_h<<FRACBITS, max_h);
@@ -321,7 +299,7 @@ static void AM_changeWindowLoc(void)
 {
 	if (m_paninc.x || m_paninc.y)
 	{
-		followplayer = 0;
+		followplayer = false;
 		f_oldloc.x = INT32_MAX;
 	}
 
@@ -347,8 +325,6 @@ static void AM_initVariables(void)
 	INT32 pnum;
 
 	automapactive = true;
-	fb = screen_main;
-
 	f_oldloc.x = INT32_MAX;
 
 	m_paninc.x = m_paninc.y = 0;
@@ -365,8 +341,11 @@ static void AM_initVariables(void)
 				break;
 
 	plr = &players[pnum];
-	m_x = plr->mo->x - m_w/2;
-	m_y = plr->mo->y - m_h/2;
+	if (plr != NULL && plr->mo != NULL)
+	{
+		m_x = (plr->mo->x >> FRACTOMAPBITS) - m_w/2;
+		m_y = (plr->mo->y >> FRACTOMAPBITS) - m_h/2;
+	}
 	AM_changeWindowLoc();
 
 	// for saving & restoring
@@ -382,20 +361,15 @@ static void AM_initVariables(void)
 //
 static void AM_LevelInit(void)
 {
-	leveljuststarted = 0;
-
 	f_x = f_y = 0;
 	f_w = vid.width;
 	f_h = vid.height;
 
-	if (rendermode == render_soft)
-		AM_drawFline = AM_drawFline_soft;
-#ifdef HWRENDER // not win32 only 19990829 by Kin
-	else if (rendermode != render_none)
+	AM_drawFline = AM_drawFline_soft;
+#ifdef HWRENDER
+	if (rendermode == render_opengl)
 		AM_drawFline = HWR_drawAMline;
 #endif
-	else
-		I_Error("Automap can't run without a render system");
 
 	AM_findMinMaxBoundaries();
 	scale_mtof = FixedDiv(min_scale_mtof*10, 7*FRACUNIT);
@@ -411,7 +385,7 @@ static void AM_LevelInit(void)
 void AM_Stop(void)
 {
 	automapactive = false;
-	stopped = true;
+	am_stopped = true;
 }
 
 /** Enables automap.
@@ -422,15 +396,14 @@ static inline void AM_Start(void)
 {
 	static INT32 lastlevel = -1;
 
-	if (!stopped)
+	if (!am_stopped)
 		AM_Stop();
-	stopped = false;
+	am_stopped = false;
 	if (lastlevel != gamemap || am_recalc) // screen size changed
 	{
-		am_recalc = false;
-
 		AM_LevelInit();
 		lastlevel = gamemap;
+		am_recalc = false;
 	}
 	AM_initVariables();
 }
@@ -468,7 +441,7 @@ boolean AM_Responder(event_t *ev)
 	{
 		if (!automapactive)
 		{
-			if (ev->type == ev_keydown && ev->data1 == AM_STARTKEY)
+			if (ev->type == ev_keydown && ev->data1 == AM_TOGGLEKEY)
 			{
 				//faB: prevent alt-tab in win32 version to activate automap just before
 				//     minimizing the app; doesn't do any harm to the DOS version
@@ -480,10 +453,8 @@ boolean AM_Responder(event_t *ev)
 				}
 			}
 		}
-
 		else if (ev->type == ev_keydown)
 		{
-
 			rc = true;
 			switch (ev->data1)
 			{
@@ -519,7 +490,7 @@ boolean AM_Responder(event_t *ev)
 					mtof_zoommul = M_ZOOMIN;
 					ftom_zoommul = M_ZOOMOUT;
 					break;
-				case AM_ENDKEY:
+				case AM_TOGGLEKEY:
 					AM_Stop();
 					break;
 				case AM_GOBIGKEY:
@@ -537,7 +508,7 @@ boolean AM_Responder(event_t *ev)
 					f_oldloc.x = INT32_MAX;
 					break;
 				case AM_GRIDKEY:
-					grid = !grid;
+					draw_grid = !draw_grid;
 					break;
 				default:
 					rc = false;
@@ -591,8 +562,8 @@ static inline void AM_doFollowPlayer(void)
 {
 	if (f_oldloc.x != plr->mo->x || f_oldloc.y != plr->mo->y)
 	{
-		m_x = FTOM(MTOF(plr->mo->x)) - m_w/2;
-		m_y = FTOM(MTOF(plr->mo->y)) - m_h/2;
+		m_x = FTOM(MTOF(plr->mo->x >> FRACTOMAPBITS)) - m_w/2;
+		m_y = FTOM(MTOF(plr->mo->y >> FRACTOMAPBITS)) - m_h/2;
 		m_x2 = m_x + m_w;
 		m_y2 = m_y + m_h;
 		f_oldloc.x = plr->mo->x;
@@ -628,14 +599,7 @@ void AM_Ticker(void)
   */
 static void AM_clearFB(INT32 color)
 {
-#ifdef HWRENDER
-	if (rendermode != render_soft && rendermode != render_none)
-	{
-		HWR_clearAutomap();
-		return;
-	}
-#endif
-	M_Memset32(fb, V_GetTrueColor(color), f_w*f_h*4);		// Jimita: True-color
+	V_DrawFill(f_x, f_y, f_w, f_h, color|V_NOSCALESTART);
 }
 
 /** Performs automap clipping of lines.
@@ -770,7 +734,7 @@ static boolean AM_clipMline(const mline_t *ml, fline_t *fl)
 //
 static void AM_drawFline_soft(const fline_t *fl, INT32 color)
 {
-	register INT32 x, y, dx, dy, sx, sy, ax, ay, d;
+	INT32 x, y, dx, dy, sx, sy, ax, ay, d;
 
 #ifdef _DEBUG
 	static INT32 num = 0;
@@ -786,8 +750,7 @@ static void AM_drawFline_soft(const fline_t *fl, INT32 color)
 	}
 #endif
 
-	// Jimita: True-color
-	#define PUTDOT(xx,yy,cc) fb[(yy)*f_w + (xx)] = V_GetTrueColor(cc);
+	#define PUTDOT(xx,yy,cc) V_DrawFill(xx,yy,1,1,cc|V_NOSCALESTART);
 
 	dx = fl->b.x - fl->a.x;
 	ax = 2 * (dx < 0 ? -dx : dx);
@@ -805,7 +768,7 @@ static void AM_drawFline_soft(const fline_t *fl, INT32 color)
 		d = ay - ax/2;
 		for (;;)
 		{
-			PUTDOT(x, y, color);
+			PUTDOT(x, y, color)
 			if (x == fl->b.x)
 				return;
 			if (d >= 0)
@@ -822,7 +785,7 @@ static void AM_drawFline_soft(const fline_t *fl, INT32 color)
 		d = ax - ay/2;
 		for (;;)
 		{
-			PUTDOT(x, y, color);
+			PUTDOT(x, y, color)
 			if (y == fl->b.y)
 				return;
 			if (d >= 0)
@@ -906,15 +869,15 @@ static inline void AM_drawWalls(void)
 
 	for (i = 0; i < numlines; i++)
 	{
-		l.a.x = lines[i].v1->x;
-		l.a.y = lines[i].v1->y;
-		l.b.x = lines[i].v2->x;
-		l.b.y = lines[i].v2->y;
+		l.a.x = lines[i].v1->x >> FRACTOMAPBITS;
+		l.a.y = lines[i].v1->y >> FRACTOMAPBITS;
+		l.b.x = lines[i].v2->x >> FRACTOMAPBITS;
+		l.b.y = lines[i].v2->y >> FRACTOMAPBITS;
 #ifdef ESLOPE
 #define SLOPEPARAMS(slope, end1, end2, normalheight) \
 		if (slope) { \
-			end1 = P_GetZAt(slope, l.a.x, l.a.y); \
-			end2 = P_GetZAt(slope, l.b.x, l.b.y); \
+			end1 = P_GetZAt(slope, lines[i].v1->x, lines[i].v1->y); \
+			end2 = P_GetZAt(slope, lines[i].v2->x, lines[i].v2->y); \
 		} else \
 			end1 = end2 = normalheight;
 
@@ -927,7 +890,6 @@ static inline void AM_drawWalls(void)
 #undef SLOPEPARAMS
 #endif
 
-//		AM_drawMline(&l, GRAYS + 3); // Old, everything-is-gray automap
 		if (!lines[i].backsector) // 1-sided
 		{
 			if (lines[i].flags & ML_NOCLIMB)
@@ -981,9 +943,8 @@ static inline void AM_drawWalls(void)
 #endif
 					AM_drawMline(&l, NOCLIMBCDWALLCOLORS); // ceiling level change
 				}
-				else {
+				else
 					AM_drawMline(&l, NOCLIMBTSWALLCOLORS);
-				}
 			}
 			else
 			{
@@ -1003,9 +964,8 @@ static inline void AM_drawWalls(void)
 #endif
 					AM_drawMline(&l, CDWALLCOLORS); // ceiling level change
 				}
-				else {
+				else
 					AM_drawMline(&l, TSWALLCOLORS);
-				}
 			}
 		}
 	}
@@ -1066,6 +1026,11 @@ static void AM_drawLineCharacter(const mline_t *lineguy, size_t lineguylines, fi
 		l.b.x += x;
 		l.b.y += y;
 
+		l.a.x >>= FRACTOMAPBITS;
+		l.a.y >>= FRACTOMAPBITS;
+		l.b.x >>= FRACTOMAPBITS;
+		l.b.y >>= FRACTOMAPBITS;
+
 		AM_drawMline(&l, color);
 	}
 }
@@ -1074,45 +1039,39 @@ static inline void AM_drawPlayers(void)
 {
 	INT32 i;
 	player_t *p;
-	INT32 color;
+	INT32 color = GREENS;
 
 	if (!multiplayer)
 	{
-		AM_drawLineCharacter(player_arrow, NUMPLYRLINES, 0,
-			plr->mo->angle, DWHITE, plr->mo->x, plr->mo->y);
+		AM_drawLineCharacter(player_arrow, NUMPLYRLINES, 0, plr->mo->angle, DWHITE, plr->mo->x, plr->mo->y);
 		return;
 	}
 
-	// multiplayer
+	// multiplayer (how??)
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
 		if (!playeringame[i] || players[i].spectator)
 			continue;
 
 		p = &players[i];
-		if (p->skincolor == 0)
-			color = GREENS;
-		else
+		if (p->skincolor > 0)
 			color = R_GetTranslationColormap(TC_DEFAULT, p->skincolor, GTC_CACHE)[GREENS + 8];
 
-		AM_drawLineCharacter(player_arrow, NUMPLYRLINES, 0, p->mo->angle,
-			color, p->mo->x, p->mo->y);
+		AM_drawLineCharacter(player_arrow, NUMPLYRLINES, 0, p->mo->angle, color, p->mo->x, p->mo->y);
 	}
 }
 
-static inline void AM_drawThings(INT32 colors, INT32 colorrange)
+static inline void AM_drawThings(UINT8 colors)
 {
 	size_t i;
 	mobj_t *t;
 
-	(void)colorrange;
 	for (i = 0; i < numsectors; i++)
 	{
 		t = sectors[i].thinglist;
 		while (t)
 		{
-			AM_drawLineCharacter(thintriangle_guy, NUMTHINTRIANGLEGUYLINES,
-				16<<FRACBITS, t->angle, colors, t->x, t->y);
+			AM_drawLineCharacter(thintriangle_guy, NUMTHINTRIANGLEGUYLINES, 16<<FRACBITS, t->angle, colors, t->x, t->y);
 			t = t->snext;
 		}
 	}
@@ -1122,12 +1081,9 @@ static inline void AM_drawThings(INT32 colors, INT32 colorrange)
   *
   * \param color Color for the crosshair.
   */
-static inline void AM_drawCrosshair(INT32 color)
+static inline void AM_drawCrosshair(UINT8 color)
 {
-	if (rendermode != render_soft)
-		return;
-
-	fb[(f_w*(f_h+1))/2] = V_GetTrueColor(color);		// Jimita: True-color
+	V_DrawFill(f_w/2 + f_x, f_h/2 + f_y, 1, 1, color|V_NOSCALESTART);
 }
 
 /** Draws the automap.
@@ -1138,11 +1094,10 @@ void AM_Drawer(void)
 		return;
 
 	AM_clearFB(BACKGROUND);
-	if (grid)
-		AM_drawGrid(GRIDCOLORS);
+	if (draw_grid) AM_drawGrid(GRIDCOLORS);
 	AM_drawWalls();
 	AM_drawPlayers();
-	AM_drawThings(THINGCOLORS, THINGRANGE);
+	AM_drawThings(THINGCOLORS);
 
 	AM_drawCrosshair(XHAIRCOLORS);
 }

@@ -2,7 +2,7 @@
 //-----------------------------------------------------------------------------
 // Copyright (C) 1993-1996 by id Software, Inc.
 // Copyright (C) 1998-2000 by DooM Legacy Team.
-// Copyright (C) 1999-2016 by Sonic Team Junior.
+// Copyright (C) 1999-2018 by Sonic Team Junior.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -218,21 +218,11 @@ static void ChaseCam2_OnChange(void)
 
 static void FlipCam_OnChange(void)
 {
-	if (cv_flipcam.value)
-		players[consoleplayer].pflags |= PF_FLIPCAM;
-	else
-		players[consoleplayer].pflags &= ~PF_FLIPCAM;
-
 	SendWeaponPref();
 }
 
 static void FlipCam2_OnChange(void)
 {
-	if (cv_flipcam2.value)
-		players[secondarydisplayplayer].pflags |= PF_FLIPCAM;
-	else
-		players[secondarydisplayplayer].pflags &= ~PF_FLIPCAM;
-
 	SendWeaponPref2();
 }
 
@@ -551,13 +541,11 @@ void R_SetViewSize(void)
 //
 void R_ExecuteSetViewSize(void)
 {
-	fixed_t cosadj;
 	fixed_t dy;
 	INT32 i;
 	INT32 j;
 	INT32 level;
 	INT32 startmapl;
-	INT32 aspectx;  //added : 02-02-98 : for aspect ratio calc. below...
 
 	setsizeneeded = false;
 
@@ -595,31 +583,23 @@ void R_ExecuteSetViewSize(void)
 	for (i = 0; i < viewwidth; i++)
 		screenheightarray[i] = (INT16)viewheight;
 
-	// setup sky scaling (uses pspriteyscale)
+	// setup sky scaling
 	R_SetSkyScale();
 
 	// planes
-	aspectx = centerx;
-
 	if (rendermode == render_soft)
 	{
 		// this is only used for planes rendering in software mode
-		j = viewheight*8;
+		j = viewheight*16;
 		for (i = 0; i < j; i++)
 		{
-			dy = ((i - viewheight*2)<<FRACBITS) + FRACUNIT/2;
+			dy = ((i - viewheight*8)<<FRACBITS) + FRACUNIT/2;
 			dy = abs(dy);
-			yslopetab[i] = FixedDiv(aspectx*FRACUNIT, dy);
+			yslopetab[i] = FixedDiv(centerx*FRACUNIT, dy);
 		}
 	}
 
-	for (i = 0; i < viewwidth; i++)
-	{
-		cosadj = abs(FINECOSINE(xtoviewangle[i]>>ANGLETOFINESHIFT));
-		distscale[i] = FixedDiv(FRACUNIT, cosadj);
-	}
-
-	memset    (scalelight,    0xFF, sizeof(scalelight));
+	memset(scalelight, 0xFF, sizeof(scalelight));
 	M_Memset32(scalelight_tc, 0xFF, sizeof(scalelight_tc));
 
 	// Calculate the light levels to use for each level/scale combination.
@@ -732,9 +712,136 @@ static mobj_t *viewmobj;
 // WARNING: a should be unsigned but to add with 2048, it isn't!
 #define AIMINGTODY(a) ((FINETANGENT((2048+(((INT32)a)>>ANGLETOFINESHIFT)) & FINEMASK)*160)>>FRACBITS)
 
-void R_SkyboxFrame(player_t *player)
+// recalc necessary stuff for mouseaiming
+// slopes are already calculated for the full possible view (which is 4*viewheight).
+// 18/08/18: (No it's actually 16*viewheight, thanks Jimita for finding this out)
+static void R_SetupFreelook(void)
 {
 	INT32 dy = 0;
+	if (rendermode == render_soft)
+	{
+		// clip it in the case we are looking a hardware 90 degrees full aiming
+		// (lmps, network and use F12...)
+		G_SoftwareClipAimingPitch((INT32 *)&aimingangle);
+		dy = AIMINGTODY(aimingangle) * viewwidth/BASEVIDWIDTH;
+		yslope = &yslopetab[viewheight*8 - (viewheight/2 + dy)];
+	}
+	centery = (viewheight/2) + dy;
+	centeryfrac = centery<<FRACBITS;
+}
+
+#undef AIMINGTODY
+
+void R_SetupFrame(player_t *player, boolean skybox)
+{
+	camera_t *thiscam;
+	boolean chasecam = false;
+
+	if (splitscreen && player == &players[secondarydisplayplayer]
+		&& player != &players[consoleplayer])
+	{
+		thiscam = &camera2;
+		chasecam = (cv_chasecam2.value != 0);
+	}
+	else
+	{
+		thiscam = &camera;
+		chasecam = (cv_chasecam.value != 0);
+	}
+
+	if (player->climbing || (player->pflags & PF_NIGHTSMODE) || player->playerstate == PST_DEAD)
+		chasecam = true; // force chasecam on
+	else if (player->spectator) // no spectator chasecam
+		chasecam = false; // force chasecam off
+
+	if (chasecam && !thiscam->chase)
+	{
+		P_ResetCamera(player, thiscam);
+		thiscam->chase = true;
+	}
+	else if (!chasecam)
+		thiscam->chase = false;
+
+	viewsky = !skybox;
+	if (player->awayviewtics)
+	{
+		// cut-away view stuff
+		viewmobj = player->awayviewmobj; // should be a MT_ALTVIEWMAN
+		I_Assert(viewmobj != NULL);
+		viewz = viewmobj->z + 20*FRACUNIT;
+		aimingangle = player->awayviewaiming;
+		viewangle = viewmobj->angle;
+	}
+	else if (!player->spectator && chasecam)
+	// use outside cam view
+	{
+		viewmobj = NULL;
+		viewz = thiscam->z + (thiscam->height>>1);
+		aimingangle = thiscam->aiming;
+		viewangle = thiscam->angle;
+	}
+	else
+	// use the player's eyes view
+	{
+		viewz = player->viewz;
+
+		viewmobj = player->mo;
+		I_Assert(viewmobj != NULL);
+
+		aimingangle = player->aiming;
+		viewangle = viewmobj->angle;
+
+		if (!demoplayback && player->playerstate != PST_DEAD)
+		{
+			if (player == &players[consoleplayer])
+			{
+				viewangle = localangle; // WARNING: camera uses this
+				aimingangle = localaiming;
+			}
+			else if (player == &players[secondarydisplayplayer])
+			{
+				viewangle = localangle2;
+				aimingangle = localaiming2;
+			}
+		}
+	}
+	viewz += quake.z;
+
+	viewplayer = player;
+
+	if (chasecam && !player->awayviewtics && !player->spectator)
+	{
+		viewx = thiscam->x;
+		viewy = thiscam->y;
+		viewx += quake.x;
+		viewy += quake.y;
+
+		if (thiscam->subsector)
+			viewsector = thiscam->subsector->sector;
+		else
+			viewsector = R_PointInSubsector(viewx, viewy)->sector;
+	}
+	else
+	{
+		viewx = viewmobj->x;
+		viewy = viewmobj->y;
+		viewx += quake.x;
+		viewy += quake.y;
+
+		if (viewmobj->subsector)
+			viewsector = viewmobj->subsector->sector;
+		else
+			viewsector = R_PointInSubsector(viewx, viewy)->sector;
+	}
+
+	viewsin = FINESINE(viewangle>>ANGLETOFINESHIFT);
+	viewcos = FINECOSINE(viewangle>>ANGLETOFINESHIFT);
+
+	R_SetupFreelook();
+}
+
+void R_SkyboxFrame(player_t *player)
+{
 	camera_t *thiscam;
 
 	if (splitscreen && player == &players[secondarydisplayplayer]
@@ -948,144 +1055,7 @@ void R_SkyboxFrame(player_t *player)
 	viewsin = FINESINE(viewangle>>ANGLETOFINESHIFT);
 	viewcos = FINECOSINE(viewangle>>ANGLETOFINESHIFT);
 
-	// recalc necessary stuff for mouseaiming
-	// slopes are already calculated for the full possible view (which is 4*viewheight).
-
-	if (rendermode == render_soft)
-	{
-		// clip it in the case we are looking a hardware 90 degrees full aiming
-		// (lmps, network and use F12...)
-		G_SoftwareClipAimingPitch((INT32 *)&aimingangle);
-
-		dy = AIMINGTODY(aimingangle) * viewwidth/BASEVIDWIDTH;
-
-		yslope = &yslopetab[(3*viewheight/2) - dy];
-	}
-	centery = (viewheight/2) + dy;
-	centeryfrac = centery<<FRACBITS;
-}
-
-void R_SetupFrame(player_t *player, boolean skybox)
-{
-	INT32 dy = 0;
-	camera_t *thiscam;
-	boolean chasecam = false;
-
-	if (splitscreen && player == &players[secondarydisplayplayer]
-		&& player != &players[consoleplayer])
-	{
-		thiscam = &camera2;
-		chasecam = (cv_chasecam2.value != 0);
-	}
-	else
-	{
-		thiscam = &camera;
-		chasecam = (cv_chasecam.value != 0);
-	}
-
-	if (player->climbing || (player->pflags & PF_NIGHTSMODE) || player->playerstate == PST_DEAD)
-		chasecam = true; // force chasecam on
-	else if (player->spectator) // no spectator chasecam
-		chasecam = false; // force chasecam off
-
-	if (chasecam && !thiscam->chase)
-	{
-		P_ResetCamera(player, thiscam);
-		thiscam->chase = true;
-	}
-	else if (!chasecam)
-		thiscam->chase = false;
-
-	viewsky = !skybox;
-	if (player->awayviewtics)
-	{
-		// cut-away view stuff
-		viewmobj = player->awayviewmobj; // should be a MT_ALTVIEWMAN
-		I_Assert(viewmobj != NULL);
-		viewz = viewmobj->z + 20*FRACUNIT;
-		aimingangle = player->awayviewaiming;
-		viewangle = viewmobj->angle;
-	}
-	else if (!player->spectator && chasecam)
-	// use outside cam view
-	{
-		viewmobj = NULL;
-		viewz = thiscam->z + (thiscam->height>>1);
-		aimingangle = thiscam->aiming;
-		viewangle = thiscam->angle;
-	}
-	else
-	// use the player's eyes view
-	{
-		viewz = player->viewz;
-
-		viewmobj = player->mo;
-		I_Assert(viewmobj != NULL);
-
-		aimingangle = player->aiming;
-		viewangle = viewmobj->angle;
-
-		if (!demoplayback && player->playerstate != PST_DEAD)
-		{
-			if (player == &players[consoleplayer])
-			{
-				viewangle = localangle; // WARNING: camera uses this
-				aimingangle = localaiming;
-			}
-			else if (player == &players[secondarydisplayplayer])
-			{
-				viewangle = localangle2;
-				aimingangle = localaiming2;
-			}
-		}
-	}
-	viewz += quake.z;
-
-	viewplayer = player;
-
-	if (chasecam && !player->awayviewtics && !player->spectator)
-	{
-		viewx = thiscam->x;
-		viewy = thiscam->y;
-		viewx += quake.x;
-		viewy += quake.y;
-
-		if (thiscam->subsector)
-			viewsector = thiscam->subsector->sector;
-		else
-			viewsector = R_PointInSubsector(viewx, viewy)->sector;
-	}
-	else
-	{
-		viewx = viewmobj->x;
-		viewy = viewmobj->y;
-		viewx += quake.x;
-		viewy += quake.y;
-
-		if (viewmobj->subsector)
-			viewsector = viewmobj->subsector->sector;
-		else
-			viewsector = R_PointInSubsector(viewx, viewy)->sector;
-	}
-
-	viewsin = FINESINE(viewangle>>ANGLETOFINESHIFT);
-	viewcos = FINECOSINE(viewangle>>ANGLETOFINESHIFT);
-
-	// recalc necessary stuff for mouseaiming
-	// slopes are already calculated for the full possible view (which is 4*viewheight).
-
-	if (rendermode == render_soft)
-	{
-		// clip it in the case we are looking a hardware 90 degrees full aiming
-		// (lmps, network and use F12...)
-		G_SoftwareClipAimingPitch((INT32 *)&aimingangle);
-
-		dy = AIMINGTODY(aimingangle) * viewwidth/BASEVIDWIDTH;
-
-		yslope = &yslopetab[(3*viewheight/2) - dy];
-	}
-	centery = (viewheight/2) + dy;
-	centeryfrac = centery<<FRACBITS;
+	R_SetupFreelook();
 }
 
 #define ANGLED_PORTALS

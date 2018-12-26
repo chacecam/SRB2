@@ -2,7 +2,7 @@
 //-----------------------------------------------------------------------------
 // Copyright (C) 1993-1996 by id Software, Inc.
 // Copyright (C) 1998-2000 by DooM Legacy Team.
-// Copyright (C) 1999-2016 by Sonic Team Junior.
+// Copyright (C) 1999-2018 by Sonic Team Junior.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -1119,7 +1119,6 @@ static void R_Subsector(size_t num)
 				}
 
 				light = R_GetPlaneLight(frontsector, polysec->floorheight, viewz < polysec->floorheight);
-				light = 0;
 				ffloor[numffloors].plane = R_FindPlane(polysec->floorheight, polysec->floorpic,
 						polysec->lightlevel, xoff, yoff,
 						polysec->floorpic_angle-po->angle,
@@ -1167,7 +1166,6 @@ static void R_Subsector(size_t num)
 				}
 
 				light = R_GetPlaneLight(frontsector, polysec->ceilingheight, viewz < polysec->ceilingheight);
-				light = 0;
 				ffloor[numffloors].plane = R_FindPlane(polysec->ceilingheight, polysec->ceilingpic,
 					polysec->lightlevel, xoff, yoff, polysec->ceilingpic_angle-po->angle,
 					NULL, NULL

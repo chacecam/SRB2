@@ -1,7 +1,7 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
 // Copyright (C) 1998-2000 by DooM Legacy Team.
-// Copyright (C) 1999-2016 by Sonic Team Junior.
+// Copyright (C) 1999-2018 by Sonic Team Junior.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -58,10 +58,7 @@ static boolean consoleready;  // console prompt is ready
        INT32 con_destlines; // vid lines used by console at final position
 static INT32 con_curlines;  // vid lines currently used by console
 
-       INT32 con_clipviewtop; // clip value for planes & sprites, so that the
-                            // part of the view covered by the console is not
-                            // drawn when not needed, this must be -1 when
-                            // console is off
+       INT32 con_clipviewtop; // (useless)
 
 static INT32 con_hudlines;        // number of console heads up message lines
 static INT32 con_hudtime[MAXHUDLINES];      // remaining time of display for hud msg lines
@@ -1226,12 +1223,13 @@ void CONS_Printf(const char *fmt, ...)
 	{
 #if (defined (_WINDOWS)) || (defined (__OS2__) && !defined (HAVE_SDL))
 		patch_t *con_backpic = W_CachePatchName("CONSBACK", PU_CACHE);
+		// Jimita: CON_DrawBackpic just called V_DrawScaledPatch
 		V_DrawScaledPatch(0, 0, 0, con_backpic);
+
 		W_UnlockCachedPatch(con_backpic);
-		I_LoadingScreen(txt);
+		I_LoadingScreen(txt);				// Win32/OS2 only
 #else
-		// here we display the console background and console text
-		// (no hardware accelerated support for these versions)
+		// here we display the console text
 		CON_Drawer();
 		I_FinishUpdate(); // page flip or blit buffer
 #endif
@@ -1464,7 +1462,10 @@ static void CON_DrawConsole(void)
 	if (cons_backpic.value || con_forcepic)
 	{
 		patch_t *con_backpic = W_CachePatchName("CONSBACK", PU_CACHE);
+
+		// Jimita: CON_DrawBackpic just called V_DrawScaledPatch
 		V_DrawScaledPatch(0, 0, 0, con_backpic);
+
 		W_UnlockCachedPatch(con_backpic);
 	}
 	else

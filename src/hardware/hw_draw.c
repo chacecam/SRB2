@@ -227,14 +227,14 @@ void HWR_DrawFixedPatch(GLPatch_t *gpatch, fixed_t x, fixed_t y, fixed_t pscale,
 				Z_Free(realpatch);
 			}
 			// centre screen
-			if (vid.width != BASEVIDWIDTH * vid.dupx)
+			if (fabsf((float)vid.width - (float)BASEVIDWIDTH * dupx) > 1.0E-36f)
 			{
 				if (option & V_SNAPTORIGHT)
 					cx += ((float)vid.width - ((float)BASEVIDWIDTH * dupx));
 				else if (!(option & V_SNAPTOLEFT))
 					cx += ((float)vid.width - ((float)BASEVIDWIDTH * dupx))/2;
 			}
-			if (vid.height != BASEVIDHEIGHT * vid.dupy)
+			if (fabsf((float)vid.height - (float)BASEVIDHEIGHT * dupy) > 1.0E-36f)
 			{
 				if ((option & (V_SPLITSCREEN|V_SNAPTOBOTTOM)) == (V_SPLITSCREEN|V_SNAPTOBOTTOM))
 					cy += ((float)vid.height/2 - ((float)BASEVIDHEIGHT/2 * dupy));
@@ -375,14 +375,14 @@ void HWR_DrawCroppedPatch(GLPatch_t *gpatch, fixed_t x, fixed_t y, fixed_t pscal
 				Z_Free(realpatch);
 			}
 			// centre screen
-			if (vid.width != BASEVIDWIDTH * vid.dupx)
+			if (fabsf((float)vid.width - (float)BASEVIDWIDTH * dupx) > 1.0E-36f)
 			{
 				if (option & V_SNAPTORIGHT)
 					cx += ((float)vid.width - ((float)BASEVIDWIDTH * dupx));
 				else if (!(option & V_SNAPTOLEFT))
 					cx += ((float)vid.width - ((float)BASEVIDWIDTH * dupx))/2;
 			}
-			if (vid.height != BASEVIDHEIGHT * vid.dupy)
+			if (fabsf((float)vid.height - (float)BASEVIDHEIGHT * dupy) > 1.0E-36f)
 			{
 				if ((option & (V_SPLITSCREEN|V_SNAPTOBOTTOM)) == (V_SPLITSCREEN|V_SNAPTOBOTTOM))
 					cy += ((float)vid.height/2 - ((float)BASEVIDHEIGHT/2 * dupy));
@@ -640,18 +640,6 @@ void HWR_DrawConsoleBack(UINT32 color, INT32 height)
 //                                                     AM_MAP.C DRAWING STUFF
 // ==========================================================================
 
-// Clear the automap part of the screen
-void HWR_clearAutomap(void)
-{
-	FRGBAFloat fColor = {0, 0, 0, 1};
-
-	// minx,miny,maxx,maxy
-	HWD.pfnGClipRect(0, 0, vid.width, vid.height, NZCLIP_PLANE);
-	HWD.pfnClearBuffer(true, true, &fColor);
-	HWD.pfnGClipRect(0, 0, vid.width, vid.height, NZCLIP_PLANE);
-}
-
-
 // -----------------+
 // HWR_drawAMline   : draw a line of the automap (the clipping is already done in automap code)
 // Arg              : color is a RGB 888 value
@@ -716,14 +704,14 @@ void HWR_DrawFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 color)
 		fw *= dupx;
 		fh *= dupy;
 
-		if (vid.width != BASEVIDWIDTH * vid.dupx)
+		if (fabsf((float)vid.width - (float)BASEVIDWIDTH * dupx) > 1.0E-36f)
 		{
 			if (color & V_SNAPTORIGHT)
 				fx += ((float)vid.width - ((float)BASEVIDWIDTH * dupx));
 			else if (!(color & V_SNAPTOLEFT))
 				fx += ((float)vid.width - ((float)BASEVIDWIDTH * dupx)) / 2;
 		}
-		if (vid.height != BASEVIDHEIGHT * dupy)
+		if (fabsf((float)vid.height - (float)BASEVIDHEIGHT * dupy) > 1.0E-36f)
 		{
 			// same thing here
 			if (color & V_SNAPTOBOTTOM)
