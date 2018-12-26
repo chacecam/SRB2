@@ -343,6 +343,7 @@ static INT32 Impl_SDL_Scancode_To_Keycode(SDL_Scancode code)
 
 static void SDLdoUngrabMouse(void)
 {
+	SDL_ShowCursor(SDL_ENABLE);
 	SDL_SetWindowGrab(window, SDL_FALSE);
 	wrapmouseok = SDL_FALSE;
 	SDL_SetRelativeMouseMode(SDL_FALSE);
@@ -352,6 +353,7 @@ void SDLforceUngrabMouse(void)
 {
 	if (SDL_WasInit(SDL_INIT_VIDEO)==SDL_INIT_VIDEO && window != NULL)
 	{
+		SDL_ShowCursor(SDL_ENABLE);
 		SDL_SetWindowGrab(window, SDL_FALSE);
 		wrapmouseok = SDL_FALSE;
 		SDL_SetRelativeMouseMode(SDL_FALSE);
@@ -1474,8 +1476,17 @@ void I_StartupGraphics(void)
 	realheight = (Uint16)vid.height;
 
 	VID_Command_Info_f();
-	if (!disable_mouse) SDL_ShowCursor(SDL_DISABLE);
 	SDLdoUngrabMouse();
+
+	SDL_RaiseWindow(window);
+
+	if (mousegrabok && !disable_mouse)
+	{
+		SDL_ShowCursor(SDL_DISABLE);
+		SDL_SetRelativeMouseMode(SDL_TRUE);
+		wrapmouseok = SDL_TRUE;
+		SDL_SetWindowGrab(window, SDL_TRUE);
+	}
 
 	graphics_started = true;
 }
