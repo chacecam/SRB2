@@ -816,7 +816,7 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 		boolean fuzzy = true;
 
 		// Hacked up support for alpha value in software mode Tails 09-24-2002
-		// Edited by Jimita the Cat for True-Color Mode
+		// Edited by Jimita for True-Color Mode
 		if (pfloor->alpha < 1)
 			return; // Don't even draw it
 		else if (pfloor->alpha != 255)
@@ -1314,11 +1314,8 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 				R_SetTrueColormap(walllights_tc[pindex]);
 				colormap_pointer = dc_colormap;
 
-				if (pfloor->flags & FF_FOG && pfloor->master->frontsector->extra_colormap)
-				{
+				if (pfloor->flags & FF_FOG)
 					dc_foglight = colormap_pointer-colormaps;
-					dc_colormap = pfloor->master->frontsector->extra_colormap->colormap + (dc_colormap - colormaps);
-				}
 				else if (frontsector->extra_colormap)
 				{
 					dc_colormap = frontsector->extra_colormap->colormap + (colormap_pointer - colormaps);

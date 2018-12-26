@@ -711,7 +711,7 @@ void R_DrawSinglePlane(visplane_t *pl)
 			spanfunc = R_DrawTranslucentSpan_32;
 
 			// Hacked up support for alpha value in software mode Tails 09-24-2002
-			// Edited by Jimita the Cat for True-Color Mode
+			// Edited by Jimita for True-Color Mode
 			if (pl->ffloor->alpha < 1)
 				return; // Don't even draw it
 			else if (pl->ffloor->alpha != 255)

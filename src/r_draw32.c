@@ -19,7 +19,7 @@
 // a has a constant z depth from top to bottom.
 
 /**	\brief The R_DrawColumn_32 function
-	Edited by Jimita the Cat for True-Color Mode
+	Edited by Jimita for True-Color Mode
 */
 void R_DrawColumn_32(void)
 {
@@ -334,7 +334,7 @@ void R_Draw2sMultiPatchTranslucentColumn_32(void)
 }
 
 /**	\brief The R_DrawTranslucentColumn_32 function
-	Edited by Jimita the Cat for True-Color Mode
+	Edited by Jimita for True-Color Mode
 */
 void R_DrawTranslucentColumn_32(void)
 {
@@ -424,7 +424,7 @@ void R_DrawTranslucentColumn_32(void)
 /**	\brief The R_DrawTranslatedTranslucentColumn_32 function
 	Spiffy function. Not only does it colormap a sprite, but does translucency as well.
 	Uber-kudos to Cyan Helkaraxe
-	Edited by Jimita the Cat for True-Color Mode
+	Edited by Jimita for True-Color Mode
 */
 void R_DrawTranslatedTranslucentColumn_32(void)
 {
@@ -506,7 +506,7 @@ void R_DrawTranslatedTranslucentColumn_32(void)
 }
 
 /**	\brief The R_DrawTranslatedColumn_32 function
-	Edited by Jimita the Cat for True-Color Mode
+	Edited by Jimita for True-Color Mode
 */
 void R_DrawTranslatedColumn_32(void)
 {
@@ -550,7 +550,7 @@ void R_DrawTranslatedColumn_32(void)
 
 /**	\brief The R_DrawFogSpan_32 function
 	Draws the actual span with fogging.
-	Edited by Jimita the Cat for True-Color Mode
+	Edited by Jimita for True-Color Mode
 */
 void R_DrawFogSpan_32(void)
 {
@@ -571,7 +571,6 @@ void R_DrawFogSpan_32(void)
 
 	while (count--)
 	{
-		// I'm so proud of myself :3
 		V_DrawPixelTrueColor(dest, V_BlendTrueColor(*dest, 0xFF000000, ((ds_foglight/256)*8)));
 		dest++;
 	}
@@ -579,7 +578,7 @@ void R_DrawFogSpan_32(void)
 
 /**	\brief The R_DrawFogColumn_32 function
 	Fog wall.
-	Edited by Jimita the Cat for True-Color Mode
+	Edited by Jimita for True-Color Mode
 */
 void R_DrawFogColumn_32(void)
 {
@@ -598,7 +597,6 @@ void R_DrawFogColumn_32(void)
 	dest = &topleft[dc_yl*vid.width + dc_x];
 	do
 	{
-		// I'm so proud of myself :3
 		V_DrawPixelTrueColor(dest, V_BlendTrueColor(*dest, 0xFF000000, ((dc_foglight/256)*8)));
 		dest += vid.width;
 	} while (count--);
@@ -608,7 +606,7 @@ void R_DrawFogColumn_32(void)
 	This is for 3D floors that cast shadows on walls.
 
 	This function just cuts the column up into sections and calls R_DrawColumn_32
-	Edited by Jimita the Cat for True-Color Mode
+	Edited by Jimita for True-Color Mode
 */
 void R_DrawColumnShadowed_32(void)
 {
@@ -682,7 +680,7 @@ void R_DrawColumnShadowed_32(void)
 
 /**	\brief The R_DrawSpan_32 function
 	Draws the actual span.
-	Edited by Jimita the Cat for True-Color Mode
+	Edited by Jimita for True-Color Mode
 */
 void R_DrawSpan_32 (void)
 {
@@ -779,7 +777,7 @@ void R_CalcTiltedLighting(fixed_t start, fixed_t end)
 
 
 /**	\brief The R_DrawTiltedSpan_32 function
-	Edited by Jimita the Cat for True-Color Mode
+	Edited by Jimita for True-Color Mode
 */
 void R_DrawTiltedSpan_32(void)
 {
@@ -923,7 +921,7 @@ void R_DrawTiltedSpan_32(void)
 
 /**	\brief The R_DrawTiltedTranslucentSpan_32 function
 	Like R_DrawTiltedSpan_32, but translucent
-	Edited by Jimita the Cat for True-Color Mode
+	Edited by Jimita for True-Color Mode
 */
 void R_DrawTiltedTranslucentSpan_32(void)
 {
@@ -1203,7 +1201,7 @@ void R_DrawTiltedSplat_32(void)
 
 /**	\brief The R_DrawSplat_32 function
 	Just like R_DrawSpan_32, but skips transparent pixels.
-	Edited by Jimita the Cat for True-Color Mode
+	Edited by Jimita for True-Color Mode
 */
 void R_DrawSplat_32 (void)
 {
@@ -1289,7 +1287,7 @@ void R_DrawSplat_32 (void)
 
 /**	\brief The R_DrawTranslucentSplat_32 function
 	Just like R_DrawSplat_32 but is translucent!
-	Edited by Jimita the Cat for True-Color Mode
+	Edited by Jimita for True-Color Mode
 */
 void R_DrawTranslucentSplat_32 (void)
 {
@@ -1369,7 +1367,7 @@ void R_DrawTranslucentSplat_32 (void)
 
 /**	\brief The R_DrawTranslucentSpan_32 function
 	Draws the actual span with translucency.
-	Edited by Jimita the Cat for True-Color Mode
+	Edited by Jimita for True-Color Mode
 */
 void R_DrawTranslucentSpan_32 (void)
 {

@@ -827,8 +827,8 @@ static UINT8 V_GetSWConsBackColor(void)
 		case 8:		palindex = 90;	break; 	// Orange
 		case 9:		palindex = 115;	break; 	// Gold
 		case 10:	palindex = 103;	break; 	// Yellow
-		case 11:	palindex = 160; break; 	// Emerald
-		case 12:	palindex = 184;	break; 	// Green
+		case 11:	palindex = 184; break; 	// Emerald
+		case 12:	palindex = 188;	break; 	// Green
 		case 13:	palindex = 247;	break; 	// Cyan
 		case 14:	palindex = 207;	break; 	// Steel
 		case 15:	palindex = 203;	break; 	// Periwinkle
@@ -836,7 +836,7 @@ static UINT8 V_GetSWConsBackColor(void)
 		case 17:	palindex = 196; break; 	// Purple
 		case 18:	palindex = 248; break; 	// Lavender
 		// Default green
-		default:	palindex = 184;	break; 	// Green
+		default:	palindex = 188;	break; 	// Green
 	}
 	return palindex;
 }
