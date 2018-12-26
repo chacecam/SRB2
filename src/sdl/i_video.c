@@ -71,6 +71,7 @@
 #include "../i_video.h"
 #include "../console.h"
 #include "../command.h"
+#include "../endian.h"
 #include "sdlmain.h"
 #ifdef HWRENDER
 #include "../hardware/hw_main.h"
@@ -178,7 +179,11 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen)
 	Uint32 bmask;
 	Uint32 amask;
 	int bpp = 32;
-	int sw_texture_format = SDL_PIXELFORMAT_RGBA32;
+#ifdef SRB2_BIG_ENDIAN
+	int sw_texture_format = SDL_PIXELFORMAT_RGBA8888;
+#else
+	int sw_texture_format = SDL_PIXELFORMAT_ARGB8888;
+#endif
 
 	realwidth = vid.width;
 	realheight = vid.height;
@@ -231,7 +236,6 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen)
 			SDL_DestroyTexture(texture);
 
 		bpp = 32;
-		sw_texture_format = SDL_PIXELFORMAT_RGBA32;
 		texture = SDL_CreateTexture(renderer, sw_texture_format, SDL_TEXTUREACCESS_STREAMING, width, height);
 
 		// Set up SW surface

@@ -2030,11 +2030,11 @@ INT32 heatindex[2] = { 0, 0 };
 #include "p_local.h"
 void V_DoPostProcessor(INT32 view, postimg_t type, INT32 param)
 {
+	(void)param;
 #if NUMSCREENS < 5
 	// do not enable image post processing for ARM, SH and MIPS CPUs
 	(void)view;
 	(void)type;
-	(void)param;
 #else
 	INT32 height, yoffset;
 
