@@ -279,7 +279,6 @@ static void D_Display(void)
 	}
 
 	// draw buffered stuff to screen
-	// Used only by linux GGI version
 	I_UpdateNoBlit();
 
 	// save the current screen if about to wipe
@@ -318,14 +317,12 @@ static void D_Display(void)
 		case GS_LEVEL:
 			if (!gametic)
 				break;
-			HU_Erase();
 			if (automapactive)
 				AM_Drawer();
 			break;
 
 		case GS_INTERMISSION:
 			Y_IntermissionDrawer();
-			HU_Erase();
 			HU_Drawer();
 			break;
 
@@ -340,7 +337,6 @@ static void D_Display(void)
 
 		case GS_CUTSCENE:
 			F_CutsceneDrawer();
-			HU_Erase();
 			HU_Drawer();
 			break;
 
@@ -359,7 +355,6 @@ static void D_Display(void)
 
 		case GS_CREDITS:
 			F_CreditDrawer();
-			HU_Erase();
 			HU_Drawer();
 			break;
 
@@ -383,7 +378,7 @@ static void D_Display(void)
 		{
 			if (players[displayplayer].mo || players[displayplayer].playerstate == PST_DEAD)
 			{
-				topleft = screens[0] + viewwindowy*vid.width + viewwindowx;
+				topleft = screen_main + viewwindowy*vid.width + viewwindowx;
 				objectsdrawn = 0;
 #ifdef HWRENDER
 				if (rendermode != render_soft)
@@ -407,7 +402,7 @@ static void D_Display(void)
 					viewwindowy = vid.height / 2;
 					M_Memcpy(ylookup, ylookup2, viewheight*sizeof (ylookup[0]));
 
-					topleft = screens[0] + viewwindowy*vid.width + viewwindowx;
+					topleft = screen_main + viewwindowy*vid.width + viewwindowx;
 
 					R_RenderPlayerView(&players[secondarydisplayplayer]);
 
@@ -423,6 +418,33 @@ static void D_Display(void)
 					V_DoPostProcessor(0, postimgtype, postimgparam);
 				if (postimgtype2)
 					V_DoPostProcessor(1, postimgtype2, postimgparam2);
+
+				// Jimita: True-color
+				if (players[displayplayer].flashcount)
+				{
+					UINT8 red = 0xff, green = 0xff, blue = 0xff, alpha = 0xc0;
+					// This won't change if the flash palettes are changed unfortunately, but it works for its purpose
+					if (players[displayplayer].flashpal == PAL_NUKE)
+						green = blue = 0x7F; // The nuke palette is kind of pink-ish
+					if (players[displayplayer].flashpal == 5 /*&& !strcmp(mapmd5,"1922568290d7db17210feb2f260eebeb")*/)
+						red = 0, green = 160, blue = 230, alpha = 50;
+					{
+						UINT32 *desttop = screen_main;
+						UINT32 *dest = desttop;
+						INT32 height = vid.height;
+						INT32 count, line;
+						for (;(--height >= 0) && dest < desttop+vid.width*vid.height; dest += vid.width)
+						{
+							count = vid.width;
+							line = 0;
+							while (count > 0)
+							{
+								V_DrawPixelTrueColor((dest+line), V_BlendTrueColor(*(dest+line),0xFF000000|blue<<16|green<<8|red,alpha));
+								count--; line++;
+							}
+						}
+					}
+				}
 			}
 		}
 
@@ -430,14 +452,13 @@ static void D_Display(void)
 		{
 			if (rendermode == render_soft)
 			{
-				VID_BlitLinearScreen(screens[0], screens[1], vid.width*vid.bpp, vid.height, vid.width*vid.bpp, vid.rowbytes);
+				VID_BlitLinearScreen(screen_main, screen_altblit, vid.width, vid.height);
 				usebuffer = true;
 			}
 			lastdraw = false;
 		}
 
 		ST_Drawer();
-
 		HU_Drawer();
 	}
 
@@ -470,6 +491,29 @@ static void D_Display(void)
 
 	M_Drawer(); // menu is drawn even on top of everything
 	// focus lost moved to M_Drawer
+
+	/* debugging */
+	/*int x0 = 50, y0 = 50, size = 16;
+	int x = x0, y = y0;
+	int i, count = 0;
+	for (i=0;i<256;i++)
+	{
+		int ws, hs;
+		count++;
+		for (hs=0;hs<size;hs++)
+			for (ws=0;ws<size;ws++)
+			{
+				V_DrawPixelTrueColor(screen_main + (y+hs)*vid.width + (x+ws), truecolormaps[i+(((I_GetTime()/4)%31)*256)]);
+				V_DrawPixelTrueColor(screen_main + (y+hs)*vid.width + (x+ws+270), V_GetTrueColor(colormaps[i+(((I_GetTime()/4)%31)*256)]));
+			}
+		x+=size;
+		if (count >= 16)
+		{
+			count=0;
+			y+=size;
+			x=x0;
+		}
+	}*/
 
 	//
 	// wipe update
@@ -569,8 +613,8 @@ void D_SRB2Loop(void)
 	// hack to start on a nice clear console screen.
 	COM_ImmedExecute("cls;version");
 
-	if (rendermode == render_soft)
-		V_DrawScaledPatch(0, 0, 0, (patch_t *)W_CacheLumpNum(W_GetNumForName("CONSBACK"), PU_CACHE));
+	//if (rendermode == render_soft)
+	//	V_DrawScaledPatch(0, 0, 0, (patch_t *)W_CacheLumpNum(W_GetNumForName("CONSBACK"), PU_CACHE));
 	I_FinishUpdate(); // page flip or blit buffer
 
 	for (;;)

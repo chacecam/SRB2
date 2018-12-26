@@ -19,7 +19,8 @@
 #include "w_wad.h"
 #include "z_zone.h"
 #include "m_misc.h"
-#include "i_video.h" // rendermode
+#include "i_video.h"	// rendermode
+#include "v_video.h"	// Jimita: True-color
 #include "r_things.h"
 #include "r_plane.h"
 #include "p_tick.h"
@@ -638,11 +639,7 @@ void R_DrawMaskedColumn(column_t *column)
 			// quick fix... something more proper should be done!!!
 			if (ylookup[dc_yl])
 				colfunc();
-			else if (colfunc == R_DrawColumn_8
-#ifdef USEASM
-			|| colfunc == R_DrawColumn_8_ASM || colfunc == R_DrawColumn_8_MMX
-#endif
-			)
+			else if (colfunc == R_DrawColumn_32)
 			{
 				static INT32 first = 1;
 				if (first)
@@ -709,11 +706,7 @@ static void R_DrawFlippedMaskedColumn(column_t *column, INT32 texheight)
 			// Still drawn by R_DrawColumn.
 			if (ylookup[dc_yl])
 				colfunc();
-			else if (colfunc == R_DrawColumn_8
-#ifdef USEASM
-			|| colfunc == R_DrawColumn_8_ASM || colfunc == R_DrawColumn_8_MMX
-#endif
-			)
+			else if (colfunc == R_DrawColumn_32)
 			{
 				static INT32 first = 1;
 				if (first)
@@ -770,7 +763,7 @@ static void R_DrawVisSprite(vissprite_t *vis)
 	else if (vis->mobj->color && vis->transmap) // Color mapping
 	{
 		colfunc = transtransfunc;
-		dc_transmap = vis->transmap;
+		dc_transmap = vis->transmap;	// Jimita: True-color
 		if (vis->mobj->skin && vis->mobj->sprite == SPR_PLAY) // MT_GHOST LOOKS LIKE A PLAYER SO USE THE PLAYER TRANSLATION TABLES. >_>
 		{
 			size_t skinnum = (skin_t*)vis->mobj->skin-skins;
@@ -782,7 +775,7 @@ static void R_DrawVisSprite(vissprite_t *vis)
 	else if (vis->transmap)
 	{
 		colfunc = fuzzcolfunc;
-		dc_transmap = vis->transmap;    //Fab : 29-04-98: translucency table
+		dc_transmap = vis->transmap;	// Jimita: True-color
 	}
 	else if (vis->mobj->color)
 	{
@@ -804,12 +797,22 @@ static void R_DrawVisSprite(vissprite_t *vis)
 		dc_translation = R_GetTranslationColormap(TC_DEFAULT, SKINCOLOR_BLUE, GTC_CACHE);
 	}
 
+	// Jimita: True-color
+	if (dc_colormap != NULL)
+		R_SetTrueColormap(truecolormaps + (dc_colormap - colormaps));
 	if (vis->extra_colormap)
 	{
 		if (!dc_colormap)
+		{
 			dc_colormap = vis->extra_colormap->colormap;
+			R_SetTrueColormap(vis->extra_colormap->truecolormap);
+		}
 		else
-			dc_colormap = &vis->extra_colormap->colormap[dc_colormap - colormaps];
+		{
+			UINT8 *oldcolormap = dc_colormap;
+			dc_colormap = &vis->extra_colormap->colormap[oldcolormap - colormaps];
+			R_SetTrueColormap(&vis->extra_colormap->truecolormap[oldcolormap - colormaps]);
+		}
 	}
 	if (!dc_colormap)
 		dc_colormap = colormaps;
@@ -838,15 +841,7 @@ static void R_DrawVisSprite(vissprite_t *vis)
 			vis->isScaled = true;
 		}
 		dc_texturemid = FixedDiv(dc_texturemid,this_scale);
-
-		//Oh lordy, mercy me. Don't freak out if sprites go offscreen!
-		/*if (vis->xiscale > 0)
-			frac = FixedDiv(frac, this_scale);
-		else if (vis->x1 <= 0)
-			frac = (vis->x1 - vis->x2) * vis->xiscale;*/
-
 		sprtopscreen = centeryfrac - FixedMul(dc_texturemid, spryscale);
-		//dc_hires = 1;
 	}
 
 	x1 = vis->x1;
@@ -877,6 +872,8 @@ static void R_DrawVisSprite(vissprite_t *vis)
 
 	colfunc = basecolfunc;
 	dc_hires = 0;
+	dc_truecolormap = NULL;
+	dc_transmap = 255;
 
 	vis->x1 = x1;
 	vis->x2 = x2;
@@ -906,10 +903,11 @@ static void R_DrawPrecipitationVisSprite(vissprite_t *vis)
 	if (vis->transmap)
 	{
 		colfunc = fuzzcolfunc;
-		dc_transmap = vis->transmap;    //Fab : 29-04-98: translucency table
+		dc_transmap = vis->transmap;	// Jimita: True-color
 	}
 
 	dc_colormap = colormaps;
+	dc_truecolormap = NULL;
 
 	dc_iscale = FixedDiv(FRACUNIT, vis->scale);
 	dc_texturemid = vis->texturemid;
@@ -942,6 +940,7 @@ static void R_DrawPrecipitationVisSprite(vissprite_t *vis)
 	}
 
 	colfunc = basecolfunc;
+	dc_transmap = 255;
 }
 
 //
@@ -1310,23 +1309,21 @@ static void R_ProjectSprite(mobj_t *thing)
 	//     than lumpid for sprites-in-pwad : the graphics are patched
 	vis->patch = sprframe->lumppat[rot];
 
-//
-// determine the colormap (lightlevel & special effects)
-//
-	vis->transmap = NULL;
+	// determine the transmap (lightlevel & special effects)
+	vis->transmap = 0;
 
 	// specific translucency
 	if (!cv_translucency.value)
 		; // no translucency
-	else if (thing->flags2 & MF2_SHADOW) // actually only the player should use this (temporary invisibility)
-		vis->transmap = transtables + ((tr_trans80-1)<<FF_TRANSSHIFT); // because now the translucency is set through FF_TRANSMASK
+	else if (thing->flags2 & MF2_SHADOW)
+		vis->transmap = V_AlphaTrans((vis->mobj->frame & FF_TRANSMASK)>>FF_TRANSSHIFT);
 	else if (thing->frame & FF_TRANSMASK)
-		vis->transmap = transtables + (thing->frame & FF_TRANSMASK) - 0x10000;
+		vis->transmap = V_AlphaTrans((vis->mobj->frame & FF_TRANSMASK)>>FF_TRANSSHIFT);
 
 	if (((thing->frame & FF_FULLBRIGHT) || (thing->flags2 & MF2_SHADOW))
 		&& (!vis->extra_colormap || !(vis->extra_colormap->fog & 1)))
 	{
-		// full bright: goggles
+		// full-bright
 		vis->colormap = colormaps;
 	}
 	else
@@ -1515,10 +1512,9 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	vis->patch = sprframe->lumppat[0];
 
 	// specific translucency
+	vis->transmap = 0;
 	if (thing->frame & FF_TRANSMASK)
-		vis->transmap = (thing->frame & FF_TRANSMASK) - 0x10000 + transtables;
-	else
-		vis->transmap = NULL;
+		vis->transmap = V_AlphaTrans((thing->frame & FF_TRANSMASK)>>FF_TRANSSHIFT);
 
 	vis->mobjflags = 0;
 	vis->cut = SC_NONE;

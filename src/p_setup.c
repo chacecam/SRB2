@@ -1400,17 +1400,17 @@ static void P_LoadSideDefs2(lumpnum_t lumpnum)
 		// Colormaps!
 		switch (sd->special)
 		{
-			case 63: // variable colormap via 242 linedef
-			case 606: //SoM: 4/4/2000: Just colormap transfer
-				// SoM: R_CreateColormap will only create a colormap in software mode...
-				// Perhaps we should just call it instead of doing the calculations here.
+			case 63:
+			case 606:
 				if (rendermode == render_soft || rendermode == render_none)
 				{
+					boolean found = false;
 					if (msd->toptexture[0] == '#' || msd->bottomtexture[0] == '#')
 					{
 						sec->midmap = R_CreateColormap(msd->toptexture, msd->midtexture,
 							msd->bottomtexture);
 						sd->toptexture = sd->bottomtexture = 0;
+						found = true;
 					}
 					else
 					{
@@ -1427,19 +1427,15 @@ static void P_LoadSideDefs2(lumpnum_t lumpnum)
 						else
 							sd->bottomtexture = num;
 					}
-					break;
-				}
-#ifdef HWRENDER
-				else
-				{
-					// for now, full support of toptexture only
+
+					// Jimita: True-color
 					if ((msd->toptexture[0] == '#' && msd->toptexture[1] && msd->toptexture[2] && msd->toptexture[3] && msd->toptexture[4] && msd->toptexture[5] && msd->toptexture[6])
 						|| (msd->bottomtexture[0] == '#' && msd->bottomtexture[1] && msd->bottomtexture[2] && msd->bottomtexture[3] && msd->bottomtexture[4] && msd->bottomtexture[5] && msd->bottomtexture[6]))
 					{
 						char *col;
+						if (!found)
+							sec->midmap = R_CreateColormap(msd->toptexture, msd->midtexture, msd->bottomtexture);
 
-						sec->midmap = R_CreateColormap(msd->toptexture, msd->midtexture,
-							msd->bottomtexture);
 						sd->toptexture = sd->bottomtexture = 0;
 #define HEX2INT(x) (x >= '0' && x <= '9' ? x - '0' : x >= 'a' && x <= 'f' ? x - 'a' + 10 : x >= 'A' && x <= 'F' ? x - 'A' + 10 : 0)
 #define ALPHA2INT(x) (x >= 'a' && x <= 'z' ? x - 'a' : x >= 'A' && x <= 'Z' ? x - 'A' : x >= '0' && x <= '9' ? 25 : 0)
@@ -1502,8 +1498,6 @@ static void P_LoadSideDefs2(lumpnum_t lumpnum)
 					}
 					break;
 				}
-#endif
-
 			case 413: // Change music
 			{
 				char process[8+1];

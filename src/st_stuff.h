@@ -59,7 +59,6 @@ boolean ST_SameTeam(player_t *a, player_t *b);
 
 extern boolean st_overlay; // sb overlay on or off when fullscreen
 
-extern lumpnum_t st_borderpatchnum;
 // patches, also used in intermission
 extern patch_t *tallnum[10];
 extern patch_t *sboscore;
@@ -122,5 +121,6 @@ typedef enum
 extern hudinfo_t hudinfo[NUMHUDITEMS];
 
 extern UINT16 objectsdrawn;
+extern INT32 st_palette;
 
 #endif

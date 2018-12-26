@@ -75,7 +75,7 @@ extern INT16 *lastopening, *openings;
 extern size_t maxopenings;
 
 extern INT16 floorclip[MAXVIDWIDTH], ceilingclip[MAXVIDWIDTH];
-extern fixed_t frontscale[MAXVIDWIDTH], yslopetab[MAXVIDHEIGHT*4];
+extern fixed_t frontscale[MAXVIDWIDTH], yslopetab[MAXVIDHEIGHT*8];
 extern fixed_t cachedheight[MAXVIDHEIGHT];
 extern fixed_t cacheddistance[MAXVIDHEIGHT];
 extern fixed_t cachedxstep[MAXVIDHEIGHT];
@@ -83,6 +83,9 @@ extern fixed_t cachedystep[MAXVIDHEIGHT];
 extern fixed_t basexscale, baseyscale;
 
 extern lighttable_t **planezlight;
+
+// Jimita: True-color
+extern lighttable32_t **planezlight_tc;
 
 extern fixed_t *yslope;
 extern fixed_t distscale[MAXVIDWIDTH];

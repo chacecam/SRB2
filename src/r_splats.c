@@ -360,7 +360,7 @@ static void R_RenderFloorSplat(floorsplat_t *pSplat, vertex_t *verts, UINT8 *pTe
 	fixed_t offsetx, offsety;
 
 #ifdef FLOORSPLATSOLIDCOLOR
-	UINT8 *pDest;
+	UINT32 *pDest;
 	INT32 tdx, tdy, ty, tx, x;
 #else
 	lighttable_t **planezlight;
@@ -496,14 +496,13 @@ static void R_RenderFloorSplat(floorsplat_t *pSplat, vertex_t *verts, UINT8 *pTe
 		indexr = distance >> LIGHTZSHIFT;
 		if (indexr >= MAXLIGHTZ)
 			indexr = MAXLIGHTZ - 1;
-		ds_colormap = planezlight[indexr];
 
 		ds_y = y;
 		if (x2 >= x1) // sanity check
 		{
 			ds_x1 = x1;
 			ds_x2 = x2;
-			ds_transmap = transtables + ((tr_trans50-1)<<FF_TRANSSHIFT);
+			ds_transmap = V_AlphaTrans(tr_trans50);
 			splatfunc();
 		}
 

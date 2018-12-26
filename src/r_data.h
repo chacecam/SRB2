@@ -21,6 +21,9 @@
 #pragma interface
 #endif
 
+// Jimita
+UINT8 NearestColor(UINT8 r, UINT8 g, UINT8 b);
+
 // moved here for r_sky.c (texpatch_t is used)
 
 // A single patch from a texture definition,
@@ -53,11 +56,7 @@ extern texture_t **textures;
 
 // texture width is a power of 2, so it can easily repeat along sidedefs using a simple mask
 extern INT32 *texturewidthmask;
-
 extern fixed_t *textureheight; // needed for texture pegging
-
-extern INT16 color8to16[256]; // remap color index to highcolor
-extern INT16 *hicolormaps; // remap high colors to high colors..
 
 extern CV_PossibleValue_t Color_cons_t[];
 
@@ -88,6 +87,11 @@ lumpnum_t R_GetFlatNumForName(const char *name);
 void R_ClearTextureNumCache(boolean btell);
 INT32 R_TextureNumForName(const char *name);
 INT32 R_CheckTextureNumForName(const char *name);
+
+// Jimita: True-color
+void R_InitColormapsTC(UINT8 palindex);
+void R_SetTrueColormap(UINT32 *colormap);
+void R_SetTrueColormapDS(UINT32 *colormap);
 
 void R_ReInitColormaps(UINT16 num);
 void R_ClearColormaps(void);

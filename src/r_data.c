@@ -111,16 +111,14 @@ INT32 *texturetranslation;
 // needed for pre rendering
 sprcache_t *spritecachedinfo;
 
-lighttable_t *colormaps;
+lighttable_t   *colormaps;
+lighttable32_t *truecolormaps;
+size_t colormap_size;
 
 // for debugging/info purposes
 static size_t flatmemory, spritememory, texturememory;
 
-// highcolor stuff
-INT16 color8to16[256]; // remap color index to highcolor rgb value
-INT16 *hicolormaps; // test a 32k colormap remaps high -> high
-
-// Painfully simple texture id cacheing to make maps load faster. :3
+// Painfully simple texture id caching to make maps load faster. :3
 static struct {
 	char name[9];
 	INT32 id;
@@ -1001,6 +999,24 @@ static void R_InitSpriteLumps(void)
 	Z_Malloc(max_spritelumps*sizeof(*spritecachedinfo), PU_STATIC, &spritecachedinfo);
 }
 
+// Jimita: True-color
+void R_InitColormapsTC(UINT8 palindex)
+{
+	int color, row, alpha = 255;
+	UINT32 fadecolor = V_GetTrueColor(palindex);
+
+	if (truecolormaps) Z_Free(truecolormaps);
+	truecolormaps = Z_MallocAlign(colormap_size*4, PU_STATIC, NULL, 32);
+
+	for (row = 0; row < 34; row++)
+	{
+		for (color = 0; color < 256; color++)
+			truecolormaps[color + (row * 256)] = V_BlendTrueColor(fadecolor,V_GetTrueColor(color),alpha);
+			//truecolormaps[color + (row * 256)] = V_GetTrueColor(colormaps[color + (row * 256)]);
+		alpha -= 8;
+	}
+}
+
 //
 // R_InitColormaps
 //
@@ -1010,12 +1026,16 @@ static void R_InitColormaps(void)
 
 	// Load in the light tables
 	lump = W_GetNumForName("COLORMAP");
-	colormaps = Z_MallocAlign(W_LumpLength (lump), PU_STATIC, NULL, 8);
+	colormap_size = W_LumpLength(lump);
+	colormaps = Z_MallocAlign(colormap_size, PU_STATIC, NULL, 8);
 	W_ReadLump(lump, colormaps);
 
 	// Init Boom colormaps.
 	R_ClearColormaps();
 	R_InitExtraColormaps();
+
+	// Jimita: True-color
+	R_InitColormapsTC(colormaps[(31*256)+31]);
 }
 
 void R_ReInitColormaps(UINT16 num)
@@ -1026,7 +1046,7 @@ void R_ReInitColormaps(UINT16 num)
 	if (num > 0 && num <= 10000)
 		snprintf(colormap, 8, "CLM%04u", num-1);
 
-	// Load in the light tables, now 64k aligned for smokie...
+	// Load in the light tables
 	lump = W_GetNumForName(colormap);
 	if (lump == LUMPERROR)
 		lump = W_GetNumForName("COLORMAP");
@@ -1034,6 +1054,9 @@ void R_ReInitColormaps(UINT16 num)
 
 	// Init Boom colormaps.
 	R_ClearColormaps();
+
+	// Jimita: True-color
+	R_InitColormapsTC(colormaps[(31*256)+31]);
 }
 
 static lumpnum_t foundcolormaps[MAXCOLORMAPS];
@@ -1089,6 +1112,21 @@ INT32 R_ColormapNumForName(char *name)
 	return (INT32)num_extra_colormaps - 1;
 }
 
+// Jimita: True-color
+void R_SetTrueColormap(UINT32 *colormap)
+{
+	dc_truecolormap = colormap;
+	if (!cv_truecolormaps.value)
+		dc_truecolormap = NULL;
+}
+
+void R_SetTrueColormapDS(UINT32 *colormap)
+{
+	ds_truecolormap = colormap;
+	if (!cv_truecolormaps.value)
+		ds_truecolormap = NULL;
+}
+
 //
 // R_CreateColormap
 //
@@ -1098,8 +1136,6 @@ INT32 R_ColormapNumForName(char *name)
 // data and not the colormap data.
 //
 static double deltas[256][3], map[256][3];
-
-static UINT8 NearestColor(UINT8 r, UINT8 g, UINT8 b);
 static int RoundUp(double number);
 
 INT32 R_CreateColormap(char *p1, char *p2, char *p3)
@@ -1208,6 +1244,8 @@ INT32 R_CreateColormap(char *p1, char *p2, char *p3)
 		double r, g, b, cbrightness;
 		int p;
 		char *colormap_p;
+		// Jimita: True-color
+		UINT32 *colormap_p32;
 
 		// Initialise the map and delta arrays
 		// map[i] stores an RGB color (as double) for index i,
@@ -1241,16 +1279,27 @@ INT32 R_CreateColormap(char *p1, char *p2, char *p3)
 		colormap_p = Z_MallocAlign((256 * 34) + 10, PU_LEVEL, NULL, 8);
 		extra_colormaps[mapnum].colormap = (UINT8 *)colormap_p;
 
+		// Jimita: True-color
+		colormap_p32 = Z_MallocAlign(((256 * 34) + 10) * 4, PU_LEVEL, NULL, 32);
+		extra_colormaps[mapnum].truecolormap = (UINT32 *)colormap_p32;
+
 		// Calculate the palette index for each palette index, for each light level
 		// (as well as the two unused colormap lines we inherited from Doom)
 		for (p = 0; p < 34; p++)
 		{
 			for (i = 0; i < 256; i++)
 			{
-				*colormap_p = NearestColor((UINT8)RoundUp(map[i][0]),
-					(UINT8)RoundUp(map[i][1]),
-					(UINT8)RoundUp(map[i][2]));
+				UINT32 rgb_color = 0xFF000000;
+
+				*colormap_p = NearestColor((UINT8)RoundUp(map[i][0]), (UINT8)RoundUp(map[i][1]), (UINT8)RoundUp(map[i][2]));
 				colormap_p++;
+
+				// Jimita: True-color
+				rgb_color |= (RoundUp(map[i][2]) & 255) << 16;
+				rgb_color |= (RoundUp(map[i][1]) & 255) << 8;
+				rgb_color |= (RoundUp(map[i][0]) & 255);
+				*colormap_p32 = rgb_color;
+				colormap_p32++;
 
 				if ((UINT32)p < fadestart)
 					continue;
@@ -1279,7 +1328,7 @@ INT32 R_CreateColormap(char *p1, char *p2, char *p3)
 
 // Thanks to quake2 source!
 // utils3/qdata/images.c
-static UINT8 NearestColor(UINT8 r, UINT8 g, UINT8 b)
+UINT8 NearestColor(UINT8 r, UINT8 g, UINT8 b)
 {
 	int dr, dg, db;
 	int distortion, bestdistortion = 256 * 256 * 4, bestcolor = 0, i;
@@ -1331,41 +1380,6 @@ const char *R_ColormapNameForNum(INT32 num)
 	return W_CheckNameForNum(foundcolormaps[num]);
 }
 
-
-//
-// build a table for quick conversion from 8bpp to 15bpp
-//
-
-//
-// added "static inline" keywords, linking with the debug version
-// of allegro, it have a makecol15 function of it's own, now
-// with "static inline" keywords,it sloves this problem ;)
-//
-FUNCMATH static inline int makecol15(int r, int g, int b)
-{
-	return (((r >> 3) << 10) | ((g >> 3) << 5) | ((b >> 3)));
-}
-
-static void R_Init8to16(void)
-{
-	UINT8 *palette;
-	int i;
-
-	palette = W_CacheLumpName("PLAYPAL",PU_CACHE);
-
-	for (i = 0; i < 256; i++)
-	{
-		// PLAYPAL uses 8 bit values
-		color8to16[i] = (INT16)makecol15(palette[0], palette[1], palette[2]);
-		palette += 3;
-	}
-
-	// test a big colormap
-	hicolormaps = Z_Malloc(16384*sizeof(*hicolormaps), PU_STATIC, NULL);
-	for (i = 0; i < 16384; i++)
-		hicolormaps[i] = (INT16)(i<<1);
-}
-
 //
 // R_InitData
 //
@@ -1374,12 +1388,6 @@ static void R_Init8to16(void)
 //
 void R_InitData(void)
 {
-	if (highcolor)
-	{
-		CONS_Printf("InitHighColor...\n");
-		R_Init8to16();
-	}
-
 	CONS_Printf("R_LoadTextures()...\n");
 	R_LoadTextures();
 

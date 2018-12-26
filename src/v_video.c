@@ -25,18 +25,25 @@
 #include "m_misc.h"
 #include "m_random.h"
 #include "doomstat.h"
+#include "st_stuff.h"	// Jimita: st_palette
 
 #ifdef HWRENDER
 #include "hardware/hw_glob.h"
 #endif
 
-// Each screen is [vid.width*vid.height];
-UINT8 *screens[5];
-// screens[0] = main display window
-// screens[1] = back screen, alternative blitting
-// screens[2] = screenshot buffer, gif movie buffer
-// screens[3] = fade screen start
-// screens[4] = fade screen end, postimage tempoarary buffer
+// Jimita
+// screen_main = main display window
+// screen_altblit = back screen, alternative blitting
+// screen_sshotbuffer = screenshot buffer, gif movie buffer
+// screen_fadestart = fade screen start
+// screen_fadeend = fade screen end
+// screen_postimage = postimage tempoarary buffer
+UINT32 *screen_main;
+UINT32 *screen_altblit;
+UINT32 *screen_sshotbuffer;
+UINT32 *screen_fadestart;
+UINT32 *screen_fadeend;
+UINT32 *screen_postimage;
 
 static CV_PossibleValue_t gamma_cons_t[] = {{0, "MIN"}, {4, "MAX"}, {0, NULL}};
 static void CV_usegamma_OnChange(void);
@@ -255,6 +262,8 @@ static void CV_usegamma_OnChange(void)
 	// reload palette
 	LoadMapPalette();
 	V_SetPalette(0);
+	if (colormaps)
+		R_InitColormapsTC(colormaps[(31*256)+31]);
 }
 
 // change the palette directly to see the change
@@ -266,95 +275,98 @@ static void CV_Gammaxxx_ONChange(void)
 }
 #endif
 
-
-#if defined (__GNUC__) && defined (__i386__) && !defined (NOASM) && !defined (__APPLE__) && !defined (NORUSEASM)
-void VID_BlitLinearScreen_ASM(const UINT8 *srcptr, UINT8 *destptr, INT32 width, INT32 height, size_t srcrowbytes,
-	size_t destrowbytes);
-#define HAVE_VIDCOPY
-#endif
-
 static void CV_constextsize_OnChange(void)
 {
 	con_recalc = true;
 }
 
-
-// --------------------------------------------------------------------------
-// Copy a rectangular area from one bitmap to another (8bpp)
-// --------------------------------------------------------------------------
-void VID_BlitLinearScreen(const UINT8 *srcptr, UINT8 *destptr, INT32 width, INT32 height, size_t srcrowbytes,
-	size_t destrowbytes)
+// ==========================================================================
+//         Copy a rectangular area from one bitmap to another (32bpp)
+// ==========================================================================
+void VID_BlitLinearScreen(UINT32 *srcptr, UINT32 *destptr, INT32 width, INT32 height)
 {
-#ifdef HAVE_VIDCOPY
-    VID_BlitLinearScreen_ASM(srcptr,destptr,width,height,srcrowbytes,destrowbytes);
-#else
-	if (srcrowbytes == destrowbytes)
-		M_Memcpy(destptr, srcptr, srcrowbytes * height);
-	else
-	{
-		while (height--)
-		{
-			M_Memcpy(destptr, srcptr, width);
+	M_Memcpy(destptr, srcptr, (width*4) * height);
+}
 
-			destptr += destrowbytes;
-			srcptr += srcrowbytes;
-		}
+// Jimita: True-color
+UINT32 V_GetTrueColor(INT32 c)
+{
+	RGBA_t rgba = (st_palette > 0) ? V_GetColorPal(c,st_palette) : V_GetColor(c);
+	return 0xFF000000|((rgba.s.blue&0xff)<<16)|((rgba.s.green&0xff)<<8)|(rgba.s.red&0xff);
+}
+
+// Jimita: True-color
+UINT32 V_BlendTrueColor(UINT32 bg, UINT32 fg, UINT8 alpha)
+{
+	return (alpha==255) ? fg : 0xFF000000|(((((bg>>16)&0xff)*(0xff-alpha))+(((fg>>16)&0xff)*alpha))>>8)<<16|(((((bg>>8)&0xff)*(0xff-alpha))+(((fg>>8)&0xff)*alpha))>>8)<<8|((((bg&0xff)*(0xff-alpha))+((fg&0xff)*alpha))>>8);
+}
+
+// Jimita: True-color
+void V_DrawPixelTrueColor(UINT32 *dest, UINT32 rgb_color)
+{
+	*dest = rgb_color;
+}
+
+// Jimita: True-color
+UINT32 V_TrueColormapRGBA(INT32 c)
+{
+	return dc_truecolormap[c];
+}
+
+// Jimita: True-color
+UINT32 V_TrueColormapRGBA_DS(INT32 c)
+{
+	return ds_truecolormap[c];
+}
+
+// Jimita: True-color
+UINT8 V_AlphaTrans(INT32 num)
+{
+	if (!cv_translucency.value) return 0;
+	switch (num)
+	{
+		case tr_trans10: return 0xe6;
+		case tr_trans20: return 0xcc;
+		case tr_trans30: return 0xb3;
+		case tr_trans40: return 0x99;
+		case tr_trans50: return 0x80;		// 128
+		case tr_trans60: return 0x66;
+		case tr_trans70: return 0x4c;
+		case tr_trans80: return 0x33;
+		case tr_trans90: return 0x19;
 	}
-#endif
+	return 0;
 }
 
 static UINT8 hudplusalpha[11]  = { 10,  8,  6,  4,  2,  0,  0,  0,  0,  0,  0};
 static UINT8 hudminusalpha[11] = { 10,  9,  9,  8,  8,  7,  7,  6,  6,  5,  5};
 
-static const UINT8 *v_colormap = NULL;
-static const UINT8 *v_translevel = NULL;
-
-static inline UINT8 standardpdraw(const UINT8 *dest, const UINT8 *source, fixed_t ofs)
-{
-	(void)dest; return source[ofs>>FRACBITS];
-}
-static inline UINT8 mappedpdraw(const UINT8 *dest, const UINT8 *source, fixed_t ofs)
-{
-	(void)dest; return *(v_colormap + source[ofs>>FRACBITS]);
-}
-static inline UINT8 translucentpdraw(const UINT8 *dest, const UINT8 *source, fixed_t ofs)
-{
-	return *(v_translevel + ((source[ofs>>FRACBITS]<<8)&0xff00) + (*dest&0xff));
-}
-static inline UINT8 transmappedpdraw(const UINT8 *dest, const UINT8 *source, fixed_t ofs)
-{
-	return *(v_translevel + (((*(v_colormap + source[ofs>>FRACBITS]))<<8)&0xff00) + (*dest&0xff));
-}
-
 // Draws a patch scaled to arbitrary size.
 void V_DrawFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_t *patch, const UINT8 *colormap)
 {
-	UINT8 (*patchdrawfunc)(const UINT8*, const UINT8*, fixed_t);
 	UINT32 alphalevel = 0;
 
 	fixed_t col, ofs, colfrac, rowfrac, fdup;
 	INT32 dupx, dupy;
-	const column_t *column;
-	UINT8 *desttop, *dest, *deststart, *destend;
-	const UINT8 *source, *deststop;
 	fixed_t pwidth; // patch width
 	fixed_t offx = 0; // x offset
+
+	UINT32 *screen, *desttop, *dest, *deststart, *destend, *deststop;
+	const UINT8 *source;
+	const column_t *column;
 
 	if (rendermode == render_none)
 		return;
 
 #ifdef HWRENDER
 	// oh please
-	if (rendermode != render_soft && !con_startup)
+	if (rendermode == render_opengl)
 	{
 		HWR_DrawFixedPatch((GLPatch_t *)patch, x, y, pscale, scrn, colormap);
 		return;
 	}
 #endif
 
-	patchdrawfunc = standardpdraw;
-
-	v_translevel = NULL;
 	if ((alphalevel = ((scrn & V_ALPHAMASK) >> V_ALPHASHIFT)))
 	{
 		if (alphalevel == 13)
@@ -368,17 +380,7 @@ void V_DrawFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_t 
 			return; // invis
 	}
 	if (alphalevel)
-	{
-		v_translevel = transtables + ((alphalevel-1)<<FF_TRANSSHIFT);
-		patchdrawfunc = translucentpdraw;
-	}
-
-	v_colormap = NULL;
-	if (colormap)
-	{
-		v_colormap = colormap;
-		patchdrawfunc = (v_translevel) ? transmappedpdraw : mappedpdraw;
-	}
+		alphalevel = V_AlphaTrans(alphalevel);
 
 	dupx = vid.dupx;
 	dupy = vid.dupy;
@@ -436,12 +438,13 @@ void V_DrawFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_t 
 	if (scrn & V_SPLITSCREEN)
 		y>>=1;
 
-	desttop = screens[scrn&V_PARAMMASK];
+	// Jimita
+	screen = screen_main;
+	if ((scrn&V_PARAMMASK) == 1)
+		screen = screen_altblit;
 
-	if (!desttop)
-		return;
-
-	deststop = desttop + vid.rowbytes * vid.height;
+	desttop = screen;
+	deststop = desttop + vid.width * vid.height;
 
 	if (scrn & V_NOSCALESTART)
 	{
@@ -536,8 +539,15 @@ void V_DrawFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_t 
 
 			for (ofs = 0; dest < deststop && (ofs>>FRACBITS) < column->length; ofs += rowfrac)
 			{
-				if (dest >= screens[scrn&V_PARAMMASK]) // don't draw off the top of the screen (CRASH PREVENTION)
-					*dest = patchdrawfunc(dest, source, ofs);
+				if (dest >= screen) // don't draw off the top of the screen (CRASH PREVENTION)
+				{
+					// Jimita: True-color
+					UINT32 pixel = source[ofs>>FRACBITS];
+					if (colormap) pixel = colormap[pixel];									// apply colormap
+					pixel = V_GetTrueColor(pixel);											// convert to truecolor
+					if (alphalevel) pixel = V_BlendTrueColor(*dest, pixel, alphalevel);		// apply alpha compositing
+					V_DrawPixelTrueColor(dest, pixel);
+				}
 				dest += vid.width;
 			}
 			column = (const column_t *)((const UINT8 *)column + column->length + 4);
@@ -550,9 +560,10 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 {
 	fixed_t col, ofs, colfrac, rowfrac, fdup;
 	INT32 dupx, dupy;
+	UINT32 *screen, *desttop, *deststop, *dest;
+
+	const UINT8 *source;
 	const column_t *column;
-	UINT8 *desttop, *dest;
-	const UINT8 *source, *deststop;
 
 	if (rendermode == render_none)
 		return;
@@ -575,14 +586,16 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 	y -= FixedMul(SHORT(patch->topoffset)<<FRACBITS, pscale);
 	x -= FixedMul(SHORT(patch->leftoffset)<<FRACBITS, pscale);
 
-	desttop = screens[scrn&V_PARAMMASK];
+	// Jimita
+	screen = screen_main;
+	if ((scrn&V_PARAMMASK) == 1)
+		screen = screen_altblit;
 
-	if (!desttop)
-		return;
+	desttop = screen;
+	deststop = desttop + vid.width * vid.height;
 
-	deststop = desttop + vid.rowbytes * vid.height;
-
-	if (scrn & V_NOSCALESTART) {
+	if (scrn & V_NOSCALESTART)
+	{
 		x >>= FRACBITS;
 		y >>= FRACBITS;
 		desttop += (y*vid.width) + x;
@@ -647,8 +660,9 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 
 			for (ofs = sy<<FRACBITS; dest < deststop && (ofs>>FRACBITS) < column->length && (ofs>>FRACBITS) < h; ofs += rowfrac)
 			{
-				if (dest >= screens[scrn&V_PARAMMASK]) // don't draw off the top of the screen (CRASH PREVENTION)
-					*dest = source[ofs>>FRACBITS];
+				if (dest >= screen) // don't draw off the top of the screen (CRASH PREVENTION)
+					// Jimita: True-color
+					V_DrawPixelTrueColor(dest, V_GetTrueColor(source[ofs>>FRACBITS]));
 				dest += vid.width;
 			}
 			column = (const column_t *)((const UINT8 *)column + column->length + 4);
@@ -679,18 +693,18 @@ void V_DrawContinueIcon(INT32 x, INT32 y, INT32 flags, INT32 skinnum, UINT8 skin
 // V_DrawBlock
 // Draw a linear block of pixels into the view buffer.
 //
-void V_DrawBlock(INT32 x, INT32 y, INT32 scrn, INT32 width, INT32 height, const UINT8 *src)
+void V_DrawBlock(INT32 x, INT32 y, UINT32 *screen, INT32 width, INT32 height, const UINT32 *src)
 {
-	UINT8 *dest;
-	const UINT8 *deststop;
+	UINT32 *dest;
+	const UINT32 *deststop;
 
 #ifdef RANGECHECK
-	if (x < 0 || x + width > vid.width || y < 0 || y + height > vid.height || (unsigned)scrn > 4)
+	if (x < 0 || x + width > vid.width || y < 0 || y + height > vid.height)
 		I_Error("Bad V_DrawBlock");
 #endif
 
-	dest = screens[scrn] + y*vid.width + x;
-	deststop = screens[scrn] + vid.rowbytes * vid.height;
+	dest = screen + y*vid.width + x;
+	deststop = screen + vid.width * vid.height;
 
 	while (height--)
 	{
@@ -703,68 +717,17 @@ void V_DrawBlock(INT32 x, INT32 y, INT32 scrn, INT32 width, INT32 height, const 
 	}
 }
 
-static void V_BlitScaledPic(INT32 px1, INT32 py1, INT32 scrn, pic_t *pic);
-//  Draw a linear pic, scaled, TOTALLY CRAP CODE!!! OPTIMISE AND ASM!!
-//
-void V_DrawScaledPic(INT32 rx1, INT32 ry1, INT32 scrn, INT32 lumpnum)
-{
-#ifdef HWRENDER
-	if (rendermode != render_soft)
-	{
-		HWR_DrawPic(rx1, ry1, lumpnum);
-		return;
-	}
-#endif
-
-	V_BlitScaledPic(rx1, ry1, scrn, W_CacheLumpNum(lumpnum, PU_CACHE));
-}
-
-static void V_BlitScaledPic(INT32 rx1, INT32 ry1, INT32 scrn, pic_t * pic)
-{
-	INT32 dupx, dupy;
-	INT32 x, y;
-	UINT8 *src, *dest;
-	INT32 width, height;
-
-	width = SHORT(pic->width);
-	height = SHORT(pic->height);
-	scrn &= V_PARAMMASK;
-
-	if (pic->mode != 0)
-	{
-		CONS_Debug(DBG_RENDER, "pic mode %d not supported in Software\n", pic->mode);
-		return;
-	}
-
-	dest = screens[scrn] + max(0, ry1 * vid.width) + max(0, rx1);
-	// y cliping to the screen
-	if (ry1 + height * vid.dupy >= vid.width)
-		height = (vid.width - ry1) / vid.dupy - 1;
-	// WARNING no x clipping (not needed for the moment)
-
-	for (y = max(0, -ry1 / vid.dupy); y < height; y++)
-	{
-		for (dupy = vid.dupy; dupy; dupy--)
-		{
-			src = pic->data + y * width;
-			for (x = 0; x < width; x++)
-			{
-				for (dupx = vid.dupx; dupx; dupx--)
-					*dest++ = *src;
-				src++;
-			}
-			dest += vid.width - vid.dupx * width;
-		}
-	}
-}
-
 //
 // Fills a box of pixels with a single color, NOTE: scaled to screen size
 //
 void V_DrawFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c)
 {
-	UINT8 *dest;
-	const UINT8 *deststop;
+	UINT32 *dest;
+	const UINT32 *deststop;
+
+	// Jimita: True-color
+	int count = w, line = 0;
+	UINT32 rgb_color = V_GetTrueColor(c);
 
 	if (rendermode == render_none)
 		return;
@@ -781,9 +744,10 @@ void V_DrawFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c)
 	{
 		INT32 dupx = vid.dupx, dupy = vid.dupy;
 
+		// Clear the entire screen, from dest to deststop. Yes, this really works.
 		if (x == 0 && y == 0 && w == BASEVIDWIDTH && h == BASEVIDHEIGHT)
-		{ // Clear the entire screen, from dest to deststop. Yes, this really works.
-			memset(screens[0], (c&255), vid.width * vid.height * vid.bpp);
+		{
+			M_Memset32(screen_main, rgb_color, vid.width * vid.height * 4);
 			return;
 		}
 
@@ -832,13 +796,19 @@ void V_DrawFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c)
 	if (y + h > vid.height)
 		h = vid.height - y;
 
-	dest = screens[0] + y*vid.width + x;
-	deststop = screens[0] + vid.rowbytes * vid.height;
-
-	c &= 255;
+	dest = screen_main + y*vid.width + x;
+	deststop = screen_main + vid.width * vid.height;
 
 	for (;(--h >= 0) && dest < deststop; dest += vid.width)
-		memset(dest, c, w * vid.bpp);
+	{
+		count = w;
+		line = 0;
+		while (count > 0)
+		{
+			V_DrawPixelTrueColor((dest+line), rgb_color);
+			count--; line++;
+		}
+	}
 }
 
 //
@@ -848,8 +818,10 @@ void V_DrawFlatFill(INT32 x, INT32 y, INT32 w, INT32 h, lumpnum_t flatnum)
 {
 	INT32 u, v, dupx, dupy;
 	fixed_t dx, dy, xfrac, yfrac;
-	const UINT8 *src, *deststop;
-	UINT8 *flat, *dest;
+	const UINT8 *src;
+	const UINT32 *deststop;
+	UINT8 *flat;
+	UINT32 *dest;
 	size_t size, lflatsize, flatshift;
 
 #ifdef HWRENDER
@@ -898,8 +870,8 @@ void V_DrawFlatFill(INT32 x, INT32 y, INT32 w, INT32 h, lumpnum_t flatnum)
 
 	dupx = dupy = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
 
-	dest = screens[0] + y*dupy*vid.width + x*dupx;
-	deststop = screens[0] + vid.rowbytes * vid.height;
+	dest = screen_main + y*dupy*vid.width + x*dupx;
+	deststop = screen_main + vid.rowbytes * vid.height;
 
 	// from V_DrawScaledPatch
 	if (vid.width != BASEVIDWIDTH * dupx)
@@ -957,9 +929,9 @@ void V_DrawPatchFill(patch_t *pat)
 //
 void V_DrawFadeScreen(void)
 {
-	const UINT8 *fadetable = (UINT8 *)colormaps + 16*256;
-	const UINT8 *deststop = screens[0] + vid.rowbytes * vid.height;
-	UINT8 *buf = screens[0];
+	//const UINT8 *fadetable = (UINT8 *)colormaps + 16*256;
+	const UINT32 *deststop = screen_main + vid.width * vid.height;
+	UINT32 *buf = screen_main;
 
 #ifdef HWRENDER
 	if (rendermode != render_soft && rendermode != render_none)
@@ -972,13 +944,14 @@ void V_DrawFadeScreen(void)
 	// heavily simplified -- we don't need to know x or y
 	// position when we're doing a full screen fade
 	for (; buf < deststop; ++buf)
-		*buf = fadetable[*buf];
+		V_DrawPixelTrueColor(buf, V_BlendTrueColor(*buf,0,128));
 }
 
 // Simple translucency with one color, over a set number of lines starting from the top.
 void V_DrawFadeConsBack(INT32 plines)
 {
-	UINT8 *deststop, *buf;
+	UINT32 *deststop, *buf;
+	UINT32 swcolor;
 
 #ifdef HWRENDER // not win32 only 19990829 by Kin
 	if (rendermode != render_soft && rendermode != render_none)
@@ -1003,11 +976,25 @@ void V_DrawFadeConsBack(INT32 plines)
 	}
 #endif
 
+	switch (cons_backcolor.value)
+	{
+		case 0:		swcolor = 0; 	break; // White
+		case 1:		swcolor = 25;	break; // Gray
+		case 2:		swcolor = 59;	break; // Brown
+		case 3:		swcolor = 128;	break; // Red
+		case 4:		swcolor = 90;	break; // Orange
+		case 5:		swcolor = 105;	break; // Yellow
+		case 6:		swcolor = 167;	break; // Green
+		case 7:		swcolor = 231;	break; // Blue
+		case 8:		swcolor = 214;	break; // Cyan
+		// Default green
+		default:	swcolor = 160; break;
+	}
 	// heavily simplified -- we don't need to know x or y position,
 	// just the stop position
-	deststop = screens[0] + vid.rowbytes * min(plines, vid.height);
-	for (buf = screens[0]; buf < deststop; ++buf)
-		*buf = consolebgmap[*buf];
+	deststop = screen_main + vid.width * min(plines, vid.height);
+	for (buf = screen_main; buf < deststop; ++buf)
+		V_DrawPixelTrueColor(buf, V_BlendTrueColor(*buf,V_GetTrueColor(swcolor),128));
 }
 
 // Gets string colormap, used for 0x80 color codes
@@ -1920,13 +1907,12 @@ void V_DoPostProcessor(INT32 view, postimg_t type, INT32 param)
 
 	if (type == postimg_water)
 	{
-		UINT8 *tmpscr = screens[4];
-		UINT8 *srcscr = screens[0];
+		UINT32 *tmpscr = screen_postimage;
+		UINT32 *srcscr = screen_main;
 		INT32 y;
 		angle_t disStart = (leveltime * 128) & FINEMASK; // in 0 to FINEANGLE
 		INT32 newpix;
 		INT32 sine;
-		//UINT8 *transme = transtables + ((tr_trans50-1)<<FF_TRANSSHIFT);
 
 		for (y = yoffset; y < yoffset+height; y++)
 		{
@@ -1935,7 +1921,7 @@ void V_DoPostProcessor(INT32 view, postimg_t type, INT32 param)
 
 			if (sine < 0)
 			{
-				M_Memcpy(&tmpscr[y*vid.width+newpix], &srcscr[y*vid.width], vid.width-newpix);
+				M_Memcpy(&tmpscr[y*vid.width+newpix], &srcscr[y*vid.width], (vid.width-newpix)*4);
 
 				// Cleanup edge
 				while (newpix)
@@ -1946,7 +1932,7 @@ void V_DoPostProcessor(INT32 view, postimg_t type, INT32 param)
 			}
 			else
 			{
-				M_Memcpy(&tmpscr[y*vid.width+0], &srcscr[y*vid.width+sine], vid.width-newpix);
+				M_Memcpy(&tmpscr[y*vid.width+0], &srcscr[y*vid.width+sine], (vid.width-newpix)*4);
 
 				// Cleanup edge
 				while (newpix)
@@ -1956,62 +1942,27 @@ void V_DoPostProcessor(INT32 view, postimg_t type, INT32 param)
 				}
 			}
 
-/*
-Unoptimized version
-			for (x = 0; x < vid.width*vid.bpp; x++)
-			{
-				newpix = (x + sine);
-
-				if (newpix < 0)
-					newpix = 0;
-				else if (newpix >= vid.width)
-					newpix = vid.width-1;
-
-				tmpscr[y*vid.width + x] = srcscr[y*vid.width+newpix]; // *(transme + (srcscr[y*vid.width+x]<<8) + srcscr[y*vid.width+newpix]);
-			}*/
 			disStart += 22;//the offset into the displacement map, increment each game loop
 			disStart &= FINEMASK; //clip it to FINEMASK
 		}
 
-		VID_BlitLinearScreen(tmpscr+vid.width*vid.bpp*yoffset, screens[0]+vid.width*vid.bpp*yoffset,
-				vid.width*vid.bpp, height, vid.width*vid.bpp, vid.width);
-	}
-	else if (type == postimg_motion) // Motion Blur!
-	{
-		UINT8 *tmpscr = screens[4];
-		UINT8 *srcscr = screens[0];
-		INT32 x, y;
-
-		// TODO: Add a postimg_param so that we can pick the translucency level...
-		UINT8 *transme = transtables + ((param-1)<<FF_TRANSSHIFT);
-
-		for (y = yoffset; y < yoffset+height; y++)
-		{
-			for (x = 0; x < vid.width; x++)
-			{
-				tmpscr[y*vid.width + x]
-					=     colormaps[*(transme     + (srcscr   [y*vid.width+x ] <<8) + (tmpscr[y*vid.width+x]))];
-			}
-		}
-		VID_BlitLinearScreen(tmpscr+vid.width*vid.bpp*yoffset, screens[0]+vid.width*vid.bpp*yoffset,
-				vid.width*vid.bpp, height, vid.width*vid.bpp, vid.width);
+		VID_BlitLinearScreen(tmpscr+vid.width*yoffset, screen_main+vid.width*yoffset, vid.width, height);
 	}
 	else if (type == postimg_flip) // Flip the screen upside-down
 	{
-		UINT8 *tmpscr = screens[4];
-		UINT8 *srcscr = screens[0];
+		UINT32 *tmpscr = screen_postimage;
+		UINT32 *srcscr = screen_main;
 		INT32 y, y2;
 
 		for (y = yoffset, y2 = yoffset+height - 1; y < yoffset+height; y++, y2--)
-			M_Memcpy(&tmpscr[y2*vid.width], &srcscr[y*vid.width], vid.width);
+			M_Memcpy(&tmpscr[y2*vid.width], &srcscr[y*vid.width], vid.width*4);
 
-		VID_BlitLinearScreen(tmpscr+vid.width*vid.bpp*yoffset, screens[0]+vid.width*vid.bpp*yoffset,
-				vid.width*vid.bpp, height, vid.width*vid.bpp, vid.width);
+		VID_BlitLinearScreen(tmpscr+vid.width*yoffset, screen_main+vid.width*yoffset, vid.width, height);
 	}
 	else if (type == postimg_heat) // Heat wave
 	{
-		UINT8 *tmpscr = screens[4];
-		UINT8 *srcscr = screens[0];
+		UINT32 *tmpscr = screen_postimage;
+		UINT32 *srcscr = screen_main;
 		INT32 y;
 
 		// Make sure table is built
@@ -2049,8 +2000,7 @@ Unoptimized version
 		heatindex[view]++;
 		heatindex[view] %= vid.height;
 
-		VID_BlitLinearScreen(tmpscr+vid.width*vid.bpp*yoffset, screens[0]+vid.width*vid.bpp*yoffset,
-				vid.width*vid.bpp, height, vid.width*vid.bpp, vid.width);
+		VID_BlitLinearScreen(tmpscr+vid.width*yoffset, screen_main+vid.width*yoffset, vid.width, height);
 	}
 #endif
 }
@@ -2061,32 +2011,33 @@ Unoptimized version
 // WARNING: called at runtime (don't init cvar here)
 void V_Init(void)
 {
-	INT32 i;
-	UINT8 *base = vid.buffer;
+	UINT32 *base = vid.buffer;
 	const INT32 screensize = vid.rowbytes * vid.height;
-
 	LoadMapPalette();
-	// hardware modes do not use screens[] pointers
-	for (i = 0; i < NUMSCREENS; i++)
-		screens[i] = NULL;
+
+	// hardware modes does not use screens[]
+	screen_main = NULL;
 	if (rendermode != render_soft)
-	{
 		return; // be sure to cause a NULL read/write error so we detect it, in case of..
-	}
 
-	// start address of NUMSCREENS * width*height vidbuffers
+	// Jimita
+	#define NEWSCREEN Z_Malloc(screensize, PU_STATIC, NULL)
+	screen_main			= NEWSCREEN;
+	screen_altblit		= NEWSCREEN;
+	screen_sshotbuffer 	= NEWSCREEN;
+	screen_fadestart 	= NEWSCREEN;
+	screen_fadeend 		= NEWSCREEN;
+	screen_postimage  	= NEWSCREEN;
+	#undef NEWSCREEN
+
 	if (base)
-	{
-		for (i = 0; i < NUMSCREENS; i++)
-			screens[i] = base + i*screensize;
-	}
-
+		screen_main = base;
 	if (vid.direct)
-		screens[0] = vid.direct;
+		screen_main = vid.direct;
 
 #ifdef DEBUG
 	CONS_Debug(DBG_RENDER, "V_Init done:\n");
-	for (i = 0; i < NUMSCREENS+1; i++)
+	for (i = 0; i < NUMSCREENS; i++)
 		CONS_Debug(DBG_RENDER, " screens[%d] = %x\n", i, screens[i]);
 #endif
 }

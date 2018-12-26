@@ -166,12 +166,12 @@ static void F_DrawPatchCol(INT32 x, patch_t *patch, INT32 col)
 {
 	const column_t *column;
 	const UINT8 *source;
-	UINT8 *desttop, *dest = NULL;
-	const UINT8 *deststop, *destbottom;
+	UINT32 *desttop, *dest = NULL;
+	const UINT32 *deststop, *destbottom;
 	size_t count;
 
-	desttop = screens[0] + x*vid.dupx;
-	deststop = screens[0] + vid.rowbytes * vid.height;
+	desttop = screen_main + x*vid.dupx;
+	deststop = screen_main + vid.width * vid.height;
 	destbottom = desttop + vid.height*vid.width;
 
 	do {
@@ -197,8 +197,10 @@ static void F_DrawPatchCol(INT32 x, patch_t *patch, INT32 col)
 				{
 					INT32 dupxcount = vid.dupx;
 					while (dupxcount-- && dest <= deststop)
-						*dest++ = *source;
-
+					{
+						V_DrawPixelTrueColor(dest, V_GetTrueColor(*source));
+						dest++;
+					}
 					dest += (vid.width - vid.dupx);
 				}
 				source++;

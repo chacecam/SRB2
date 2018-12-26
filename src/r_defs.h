@@ -43,11 +43,9 @@ typedef struct
 #define SIL_TOP    2
 #define SIL_BOTH   3
 
-// This could be wider for >8 bit display.
-// Indeed, true color support is possible precalculating 24bpp lightmap/colormap LUT
-// from darkening PLAYPAL to all black.
-// Could even use more than 32 levels.
-typedef UINT8 lighttable_t;
+// lol
+typedef UINT8  lighttable_t;
+typedef UINT32 lighttable32_t;
 
 // ExtraColormap type. Use for extra_colormaps from now on.
 typedef struct
@@ -62,6 +60,11 @@ typedef struct
 	INT32 fadergba; // The colour the colourmaps fade to
 
 	lighttable_t *colormap;
+
+	// Jimita: True-color
+	lighttable32_t *truecolormap;
+	INT32 tc_rgba;
+	INT32 tc_fadergba;
 } extracolormap_t;
 
 //
@@ -206,7 +209,8 @@ typedef struct r_lightlist_s
 	fixed_t startheight; // for repeating midtextures
 	INT16 lightlevel;
 	extracolormap_t *extra_colormap;
-	lighttable_t *rcolormap;
+	lighttable_t   *rcolormap;
+	lighttable32_t *tc_rcolormap;
 	ffloortype_e flags;
 	INT32 lightnum;
 } r_lightlist_t;
@@ -700,6 +704,17 @@ typedef struct
 	INT32 columnofs[8];     // only [width] used
 	// the [0] is &columnofs[width]
 } ATTRPACK patch_t;
+
+typedef struct
+{
+	char signature[8];
+	INT16 width;
+	INT16 height;
+	INT16 leftoffset;     // pixels to the left of origin
+	INT16 topoffset;      // pixels below the origin
+	UINT8 mode;       // see pic_mode_t above
+	UINT32 data[0];
+} ATTRPACK patchex_t;
 
 #ifdef _MSC_VER
 #pragma warning(disable :  4200)

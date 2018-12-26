@@ -46,8 +46,11 @@ extern size_t validcount, linecount, loopcount, framecount;
 #define LIGHTZSHIFT 20
 
 extern lighttable_t *scalelight[LIGHTLEVELS][MAXLIGHTSCALE];
-extern lighttable_t *scalelightfixed[MAXLIGHTSCALE];
 extern lighttable_t *zlight[LIGHTLEVELS][MAXLIGHTZ];
+
+// Jimita: True-color
+extern lighttable32_t *scalelight_tc[LIGHTLEVELS][MAXLIGHTSCALE];
+extern lighttable32_t *zlight_tc[LIGHTLEVELS][MAXLIGHTZ];
 
 // Number of diminishing brightness levels.
 // There a 0-31, i.e. 32 LUT in the COLORMAP lump.
@@ -68,7 +71,7 @@ subsector_t *R_IsPointInSubsector(fixed_t x, fixed_t y);
 boolean R_DoCulling(line_t *cullheight, line_t *viewcullheight, fixed_t vz, fixed_t bottomh, fixed_t toph);
 
 //
-// REFRESH - the actual rendering functions.
+// Console variables
 //
 
 extern consvar_t cv_showhud, cv_translucenthud;
@@ -76,19 +79,26 @@ extern consvar_t cv_homremoval;
 extern consvar_t cv_chasecam, cv_chasecam2;
 extern consvar_t cv_flipcam, cv_flipcam2;
 extern consvar_t cv_shadow, cv_shadowoffs;
-extern consvar_t cv_translucency;
-extern consvar_t cv_precipdensity, cv_drawdist, cv_drawdist_nights, cv_drawdist_precip;
+extern consvar_t cv_drawdist, cv_drawdist_nights, cv_drawdist_precip, cv_precipdensity;
 extern consvar_t cv_skybox;
 extern consvar_t cv_tailspickup;
+
+// Jimita: True-color
+extern consvar_t cv_truecolormaps;
+extern consvar_t cv_translucency;
+
+//
+// REFRESH - the actual rendering functions.
+//
 
 // Called by startup code.
 void R_Init(void);
 
-// just sets setsizeneeded true
-extern boolean setsizeneeded;
+void R_InitViewBuffer(INT32 width, INT32 height);
 void R_SetViewSize(void);
 
-// do it (sometimes explicitly called)
+// Sometimes explicitly called
+extern boolean setsizeneeded;
 void R_ExecuteSetViewSize(void);
 
 void R_SkyboxFrame(player_t *player);

@@ -45,10 +45,10 @@ typedef struct wallsplat_s
 	struct wallsplat_s *next;
 } wallsplat_t;
 
-// FLOOR SPLATS are pic_t (raw horizontally stored) drawn on top of the floor or ceiling
+// FLOOR SPLATS are drawn on top of the floor or ceiling
 typedef struct floorsplat_s
 {
-	lumpnum_t pic; // a pic_t lump id
+	lumpnum_t pic; // a flat lump id
 	INT32 flags;
 	INT32 size; // 64, 128, 256, etc.
 	vertex_t verts[4]; // (x,y) as viewn from above on map

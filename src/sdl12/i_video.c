@@ -1344,7 +1344,7 @@ void I_FinishUpdate(void)
 	if (cv_ticrate.value)
 		SCR_DisplayTicRate();
 
-	if (render_soft == rendermode && screens[0])
+	if (render_soft == rendermode && screen_main)
 	{
 		SDL_Rect *dstrect = NULL;
 		SDL_Rect rect = {0, 0, 0, 0};
@@ -1362,9 +1362,9 @@ void I_FinishUpdate(void)
 
 		if (!bufSurface && !vid.direct) //Double-Check
 		{
-			if (vid.bpp == 1) bufSurface = SDL_CreateRGBSurfaceFrom(screens[0],vid.width,vid.height,8,
+			if (vid.bpp == 1) bufSurface = SDL_CreateRGBSurfaceFrom(screen_main,vid.width,vid.height,8,
 				(int)vid.rowbytes,0x00000000,0x00000000,0x00000000,0x00000000); // 256 mode
-			else if (vid.bpp == 2) bufSurface = SDL_CreateRGBSurfaceFrom(screens[0],vid.width,vid.height,15,
+			else if (vid.bpp == 2) bufSurface = SDL_CreateRGBSurfaceFrom(screen_main,vid.width,vid.height,15,
 				(int)vid.rowbytes,0x00007C00,0x000003E0,0x0000001F,0x00000000); // 555 mode
 			if (bufSurface) SDL_SetColors(bufSurface, localPalette, 0, 256);
 			else I_OutputMsg("No system memory for SDL buffer surface\n");
@@ -1391,14 +1391,12 @@ void I_FinishUpdate(void)
 					size_t half_excess = vidSurface->pitch*(vidSurface->height-vid.height)/2;
 					memset(ptr, 0x1F, half_excess);
 					ptr += half_excess;
-					VID_BlitLinearScreen(screens[0], ptr, vid.width*vid.bpp, vid.height,
-					                     vid.rowbytes, vidSurface->pitch);
+					VID_BlitLinearScreen(screen_main, ptr, vid.width, vid.height);
 					ptr += vid.height*vidSurface->pitch;
 					memset(ptr, 0x1F, half_excess);
 				}
 				else
-				VID_BlitLinearScreen(screens[0], vidSurface->pixels, vid.width*vid.bpp,
-				                     vid.height, vid.rowbytes, vidSurface->pitch );
+				VID_BlitLinearScreen(screen_main, vidSurface->pixels, vid.width, vid.height);
 				if (SDL_MUSTLOCK(vidSurface)) SDL_UnlockSurface(vidSurface);
 			}
 		}
@@ -1413,7 +1411,7 @@ void I_FinishUpdate(void)
 			Uint8 *bP,*vP; //Src, Dst
 			Uint16 bW, vW; // Pitch Remainder
 			Sint32 pH, pW; //Height, Width
-			bP = (Uint8 *)screens[0];
+			bP = (Uint8 *)screen_main;
 			bW = (Uint16)(vid.rowbytes - vid.width);
 			//I_OutputMsg("Old Copy Code\n");
 			if (SDL_MUSTLOCK(vidSurface)) lockedsf = SDL_LockSurface(vidSurface);
@@ -1515,14 +1513,12 @@ void I_UpdateNoVsync(void)
 //
 // I_ReadScreen
 //
-void I_ReadScreen(UINT8 *scr)
+void I_ReadScreen(UINT32 *scr)
 {
 	if (rendermode != render_soft)
-		I_Error ("I_ReadScreen: called while in non-software mode");
+		I_Error("I_ReadScreen: called while in non-software mode");
 	else
-		VID_BlitLinearScreen(screens[0], scr,
-			vid.width*vid.bpp, vid.height,
-			vid.rowbytes, vid.rowbytes);
+		VID_BlitLinearScreen(screen_main, scr, vid.width, vid.height);
 }
 
 //

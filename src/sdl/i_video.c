@@ -132,7 +132,6 @@ static       SDL_bool    wrapmouseok = SDL_FALSE;
 #define HalfWarpMouse(x,y) if (wrapmouseok) SDL_WarpMouseInWindow(window, (Uint16)(x/2),(Uint16)(y/2))
 static       SDL_bool    videoblitok = SDL_FALSE;
 static       SDL_bool    exposevideo = SDL_FALSE;
-static       SDL_bool    usesdl2soft = SDL_FALSE;
 static       SDL_bool    borderlesswindow = SDL_FALSE;
 
 // SDL2 vars
@@ -178,8 +177,8 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen)
 	Uint32 gmask;
 	Uint32 bmask;
 	Uint32 amask;
-	int bpp = 16;
-	int sw_texture_format = SDL_PIXELFORMAT_ABGR8888;
+	int bpp = 32;
+	int sw_texture_format = SDL_PIXELFORMAT_RGBA32;
 
 	realwidth = vid.width;
 	realheight = vid.height;
@@ -210,16 +209,12 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen)
 		wasfullscreen = fullscreen;
 		SDL_SetWindowSize(window, width, height);
 		if (fullscreen)
-		{
 			SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-		}
 	}
 
 #ifdef HWRENDER
 	if (rendermode == render_opengl)
-	{
 		OglSdlSurface(vid.width, vid.height);
-	}
 #endif
 
 	if (rendermode == render_soft)
@@ -230,27 +225,15 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen)
 		realwidth = width;
 		realheight = height;
 		if (texture != NULL)
-		{
 			SDL_DestroyTexture(texture);
-		}
 
-		if (!usesdl2soft)
-		{
-			sw_texture_format = SDL_PIXELFORMAT_RGB565;
-		}
-		else
-		{
-			bpp = 32;
-			sw_texture_format = SDL_PIXELFORMAT_RGBA8888;
-		}
-
+		bpp = 32;
+		sw_texture_format = SDL_PIXELFORMAT_RGBA32;
 		texture = SDL_CreateTexture(renderer, sw_texture_format, SDL_TEXTUREACCESS_STREAMING, width, height);
 
 		// Set up SW surface
 		if (vidSurface != NULL)
-		{
 			SDL_FreeSurface(vidSurface);
-		}
 		if (vid.buffer)
 		{
 			free(vid.buffer);
@@ -923,9 +906,7 @@ void I_UpdateNoBlit(void)
 	{
 #ifdef HWRENDER
 		if (rendermode == render_opengl)
-		{
 			OglSdlFinishUpdate(cv_vidwait.value);
-		}
 		else
 #endif
 		if (rendermode == render_soft)
@@ -937,33 +918,6 @@ void I_UpdateNoBlit(void)
 	exposevideo = SDL_FALSE;
 }
 
-// I_SkipFrame
-//
-// Returns true if it thinks we can afford to skip this frame
-// from PrBoom's src/SDL/i_video.c
-static inline boolean I_SkipFrame(void)
-{
-	static boolean skip = false;
-
-	if (rendermode != render_soft)
-		return false;
-
-	skip = !skip;
-
-	switch (gamestate)
-	{
-		case GS_LEVEL:
-			if (!paused)
-				return false;
-			/* FALLTHRU */
-		case GS_TIMEATTACK:
-		case GS_WAITINGPLAYERS:
-			return skip; // Skip odd frames
-		default:
-			return false;
-	}
-}
-
 //
 // I_FinishUpdate
 //
@@ -972,13 +926,10 @@ void I_FinishUpdate(void)
 	if (rendermode == render_none)
 		return; //Alam: No software or OpenGl surface
 
-	if (I_SkipFrame())
-		return;
-
 	if (cv_ticrate.value)
 		SCR_DisplayTicRate();
 
-	if (rendermode == render_soft && screens[0])
+	if (rendermode == render_soft && screen_main)
 	{
 		SDL_Rect rect;
 
@@ -988,9 +939,7 @@ void I_FinishUpdate(void)
 		rect.h = vid.height;
 
 		if (!bufSurface) //Double-Check
-		{
 			Impl_VideoSetupSDLBuffer();
-		}
 		if (bufSurface)
 		{
 			SDL_BlitSurface(bufSurface, NULL, vidSurface, &rect);
@@ -1027,14 +976,12 @@ void I_UpdateNoVsync(void)
 //
 // I_ReadScreen
 //
-void I_ReadScreen(UINT8 *scr)
+void I_ReadScreen(UINT32 *scr)
 {
 	if (rendermode != render_soft)
-		I_Error ("I_ReadScreen: called while in non-software mode");
+		I_Error("I_ReadScreen: called while in non-software mode");
 	else
-		VID_BlitLinearScreen(screens[0], scr,
-			vid.width*vid.bpp, vid.height,
-			vid.rowbytes, vid.rowbytes);
+		VID_BlitLinearScreen(screen_main, scr, vid.width, vid.height);
 }
 
 //
@@ -1049,9 +996,6 @@ void I_SetPalette(RGBA_t *palette)
 		localPalette[i].g = palette[i].s.green;
 		localPalette[i].b = palette[i].s.blue;
 	}
-	//if (vidSurface) SDL_SetPaletteColors(vidSurface->format->palette, localPalette, 0, 256);
-	// Fury -- SDL2 vidSurface is a 32-bit surface buffer copied to the texture. It's not palletized, like bufSurface.
-	if (bufSurface) SDL_SetPaletteColors(bufSurface->format->palette, localPalette, 0, 256);
 }
 
 // return number of fullscreen + X11 modes
@@ -1208,7 +1152,7 @@ INT32 VID_SetMode(INT32 modeNum)
 	SDLdoUngrabMouse();
 
 	vid.recalc = 1;
-	vid.bpp = 1;
+	vid.bpp = 4;
 
 	if (modeNum >= 0 && modeNum < MAXWINMODES)
 	{
@@ -1273,7 +1217,7 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 #endif
 
 	// Create a window
-	window = SDL_CreateWindow("SRB2 "VERSIONSTRING, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+	window = SDL_CreateWindow("SRB2 Truecolor "VERSIONSTRING, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 			realwidth, realheight, flags);
 
 	if (window == NULL)
@@ -1299,9 +1243,7 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 	if (rendermode == render_soft)
 	{
 		flags = 0; // Use this to set SDL_RENDERER_* flags now
-		if (usesdl2soft)
-			flags |= SDL_RENDERER_SOFTWARE;
-		else if (cv_vidwait.value)
+		if (cv_vidwait.value)
 			flags |= SDL_RENDERER_PRESENTVSYNC;
 
 		renderer = SDL_CreateRenderer(window, -1, flags);
@@ -1345,24 +1287,10 @@ static void Impl_VideoSetupSDLBuffer(void)
 		bufSurface = NULL;
 	}
 	// Set up the SDL palletized buffer (copied to vidbuffer before being rendered to texture)
-	if (vid.bpp == 1)
-	{
-		bufSurface = SDL_CreateRGBSurfaceFrom(screens[0],vid.width,vid.height,8,
-			(int)vid.rowbytes,0x00000000,0x00000000,0x00000000,0x00000000); // 256 mode
-	}
-	else if (vid.bpp == 2) // Fury -- don't think this is used at all anymore
-	{
-		bufSurface = SDL_CreateRGBSurfaceFrom(screens[0],vid.width,vid.height,15,
-			(int)vid.rowbytes,0x00007C00,0x000003E0,0x0000001F,0x00000000); // 555 mode
-	}
-	if (bufSurface)
-	{
-		SDL_SetPaletteColors(bufSurface->format->palette, localPalette, 0, 256);
-	}
-	else
-	{
+	bufSurface = SDL_CreateRGBSurfaceFrom(screen_main,vid.width,vid.height,32,
+		(int)vid.rowbytes,0x000000FF,0x0000FF00,0x00FF0000,0xFF000000);
+	if (!bufSurface)
 		I_Error("%s", M_GetText("No system memory for SDL buffer surface\n"));
-	}
 }
 
 static void Impl_VideoSetupBuffer(void)
@@ -1374,11 +1302,9 @@ static void Impl_VideoSetupBuffer(void)
 		vid.direct = NULL;
 		if (vid.buffer)
 			free(vid.buffer);
-		vid.buffer = calloc(vid.rowbytes*vid.height, NUMSCREENS);
+		vid.buffer = malloc(vid.rowbytes*vid.height);
 		if (!vid.buffer)
-		{
 			I_Error("%s", M_GetText("Not enough memory for video buffer\n"));
-		}
 	}
 }
 
@@ -1423,14 +1349,9 @@ void I_StartupGraphics(void)
 			framebuffer = SDL_TRUE;
 	}
 	if (M_CheckParm("-software"))
-	{
 		rendermode = render_soft;
-	}
 
-	usesdl2soft = M_CheckParm("-softblit");
 	borderlesswindow = M_CheckParm("-borderless");
-
-	//SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY>>1,SDL_DEFAULT_REPEAT_INTERVAL<<2);
 	VID_Command_ModeList_f();
 #ifdef HWRENDER
 	if (M_CheckParm("-opengl") || rendermode == render_opengl)
@@ -1486,7 +1407,7 @@ void I_StartupGraphics(void)
 	vid.height = BASEVIDHEIGHT; // BitsPerPixel is the SDL interface's
 	vid.recalc = true; // Set up the console stufff
 	vid.direct = NULL; // Maybe direct access?
-	vid.bpp = 1; // This is the game engine's Bpp
+	vid.bpp = 4; // This is the game engine's Bpp
 	vid.WndParent = NULL; //For the window?
 
 #ifdef HAVE_TTF

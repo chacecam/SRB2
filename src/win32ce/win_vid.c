@@ -223,8 +223,7 @@ void I_FinishUpdate(void)
 			/// \todo use directX blit here!!? a blit might use hardware with access
 			/// to main memory on recent hardware, and software blit of directX may be
 			/// optimized for p2 or mmx??
-			VID_BlitLinearScreen(screens[0], ScreenPtr, vid.width*vid.bpp, vid.height,
-				vid.width*vid.bpp, ScreenPitch);
+			VID_BlitLinearScreen(screen_main, ScreenPtr, vid.width, vid.height);
 
 			UnlockScreen();
 
@@ -262,13 +261,12 @@ void I_LoadingScreen(LPCSTR msg)
 // ------------
 // I_ReadScreen
 // ------------
-void I_ReadScreen(UINT8 *scr)
+void I_ReadScreen(UINT32 *scr)
 {
 	// DEBUGGING
 	if (rendermode != render_soft)
 		I_Error("I_ReadScreen: called while in non-software mode");
-	VID_BlitLinearScreen(screens[0], scr, vid.width*vid.bpp, vid.height, vid.width*vid.bpp,
-		vid.rowbytes);
+	VID_BlitLinearScreen(screen_main, scr, vid.width, vid.height);
 }
 
 // ------------

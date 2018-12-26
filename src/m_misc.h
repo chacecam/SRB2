@@ -64,7 +64,7 @@ void FIL_ForceExtension(char *path, const char *extension);
 boolean FIL_CheckExtension(const char *in);
 
 #ifdef HAVE_PNG
-boolean M_SavePNG(const char *filename, void *data, int width, int height, const UINT8 *palette);
+boolean M_SavePNG(const char *filename, void *data, int width, int height);
 #endif
 
 extern boolean takescreenshot;
@@ -95,13 +95,16 @@ TMatrix *RotateYMatrix(angle_t rad);
 #endif
 TMatrix *RotateZMatrix(angle_t rad);
 
-// s1 = s2+s3+s1 (1024 lenghtmax)
-void strcatbf(char *s1, const char *s2, const char *s3);
-
 void M_SetupMemcpy(void);
+
+// Jimita
+void M_Memset32(void *dest, UINT64 value, uintptr_t size);
 
 // counting bits, for weapon ammo code, usually
 FUNCMATH UINT8 M_CountBits(UINT32 num, UINT8 size);
+
+// s1 = s2+s3+s1 (1024 lenghtmax)
+void strcatbf(char *s1, const char *s2, const char *s3);
 
 #include "w_wad.h"
 extern char configfile[MAX_WADPATH];

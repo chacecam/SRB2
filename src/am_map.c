@@ -20,6 +20,7 @@
 #include "i_video.h"
 #include "r_state.h"
 #include "r_draw.h"
+#include "m_misc.h"		// M_Memset32
 
 #ifdef HWRENDER
 #include "hardware/hw_main.h"
@@ -89,10 +90,6 @@ static const UINT8 NOCLIMBYELLOWS     = (11*16);
 #define AM_GOBIGKEY     '0'
 #define AM_FOLLOWKEY    'f'
 #define AM_GRIDKEY      'g'
-#define AM_MARKKEY      'm'
-#define AM_CLEARMARKKEY 'c'
-
-#define AM_NUMMARKPOINTS 10
 
 // scale on entry
 #define INITSCALEMTOF (FRACUNIT/5)
@@ -184,9 +181,7 @@ static INT32 f_y;
 static INT32 f_w;
 static INT32 f_h;
 
-static INT32 lightlev; // used for funky strobing effect
-static UINT8 *fb; // pseudo-frame buffer
-static INT32 amclock;
+static UINT32 *fb; // frame buffer
 
 static mpoint_t m_paninc; // how far the window pans each tic (map coords)
 static fixed_t mtof_zoommul; // how far the window zooms in each tic (map coords)
@@ -231,10 +226,6 @@ static fixed_t scale_mtof = (fixed_t)INITSCALEMTOF;
 static fixed_t scale_ftom;
 
 static player_t *plr; // the player represented by an arrow
-
-static patch_t *marknums[10];                   // numbers used for marking by the automap
-static mpoint_t markpoints[AM_NUMMARKPOINTS];   // where the points are
-static INT32 markpointnum = 0;                    // next point to be assigned
 
 static INT32 followplayer = 1; // specifies whether to follow the player around
 
@@ -286,15 +277,6 @@ static inline void AM_restoreScaleAndLoc(void)
 	// Change the scaling multipliers
 	scale_mtof = FixedDiv(f_w<<FRACBITS, m_w);
 	scale_ftom = FixedDiv(FRACUNIT, scale_mtof);
-}
-
-/** Adds a marker at the current location.
-  */
-static inline void AM_addMark(void)
-{
-	markpoints[markpointnum].x = m_x + m_w/2;
-	markpoints[markpointnum].y = m_y + m_h/2;
-	markpointnum = (markpointnum + 1) % AM_NUMMARKPOINTS;
 }
 
 /** Determines the bounding box around all vertices.
@@ -365,11 +347,9 @@ static void AM_initVariables(void)
 	INT32 pnum;
 
 	automapactive = true;
-	fb = screens[0];
+	fb = screen_main;
 
 	f_oldloc.x = INT32_MAX;
-	amclock = 0;
-	lightlev = 0;
 
 	m_paninc.x = m_paninc.y = 0;
 	ftom_zoommul = FRACUNIT;
@@ -396,19 +376,6 @@ static void AM_initVariables(void)
 	old_m_h = m_h;
 }
 
-static const UINT8 *maplump; // pointer to the raw data for the automap background.
-
-/** Clears all map markers.
-  */
-static void AM_clearMarks(void)
-{
-	INT32 i;
-
-	for (i = 0; i < AM_NUMMARKPOINTS; i++)
-		markpoints[i].x = -1; // means empty
-	markpointnum = 0;
-}
-
 //
 // should be called at the start of every level
 // right now, i figure it out myself
@@ -429,8 +396,6 @@ static void AM_LevelInit(void)
 #endif
 	else
 		I_Error("Automap can't run without a render system");
-
-	AM_clearMarks();
 
 	AM_findMinMaxBoundaries();
 	scale_mtof = FixedDiv(min_scale_mtof*10, 7*FRACUNIT);
@@ -574,12 +539,6 @@ boolean AM_Responder(event_t *ev)
 				case AM_GRIDKEY:
 					grid = !grid;
 					break;
-				case AM_MARKKEY:
-					AM_addMark();
-					break;
-				case AM_CLEARMARKKEY:
-					AM_clearMarks();
-					break;
 				default:
 					rc = false;
 			}
@@ -651,8 +610,6 @@ void AM_Ticker(void)
 	if (dedicated || !automapactive)
 		return;
 
-	amclock++;
-
 	if (followplayer)
 		AM_doFollowPlayer();
 
@@ -678,65 +635,7 @@ static void AM_clearFB(INT32 color)
 		return;
 	}
 #endif
-
-	if (!maplump)
-		memset(fb, color, f_w*f_h*vid.bpp);
-	else
-	{
-		INT32 dmapx, dmapy, i, y;
-		static INT32 mapxstart, mapystart;
-		UINT8 *dest = screens[0];
-		const UINT8 *src;
-#define MAPLUMPHEIGHT (200 - 42)
-
-		if (followplayer)
-		{
-			static vertex_t oldplr;
-
-			dmapx = MTOF(plr->mo->x) - MTOF(oldplr.x); //fixed point
-			dmapy = MTOF(oldplr.y) - MTOF(plr->mo->y);
-
-			oldplr.x = plr->mo->x;
-			oldplr.y = plr->mo->y;
-			mapxstart += dmapx>>1;
-			mapystart += dmapy>>1;
-
-			while (mapxstart >= BASEVIDWIDTH)
-				mapxstart -= BASEVIDWIDTH;
-			while (mapxstart < 0)
-				mapxstart += BASEVIDWIDTH;
-			while (mapystart >= MAPLUMPHEIGHT)
-				mapystart -= MAPLUMPHEIGHT;
-			while (mapystart < 0)
-				mapystart += MAPLUMPHEIGHT;
-		}
-		else
-		{
-			mapxstart += (MTOF(m_paninc.x)>>1);
-			mapystart -= (MTOF(m_paninc.y)>>1);
-			if (mapxstart >= BASEVIDWIDTH)
-				mapxstart -= BASEVIDWIDTH;
-			if (mapxstart < 0)
-				mapxstart += BASEVIDWIDTH;
-			if (mapystart >= MAPLUMPHEIGHT)
-				mapystart -= MAPLUMPHEIGHT;
-			if (mapystart < 0)
-				mapystart += MAPLUMPHEIGHT;
-		}
-
-		//blit the automap background to the screen.
-		for (y = 0; y < f_h; y++)
-		{
-			src = maplump + mapxstart + (y + mapystart)*BASEVIDWIDTH;
-			for (i = 0; i < BASEVIDWIDTH*vid.dupx; i++)
-			{
-				while (src > maplump + BASEVIDWIDTH*MAPLUMPHEIGHT)
-					src -= BASEVIDWIDTH*MAPLUMPHEIGHT;
-				*dest++ = *src++;
-			}
-			dest += vid.width - vid.dupx*BASEVIDWIDTH;
-		}
-	}
+	M_Memset32(fb, V_GetTrueColor(color), f_w*f_h*4);		// Jimita: True-color
 }
 
 /** Performs automap clipping of lines.
@@ -887,7 +786,8 @@ static void AM_drawFline_soft(const fline_t *fl, INT32 color)
 	}
 #endif
 
-#define PUTDOT(xx,yy,cc) fb[(yy)*f_w + (xx)]=(UINT8)(cc)
+	// Jimita: True-color
+	#define PUTDOT(xx,yy,cc) fb[(yy)*f_w + (xx)] = V_GetTrueColor(cc);
 
 	dx = fl->b.x - fl->a.x;
 	ax = 2 * (dx < 0 ? -dx : dx);
@@ -934,6 +834,8 @@ static void AM_drawFline_soft(const fline_t *fl, INT32 color)
 			d += ax;
 		}
 	}
+
+	#undef PUTDOT
 }
 
 //
@@ -1029,13 +931,9 @@ static inline void AM_drawWalls(void)
 		if (!lines[i].backsector) // 1-sided
 		{
 			if (lines[i].flags & ML_NOCLIMB)
-			{
-				AM_drawMline(&l, NOCLIMBWALLCOLORS+lightlev);
-			}
+				AM_drawMline(&l, NOCLIMBWALLCOLORS);
 			else
-			{
-				AM_drawMline(&l, WALLCOLORS+lightlev);
-			}
+				AM_drawMline(&l, WALLCOLORS);
 		}
 #ifdef ESLOPE
 		else if ((backf1 == backc1 && backf2 == backc2) // Back is thok barrier
@@ -1052,24 +950,16 @@ static inline void AM_drawWalls(void)
 #endif
 			{
 				if (lines[i].flags & ML_NOCLIMB)
-				{
-					AM_drawMline(&l, NOCLIMBTSWALLCOLORS+lightlev);
-				}
+					AM_drawMline(&l, NOCLIMBTSWALLCOLORS);
 				else
-				{
-					AM_drawMline(&l, TSWALLCOLORS+lightlev);
-				}
+					AM_drawMline(&l, TSWALLCOLORS);
 			}
 			else
 			{
 				if (lines[i].flags & ML_NOCLIMB)
-				{
-					AM_drawMline(&l, NOCLIMBTHOKWALLCOLORS+lightlev);
-				}
+					AM_drawMline(&l, NOCLIMBTHOKWALLCOLORS);
 				else
-				{
-					AM_drawMline(&l, THOKWALLCOLORS+lightlev);
-				}
+					AM_drawMline(&l, THOKWALLCOLORS);
 			}
 		}
 		else
@@ -1081,7 +971,7 @@ static inline void AM_drawWalls(void)
 				if (lines[i].backsector->floorheight
 						!= lines[i].frontsector->floorheight) {
 #endif
-					AM_drawMline(&l, NOCLIMBFDWALLCOLORS + lightlev); // floor level change
+					AM_drawMline(&l, NOCLIMBFDWALLCOLORS); // floor level change
 				}
 #ifdef ESLOPE
 				else if (backc1 != frontc1 || backc2 != frontc2) {
@@ -1089,10 +979,10 @@ static inline void AM_drawWalls(void)
 				else if (lines[i].backsector->ceilingheight
 						!= lines[i].frontsector->ceilingheight) {
 #endif
-					AM_drawMline(&l, NOCLIMBCDWALLCOLORS+lightlev); // ceiling level change
+					AM_drawMline(&l, NOCLIMBCDWALLCOLORS); // ceiling level change
 				}
 				else {
-					AM_drawMline(&l, NOCLIMBTSWALLCOLORS+lightlev);
+					AM_drawMline(&l, NOCLIMBTSWALLCOLORS);
 				}
 			}
 			else
@@ -1103,7 +993,7 @@ static inline void AM_drawWalls(void)
 				if (lines[i].backsector->floorheight
 						!= lines[i].frontsector->floorheight) {
 #endif
-					AM_drawMline(&l, FDWALLCOLORS + lightlev); // floor level change
+					AM_drawMline(&l, FDWALLCOLORS); // floor level change
 				}
 #ifdef ESLOPE
 				else if (backc1 != frontc1 || backc2 != frontc2) {
@@ -1111,10 +1001,10 @@ static inline void AM_drawWalls(void)
 				else if (lines[i].backsector->ceilingheight
 						!= lines[i].frontsector->ceilingheight) {
 #endif
-					AM_drawMline(&l, CDWALLCOLORS+lightlev); // ceiling level change
+					AM_drawMline(&l, CDWALLCOLORS); // ceiling level change
 				}
 				else {
-					AM_drawMline(&l, TSWALLCOLORS+lightlev);
+					AM_drawMline(&l, TSWALLCOLORS);
 				}
 			}
 		}
@@ -1222,28 +1112,8 @@ static inline void AM_drawThings(INT32 colors, INT32 colorrange)
 		while (t)
 		{
 			AM_drawLineCharacter(thintriangle_guy, NUMTHINTRIANGLEGUYLINES,
-				16<<FRACBITS, t->angle, colors + lightlev, t->x, t->y);
+				16<<FRACBITS, t->angle, colors, t->x, t->y);
 			t = t->snext;
-		}
-	}
-}
-
-static inline void AM_drawMarks(void)
-{
-	INT32 i, fx, fy, w, h;
-
-	for (i = 0; i < AM_NUMMARKPOINTS; i++)
-	{
-		if (markpoints[i].x != -1 && marknums[i])
-		{
-			// w = SHORT(marknums[i]->width);
-			// h = SHORT(marknums[i]->height);
-			w = 5; // because something's wrong with the wad, i guess
-			h = 6; // because something's wrong with the wad, i guess
-			fx = CXMTOF(markpoints[i].x);
-			fy = CYMTOF(markpoints[i].y);
-			if (fx >= f_x && fx <= f_w - w && fy >= f_y && fy <= f_h - h)
-				V_DrawPatch(fx, fy, FB, marknums[i]);
 		}
 	}
 }
@@ -1255,12 +1125,9 @@ static inline void AM_drawMarks(void)
 static inline void AM_drawCrosshair(INT32 color)
 {
 	if (rendermode != render_soft)
-		return; // BP: should be putpixel here
+		return;
 
-	if (scr_bpp == 1)
-		fb[(f_w*(f_h + 1))/2] = (UINT8)color; // single point for now
-	else
-		*((INT16 *)(void *)fb + (f_w*(f_h + 1))/2) = (INT16)color;
+	fb[(f_w*(f_h+1))/2] = V_GetTrueColor(color);		// Jimita: True-color
 }
 
 /** Draws the automap.
@@ -1278,6 +1145,4 @@ void AM_Drawer(void)
 	AM_drawThings(THINGCOLORS, THINGRANGE);
 
 	AM_drawCrosshair(XHAIRCOLORS);
-
-	AM_drawMarks();
 }

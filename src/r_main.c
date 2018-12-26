@@ -30,20 +30,11 @@
 #include "p_spec.h" // skyboxmo
 #include "z_zone.h"
 #include "m_random.h" // quake camera shake
+#include "m_misc.h" // Jimita: True-color
 
 #ifdef HWRENDER
 #include "hardware/hw_main.h"
 #endif
-
-//profile stuff ---------------------------------------------------------
-//#define TIMING
-#ifdef TIMING
-#include "p5prof.h"
-INT64 mycount;
-INT64 mytotal = 0;
-//unsigned long  nombre = 100000;
-#endif
-//profile stuff ---------------------------------------------------------
 
 // Fineangles in the SCREENWIDTH wide window.
 #define FIELDOFVIEW 2048
@@ -114,8 +105,11 @@ INT32 viewangletox[FINEANGLES/2];
 angle_t xtoviewangle[MAXVIDWIDTH+1];
 
 lighttable_t *scalelight[LIGHTLEVELS][MAXLIGHTSCALE];
-lighttable_t *scalelightfixed[MAXLIGHTSCALE];
 lighttable_t *zlight[LIGHTLEVELS][MAXLIGHTZ];
+
+// Jimita: True-color
+lighttable32_t *scalelight_tc[LIGHTLEVELS][MAXLIGHTSCALE];
+lighttable32_t *zlight_tc[LIGHTLEVELS][MAXLIGHTZ];
 
 // Hack to support extra boom colormaps.
 size_t num_extra_colormaps;
@@ -152,7 +146,10 @@ consvar_t cv_allowmlook = {"allowmlook", "Yes", CV_NETVAR, CV_YesNo, NULL, 0, NU
 consvar_t cv_showhud = {"showhud", "Yes", CV_CALL,  CV_YesNo, R_SetViewSize, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_translucenthud = {"translucenthud", "10", CV_SAVE, translucenthud_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 
+// Jimita: True-color
+consvar_t cv_truecolormaps = {"truecolormaps", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_translucency = {"translucency", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
 consvar_t cv_drawdist = {"drawdist", "Infinite", CV_SAVE, drawdist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_drawdist_nights = {"drawdist_nights", "2048", CV_SAVE, drawdist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_drawdist_precip = {"drawdist_precip", "1024", CV_SAVE, drawdist_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -450,10 +447,8 @@ static void R_InitTextureMapping(void)
 	//  after the view angle.
 	//
 	// Calc focallength
-	//  so FIELDOFVIEW angles covers SCREENWIDTH.
-	focallength = FixedDiv(centerxfrac,
-		FINETANGENT(FINEANGLES/4+/*cv_fov.value*/ FIELDOFVIEW/2));
-
+	//  so FIELDOFVIEW angles covers vid.width.
+	focallength = FixedDiv(centerxfrac, FINETANGENT(FINEANGLES/4+FIELDOFVIEW/2));
 #ifdef ESLOPE
 	focallengthf = FIXED_TO_FLOAT(focallength);
 #endif
@@ -512,21 +507,16 @@ static void R_InitTextureMapping(void)
 
 static inline void R_InitLightTables(void)
 {
-	INT32 i;
-	INT32 j;
-	INT32 level;
-	INT32 startmapl;
-	INT32 scale;
+	INT32 i, j;
+	INT32 level, scale ,startmapl;
 
 	// Calculate the light levels to use
-	//  for each level / distance combination.
+	// for each level / distance combination.
 	for (i = 0; i < LIGHTLEVELS; i++)
 	{
 		startmapl = ((LIGHTLEVELS-1-i)*2)*NUMCOLORMAPS/LIGHTLEVELS;
 		for (j = 0; j < MAXLIGHTZ; j++)
 		{
-			//added : 02-02-98 : use BASEVIDWIDTH, vid.width is not set already,
-			// and it seems it needs to be calculated only once.
 			scale = FixedDiv((BASEVIDWIDTH/2*FRACUNIT), (j+1)<<LIGHTZSHIFT);
 			scale >>= LIGHTSCALESHIFT;
 			level = startmapl - scale/DISTMAP;
@@ -538,10 +528,10 @@ static inline void R_InitLightTables(void)
 				level = NUMCOLORMAPS-1;
 
 			zlight[i][j] = colormaps + level*256;
+			zlight_tc[i][j] = truecolormaps + level*256;
 		}
 	}
 }
-
 
 //
 // R_SetViewSize
@@ -591,11 +581,9 @@ void R_ExecuteSetViewSize(void)
 	centeryfrac = centery<<FRACBITS;
 
 	projection = centerxfrac;
-	//projectiony = (((vid.height*centerx*BASEVIDWIDTH)/BASEVIDHEIGHT)/vid.width)<<FRACBITS;
 	projectiony = centerxfrac;
 
 	R_InitViewBuffer(scaledviewwidth, viewheight);
-
 	R_InitTextureMapping();
 
 #ifdef HWRENDER
@@ -611,13 +599,12 @@ void R_ExecuteSetViewSize(void)
 	R_SetSkyScale();
 
 	// planes
-	//aspectx = (((vid.height*centerx*BASEVIDWIDTH)/BASEVIDHEIGHT)/vid.width);
 	aspectx = centerx;
 
 	if (rendermode == render_soft)
 	{
 		// this is only used for planes rendering in software mode
-		j = viewheight*4;
+		j = viewheight*8;
 		for (i = 0; i < j; i++)
 		{
 			dy = ((i - viewheight*2)<<FRACBITS) + FRACUNIT/2;
@@ -632,10 +619,11 @@ void R_ExecuteSetViewSize(void)
 		distscale[i] = FixedDiv(FRACUNIT, cosadj);
 	}
 
-	memset(scalelight, 0xFF, sizeof(scalelight));
+	memset    (scalelight,    0xFF, sizeof(scalelight));
+	M_Memset32(scalelight_tc, 0xFF, sizeof(scalelight_tc));
 
 	// Calculate the light levels to use for each level/scale combination.
-	for (i = 0; i< LIGHTLEVELS; i++)
+	for (i = 0; i < LIGHTLEVELS; i++)
 	{
 		startmapl = ((LIGHTLEVELS - 1 - i)*2)*NUMCOLORMAPS/LIGHTLEVELS;
 		for (j = 0; j < MAXLIGHTSCALE; j++)
@@ -648,7 +636,8 @@ void R_ExecuteSetViewSize(void)
 			if (level >= NUMCOLORMAPS)
 				level = NUMCOLORMAPS - 1;
 
-			scalelight[i][j] = colormaps + level*256;
+			scalelight   [i][j] = colormaps     + level*256;
+			scalelight_tc[i][j] = truecolormaps + level*256;
 		}
 	}
 
@@ -668,23 +657,22 @@ void R_ExecuteSetViewSize(void)
 void R_Init(void)
 {
 	// screensize independent
-	//I_OutputMsg("\nR_InitData");
+	CONS_Printf("R_InitData()...\n");
 	R_InitData();
 
-	//I_OutputMsg("\nR_InitViewBorder");
-	R_InitViewBorder();
+	CONS_Printf("R_SetViewSize()...\n");
 	R_SetViewSize(); // setsizeneeded is set true
 
-	//I_OutputMsg("\nR_InitPlanes");
+	CONS_Printf("R_InitPlanes()...\n");
 	R_InitPlanes();
 
-	// this is now done by SCR_Recalc() at the first mode set
-	//I_OutputMsg("\nR_InitLightTables");
+	CONS_Printf("R_InitLightTables()...\n");
 	R_InitLightTables();
 
-	//I_OutputMsg("\nR_InitTranslationTables\n");
+	CONS_Printf("R_InitTranslationTables()...\n");
 	R_InitTranslationTables();
 
+	CONS_Printf("R_InitDrawNodes()...\n");
 	R_InitDrawNodes();
 
 	framecount = 0;
@@ -1280,21 +1268,8 @@ void R_RenderPlayerView(player_t *player)
 	NetUpdate();
 
 	// The head node is the last node output.
-
-//profile stuff ---------------------------------------------------------
-#ifdef TIMING
-	mytotal = 0;
-	ProfZeroTimer();
-#endif
 	R_RenderBSPNode((INT32)numnodes - 1);
 	R_ClipSprites();
-#ifdef TIMING
-	RDMSR(0x10, &mycount);
-	mytotal += mycount; // 64bit add
-
-	CONS_Debug(DBG_RENDER, "RenderBSPNode: 0x%d %d\n", *((INT32 *)&mytotal + 1), (INT32)mytotal);
-#endif
-//profile stuff ---------------------------------------------------------
 
 	// PORTAL RENDERING
 	for(portal = portal_base; portal; portal = portal_base)
@@ -1313,8 +1288,6 @@ void R_RenderPlayerView(player_t *player)
 
 		R_RenderBSPNode((INT32)numnodes - 1);
 		R_ClipSprites();
-		//R_DrawPlanes();
-		//R_DrawMasked();
 
 		// okay done. free it.
 		portalcullsector = NULL; // Just in case...
@@ -1363,11 +1336,14 @@ void R_RegisterEngineStuff(void)
 	if (dedicated)
 		return;
 
-	CV_RegisterVar(&cv_precipdensity);
+	// Jimita: True-color
+	CV_RegisterVar(&cv_truecolormaps);
 	CV_RegisterVar(&cv_translucency);
+
 	CV_RegisterVar(&cv_drawdist);
 	CV_RegisterVar(&cv_drawdist_nights);
 	CV_RegisterVar(&cv_drawdist_precip);
+	CV_RegisterVar(&cv_precipdensity);
 
 	CV_RegisterVar(&cv_chasecam);
 	CV_RegisterVar(&cv_chasecam2);

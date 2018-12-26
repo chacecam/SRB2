@@ -58,7 +58,7 @@ typedef off_t off64_t;
 
 #if defined(__MINGW32__) && ((__GNUC__ > 7) || (__GNUC__ == 6 && __GNUC_MINOR__ >= 3))
 #define PRIdS "u"
-#elif defined (_WIN32) 
+#elif defined (_WIN32)
 #define PRIdS "Iu"
 #elif defined (_PSP) || defined (_arch_dreamcast) || defined (DJGPP) || defined (_WII) || defined (_NDS) || defined (_PS3)
 #define PRIdS "u"
@@ -612,35 +612,11 @@ static void PNG_warn(png_structp PNG, png_const_charp pngtext)
 	CONS_Debug(DBG_RENDER, "libpng warning at %p: %s", PNG, pngtext);
 }
 
-static void M_PNGhdr(png_structp png_ptr, png_infop png_info_ptr, PNG_CONST png_uint_32 width, PNG_CONST png_uint_32 height, PNG_CONST png_byte *palette)
+static void M_PNGhdr(png_structp png_ptr, png_infop png_info_ptr, PNG_CONST png_uint_32 width, PNG_CONST png_uint_32 height)
 {
-	const png_byte png_interlace = PNG_INTERLACE_NONE; //PNG_INTERLACE_ADAM7
-	if (palette)
-	{
-		png_colorp png_PLTE = png_malloc(png_ptr, sizeof(png_color)*256); //palette
-		const png_byte *pal = palette;
-		png_uint_16 i;
-		for (i = 0; i < 256; i++)
-		{
-			png_PLTE[i].red   = *pal; pal++;
-			png_PLTE[i].green = *pal; pal++;
-			png_PLTE[i].blue  = *pal; pal++;
-		}
-		png_set_IHDR(png_ptr, png_info_ptr, width, height, 8, PNG_COLOR_TYPE_PALETTE,
-		 png_interlace, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
-		png_write_info_before_PLTE(png_ptr, png_info_ptr);
-		png_set_PLTE(png_ptr, png_info_ptr, png_PLTE, 256);
-		png_free(png_ptr, (png_voidp)png_PLTE); // safe in libpng-1.2.1+
-		png_set_filter(png_ptr, PNG_FILTER_TYPE_BASE, PNG_FILTER_NONE);
-		png_set_compression_strategy(png_ptr, Z_DEFAULT_STRATEGY);
-	}
-	else
-	{
-		png_set_IHDR(png_ptr, png_info_ptr, width, height, 8, PNG_COLOR_TYPE_RGB,
-		 png_interlace, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
-		png_write_info_before_PLTE(png_ptr, png_info_ptr);
-		png_set_compression_strategy(png_ptr, Z_FILTERED);
-	}
+	png_set_IHDR(png_ptr, png_info_ptr, width, height, 8, PNG_COLOR_TYPE_RGB_ALPHA, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+	png_write_info(png_ptr, png_info_ptr);
+	png_set_compression_strategy(png_ptr, Z_FILTERED);
 }
 
 static void M_PNGText(png_structp png_ptr, png_infop png_info_ptr, PNG_CONST png_byte movie)
@@ -924,7 +900,7 @@ static void M_PNGfix_acTL(png_structp png_ptr, png_infop png_info_ptr)
 	fseek(apng_FILE, oldpos, SEEK_SET);
 }
 
-static boolean M_SetupaPNG(png_const_charp filename, png_bytep pal)
+static boolean M_SetupaPNG(png_const_charp filename)
 {
 	apng_FILE = fopen(filename,"wb+"); // + mode for reading
 	if (!apng_FILE)
@@ -966,7 +942,7 @@ static boolean M_SetupaPNG(png_const_charp filename, png_bytep pal)
 	png_set_compression_strategy(apng_ptr, cv_zlib_strategya.value);
 	png_set_compression_window_bits(apng_ptr, cv_zlib_window_bitsa.value);
 
-	M_PNGhdr(apng_ptr, apng_info_ptr, vid.width, vid.height, pal);
+	M_PNGhdr(apng_ptr, apng_info_ptr, vid.width, vid.height);
 
 	M_PNGText(apng_ptr, apng_info_ptr, true);
 
@@ -1006,11 +982,7 @@ static inline moviemode_t M_StartMovieAPNG(const char *pathname)
 		return MM_OFF;
 	}
 
-	if (rendermode == render_soft)
-		ret = M_SetupaPNG(va(pandf,pathname,freename), W_CacheLumpName(GetPalette(), PU_CACHE));
-	else
-		ret = M_SetupaPNG(va(pandf,pathname,freename), NULL);
-
+	ret = M_SetupaPNG(va(pandf,pathname,freename));
 	if (!ret)
 	{
 		CONS_Alert(CONS_ERROR, "Couldn't create aPNG: error creating %s in %s\n", freename, pathname);
@@ -1123,7 +1095,7 @@ void M_SaveFrame(void)
 		case MM_APNG:
 #ifdef USE_APNG
 			{
-				UINT8 *linear = NULL;
+				UINT32 *linear = NULL;
 				if (!apng_FILE) // should not happen!!
 				{
 					moviemode = MM_OFF;
@@ -1133,7 +1105,7 @@ void M_SaveFrame(void)
 				if (rendermode == render_soft)
 				{
 					// munge planar buffer to linear
-					linear = screens[2];
+					linear = screen_sshotbuffer;
 					I_ReadScreen(linear);
 				}
 #ifdef HWRENDER
@@ -1215,11 +1187,10 @@ void M_StopMovie(void)
   * \param palette  Palette of image data
   *  \note if palette is NULL, BGR888 format
   */
-boolean M_SavePNG(const char *filename, void *data, int width, int height, const UINT8 *palette)
+boolean M_SavePNG(const char *filename, void *data, int width, int height)
 {
 	png_structp png_ptr;
 	png_infop png_info_ptr;
-	PNG_CONST png_byte *PLTE = (const png_byte *)palette;
 #ifdef PNG_SETJMP_SUPPORTED
 #ifdef USE_FAR_KEYWORD
 	jmp_buf jmpbuf;
@@ -1282,7 +1253,7 @@ boolean M_SavePNG(const char *filename, void *data, int width, int height, const
 	png_set_compression_strategy(png_ptr, cv_zlib_strategy.value);
 	png_set_compression_window_bits(png_ptr, cv_zlib_window_bits.value);
 
-	M_PNGhdr(png_ptr, png_info_ptr, width, height, PLTE);
+	M_PNGhdr(png_ptr, png_info_ptr, width, height);
 
 	M_PNGText(png_ptr, png_info_ptr, false);
 
@@ -1400,7 +1371,7 @@ void M_DoScreenShot(void)
 #if NUMSCREENS > 2
 	const char *freename = NULL, *pathname = ".";
 	boolean ret = false;
-	UINT8 *linear = NULL;
+	UINT32 *linear = NULL;
 
 	// Don't take multiple screenshots, obviously
 	takescreenshot = false;
@@ -1428,8 +1399,7 @@ void M_DoScreenShot(void)
 
 	if (rendermode == render_soft)
 	{
-		// munge planar buffer to linear
-		linear = screens[2];
+		linear = screen_sshotbuffer;
 		I_ReadScreen(linear);
 	}
 
@@ -1445,8 +1415,7 @@ void M_DoScreenShot(void)
 	if (rendermode != render_none)
 	{
 #ifdef USE_PNG
-		ret = M_SavePNG(va(pandf,pathname,freename), linear, vid.width, vid.height,
-			W_CacheLumpName(GetPalette(), PU_CACHE));
+		ret = M_SavePNG(va(pandf,pathname,freename), linear, vid.width, vid.height);
 #else
 		ret = WritePCXfile(va(pandf,pathname,freename), linear, vid.width, vid.height,
 			W_CacheLumpName(GetPalette(), PU_CACHE));
@@ -1953,7 +1922,7 @@ ATTRINLINE static FUNCINLINE void *__memcpy (void *dest, const void * src, size_
 /* SSE note: i tried to move 128 bytes a time instead of 64 but it
 didn't make any measureable difference. i'm using 64 for the sake of
 simplicity. [MF] */
-static /*FUNCTARGET("sse2")*/ void *sse_cpy(void * dest, const void * src, size_t n)
+static void *sse_cpy(void * dest, const void * src, size_t n)
 {
 	void *retval = dest;
 	size_t i;
@@ -2194,7 +2163,7 @@ static void *cpu_cpy(void *dest, const void *src, size_t n)
 	return memcpy(dest, src, n);
 }
 
-static /*FUNCTARGET("mmx")*/ void *mmx_cpy(void *dest, const void *src, size_t n)
+static void *mmx_cpy(void *dest, const void *src, size_t n)
 {
 #if defined (_MSC_VER) && defined (_X86_)
 	_asm
@@ -2321,7 +2290,12 @@ void M_SetupMemcpy(void)
 #endif
 	if (R_MMX)
 		M_Memcpy = mmx_cpy;
-#if 0
-	M_Memcpy = cpu_cpy;
-#endif
+}
+
+// Jimita
+void M_Memset32(void *dest, UINT64 value, uintptr_t size)
+{
+	uintptr_t i;
+	for(i=0;i<size;i++)
+		((char*)dest)[i] = ((char*)&value)[i&3];
 }

@@ -197,7 +197,7 @@ void ST_Ticker(void)
 }
 
 // 0 is default, any others are special palettes.
-static INT32 st_palette = 0;
+INT32 st_palette = 0;
 
 void ST_doPaletteStuff(void)
 {
@@ -206,7 +206,8 @@ void ST_doPaletteStuff(void)
 	if (paused || P_AutoPause())
 		palette = 0;
 	else if (stplyr && stplyr->flashcount)
-		palette = stplyr->flashpal;
+		return;	// sowwy
+		//palette = stplyr->flashpal;
 	else
 		palette = 0;
 
@@ -238,10 +239,6 @@ void ST_UnloadGraphics(void)
 void ST_LoadGraphics(void)
 {
 	int i;
-
-	// SRB2 border patch
-	st_borderpatchnum = W_GetNumForName("GFZFLR01");
-	scr_borderpatch = W_CacheLumpNum(st_borderpatchnum, PU_HUDGFX);
 
 	// the original Doom uses 'STF' as base name for all face graphics
 	// Graue 04-08-2004: face/name graphics are now indexed by skins
@@ -396,9 +393,6 @@ void ST_Start(void)
 //
 // Initializes the status bar, sets the defaults border patch for the window borders.
 //
-
-// used by OpenGL mode, holds lumpnum of flat used to fill space around the viewwindow
-lumpnum_t st_borderpatchnum;
 
 void ST_Init(void)
 {

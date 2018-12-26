@@ -22,10 +22,30 @@
 // VIDEO
 //
 
-// Screen 0 is the screen updated by I_Update screen.
-// Screen 1 is an extra buffer.
+// Jimita: True-color
+UINT32 V_GetTrueColor(INT32 c);
+UINT32 V_TrueColormapRGBA(INT32 c);
+UINT32 V_TrueColormapRGBA_DS(INT32 c);
 
-extern UINT8 *screens[5];
+UINT32 V_BlendTrueColor(UINT32 bg, UINT32 fg, UINT8 alpha);
+UINT8 V_AlphaTrans(INT32 num);
+
+/*union ColorTable32k
+{
+	UINT32 RGB[256][256][256];
+	UINT32 All[256*256*256];
+};
+extern ColorTable32k RGB32k;*/
+
+void V_DrawPixelTrueColor(UINT32 *dest, UINT32 rgb_color);
+
+// Jimita
+extern UINT32 *screen_main;
+extern UINT32 *screen_altblit;
+extern UINT32 *screen_sshotbuffer;
+extern UINT32 *screen_fadestart;
+extern UINT32 *screen_fadeend;
+extern UINT32 *screen_postimage;
 
 extern const UINT8 gammatable[5][256];
 extern consvar_t cv_ticrate, cv_usegamma, cv_allcaps, cv_constextsize;
@@ -45,6 +65,7 @@ extern RGBA_t *pLocalPalette;
 
 // Retrieve the ARGB value from a palette color index
 #define V_GetColor(color) (pLocalPalette[color&0xFF])
+#define V_GetColorPal(color,palettenum) (pLocalPalette[(palettenum*256)+(color&0xFF)])
 
 // Bottom 8 bits are used for parameter (screen or character)
 #define V_PARAMMASK          0x000000FF
@@ -132,15 +153,14 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 void V_DrawContinueIcon(INT32 x, INT32 y, INT32 flags, INT32 skinnum, UINT8 skincolor);
 
 // Draw a linear block of pixels into the view buffer.
-void V_DrawBlock(INT32 x, INT32 y, INT32 scrn, INT32 width, INT32 height, const UINT8 *src);
-
-// draw a pic_t, SCALED
-void V_DrawScaledPic (INT32 px1, INT32 py1, INT32 scrn, INT32 lumpnum);
+void V_DrawBlock(INT32 x, INT32 y, UINT32 *screen, INT32 width, INT32 height, const UINT32 *src);
 
 // fill a box with a single color
 void V_DrawFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c);
 // fill a box with a flat as a pattern
 void V_DrawFlatFill(INT32 x, INT32 y, INT32 w, INT32 h, lumpnum_t flatnum);
+// fill a box with a patch as a pattern
+void V_DrawPatchFill(patch_t *pat);
 
 // fade down the screen buffer before drawing the menu over
 void V_DrawFadeScreen(void);
@@ -189,10 +209,6 @@ INT32 V_SmallStringWidth(const char *string, INT32 option);
 INT32 V_ThinStringWidth(const char *string, INT32 option);
 
 void V_DoPostProcessor(INT32 view, postimg_t type, INT32 param);
-
-void V_DrawPatchFill(patch_t *pat);
-
-void VID_BlitLinearScreen(const UINT8 *srcptr, UINT8 *destptr, INT32 width, INT32 height, size_t srcrowbytes,
-	size_t destrowbytes);
+void VID_BlitLinearScreen(UINT32 *srcptr, UINT32 *destptr, INT32 width, INT32 height);
 
 #endif

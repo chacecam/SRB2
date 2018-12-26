@@ -398,14 +398,12 @@ void I_FinishUpdate(void)
 				size_t half_excess = ScreenPitch*(ScreenHeight-vid.height)/2;
 				memset(ptr, 0x1F, half_excess);
 				ptr += half_excess;
-				VID_BlitLinearScreen(screens[0], ptr, vid.width*vid.bpp, vid.height,
-					vid.width*vid.bpp, ScreenPitch);
+				VID_BlitLinearScreen(screen_main, ptr, vid.width, vid.height);
 				ptr += vid.height*ScreenPitch;
 				memset(ptr, 0x1F, half_excess);
 			}
 			else
-				VID_BlitLinearScreen(screens[0], (UINT8 *)ScreenPtr, vid.width*vid.bpp, vid.height,
-					vid.width*vid.bpp, ScreenPitch);
+				VID_BlitLinearScreen(screen_main, (UINT8 *)ScreenPtr, vid.width, vid.height);
 
 			UnlockScreen();
 
@@ -454,13 +452,12 @@ void I_LoadingScreen(LPCSTR msg)
 // ------------
 // I_ReadScreen
 // ------------
-void I_ReadScreen(UINT8 *scr)
+void I_ReadScreen(UINT32 *scr)
 {
 	// DEBUGGING
 	if (rendermode != render_soft)
 		I_Error("I_ReadScreen: called while in non-software mode");
-	VID_BlitLinearScreen(screens[0], scr, vid.width*vid.bpp, vid.height, vid.width*vid.bpp,
-		vid.rowbytes);
+	VID_BlitLinearScreen(screen_main, scr, vid.width, vid.height);
 }
 
 // ------------

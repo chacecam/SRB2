@@ -1606,15 +1606,8 @@
 		84177788085A111B000C01D8 = {
 			fileEncoding = 30;
 			isa = PBXFileReference;
-			name = r_draw8.c;
-			path = ../../r_draw8.c;
-			refType = 2;
-		};
-		84177789085A111B000C01D8 = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			name = r_draw16.c;
-			path = ../../r_draw16.c;
+			name = r_draw32.c;
+			path = ../../r_draw32.c;
 			refType = 2;
 		};
 		8417778A085A111B000C01D8 = {

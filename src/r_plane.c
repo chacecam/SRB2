@@ -37,9 +37,6 @@
 // Quincunx antialiasing of flats!
 //#define QUINCUNX
 
-// good night sweet prince
-#define SHITPLANESPARENCY
-
 //SoM: 3/23/2000: Use Boom visplane hashing.
 #define MAXVISPLANES 512
 
@@ -82,6 +79,9 @@ static INT32 spanstart[MAXVIDHEIGHT];
 lighttable_t **planezlight;
 static fixed_t planeheight;
 
+// Jimita: True-color
+lighttable32_t **planezlight_tc;
+
 //added : 10-02-98: yslopetab is what yslope used to be,
 //                yslope points somewhere into yslopetab,
 //                now (viewheight/2) slopes are calculated above and
@@ -89,7 +89,7 @@ static fixed_t planeheight;
 //                (this is to calculate yslopes only when really needed)
 //                (when mouselookin', yslope is moving into yslopetab)
 //                Check R_SetupFrame, R_SetViewSize for more...
-fixed_t yslopetab[MAXVIDHEIGHT*4];
+fixed_t yslopetab[MAXVIDHEIGHT*8];
 fixed_t *yslope;
 
 fixed_t distscale[MAXVIDWIDTH];
@@ -155,18 +155,6 @@ void R_PortalRestoreClipValues(INT32 start, INT32 end, INT16 *ceil, INT16 *floor
 	}
 }
 
-
-//profile stuff ---------------------------------------------------------
-//#define TIMING
-#ifdef TIMING
-#include "p5prof.h"
-         INT64 mycount;
-         INT64 mytotal = 0;
-         UINT32 nombre = 100000;
-#endif
-//profile stuff ---------------------------------------------------------
-
-
 //
 // R_MapPlane
 //
@@ -183,94 +171,9 @@ void R_PortalRestoreClipValues(INT32 start, INT32 end, INT16 *ceil, INT16 *floor
 //
 // BASIC PRIMITIVE
 //
+
 #ifndef NOWATER
-static INT32 bgofs;
-static INT32 wtofs=0;
-static INT32 waterofs;
 static boolean itswater;
-#endif
-
-#ifdef __mips__
-//#define NOWATER
-#endif
-
-#ifndef NOWATER
-static void R_DrawTranslucentWaterSpan_8(void)
-{
-	UINT32 xposition;
-	UINT32 yposition;
-	UINT32 xstep, ystep;
-
-	UINT8 *source;
-	UINT8 *colormap;
-	UINT8 *dest;
-	UINT8 *dsrc;
-
-	size_t count;
-
-	// SoM: we only need 6 bits for the integer part (0 thru 63) so the rest
-	// can be used for the fraction part. This allows calculation of the memory address in the
-	// texture with two shifts, an OR and one AND. (see below)
-	// for texture sizes > 64 the amount of precision we can allow will decrease, but only by one
-	// bit per power of two (obviously)
-	// Ok, because I was able to eliminate the variable spot below, this function is now FASTER
-	// than the original span renderer. Whodathunkit?
-	xposition = ds_xfrac << nflatshiftup; yposition = (ds_yfrac + waterofs) << nflatshiftup;
-	xstep = ds_xstep << nflatshiftup; ystep = ds_ystep << nflatshiftup;
-
-	source = ds_source;
-	colormap = ds_colormap;
-	dest = ylookup[ds_y] + columnofs[ds_x1];
-	dsrc = screens[1] + (ds_y+bgofs)*vid.width + ds_x1;
-	count = ds_x2 - ds_x1 + 1;
-
-	while (count >= 8)
-	{
-		// SoM: Why didn't I see this earlier? the spot variable is a waste now because we don't
-		// have the uber complicated math to calculate it now, so that was a memory write we didn't
-		// need!
-		dest[0] = colormap[*(ds_transmap + (source[((yposition >> nflatyshift) & nflatmask) | (xposition >> nflatxshift)] << 8) + *dsrc++)];
-		xposition += xstep;
-		yposition += ystep;
-
-		dest[1] = colormap[*(ds_transmap + (source[((yposition >> nflatyshift) & nflatmask) | (xposition >> nflatxshift)] << 8) + *dsrc++)];
-		xposition += xstep;
-		yposition += ystep;
-
-		dest[2] = colormap[*(ds_transmap + (source[((yposition >> nflatyshift) & nflatmask) | (xposition >> nflatxshift)] << 8) + *dsrc++)];
-		xposition += xstep;
-		yposition += ystep;
-
-		dest[3] = colormap[*(ds_transmap + (source[((yposition >> nflatyshift) & nflatmask) | (xposition >> nflatxshift)] << 8) + *dsrc++)];
-		xposition += xstep;
-		yposition += ystep;
-
-		dest[4] = colormap[*(ds_transmap + (source[((yposition >> nflatyshift) & nflatmask) | (xposition >> nflatxshift)] << 8) + *dsrc++)];
-		xposition += xstep;
-		yposition += ystep;
-
-		dest[5] = colormap[*(ds_transmap + (source[((yposition >> nflatyshift) & nflatmask) | (xposition >> nflatxshift)] << 8) + *dsrc++)];
-		xposition += xstep;
-		yposition += ystep;
-
-		dest[6] = colormap[*(ds_transmap + (source[((yposition >> nflatyshift) & nflatmask) | (xposition >> nflatxshift)] << 8) + *dsrc++)];
-		xposition += xstep;
-		yposition += ystep;
-
-		dest[7] = colormap[*(ds_transmap + (source[((yposition >> nflatyshift) & nflatmask) | (xposition >> nflatxshift)] << 8) + *dsrc++)];
-		xposition += xstep;
-		yposition += ystep;
-
-		dest += 8;
-		count -= 8;
-	}
-	while (count--)
-	{
-		*dest++ = colormap[*(ds_transmap + (source[((yposition >> nflatyshift) & nflatmask) | (xposition >> nflatxshift)] << 8) + *dsrc++)];
-		xposition += xstep;
-		yposition += ystep;
-	}
-}
 #endif
 
 void R_MapPlane(INT32 y, INT32 x1, INT32 x2)
@@ -312,18 +215,17 @@ void R_MapPlane(INT32 y, INT32 x1, INT32 x2)
 #ifndef NOWATER
 	if (itswater)
 	{
-		const INT32 yay = (wtofs + (distance>>9) ) & 8191;
-		// ripples da water texture
-		bgofs = FixedDiv(FINESINE(yay), (1<<12) + (distance>>11))>>FRACBITS;
+		const INT32 xd = (ds_watertimer + (distance>>9) ) & 8191;
+		ds_bgoffset = FixedDiv(FINESINE(xd), (1<<12) + (distance>>11))>>FRACBITS;
 
-		angle = (angle + 2048) & 8191;  //90�
-		ds_xfrac += FixedMul(FINECOSINE(angle), (bgofs<<FRACBITS));
-		ds_yfrac += FixedMul(FINESINE(angle), (bgofs<<FRACBITS));
+		angle = (angle + 2048) & 8191;  // 90 degrees
+		ds_xfrac += FixedMul(FINECOSINE(angle), (ds_bgoffset<<FRACBITS));
+		ds_yfrac += FixedMul(FINESINE(angle), (ds_bgoffset<<FRACBITS));
 
-		if (y+bgofs>=viewheight)
-			bgofs = viewheight-y-1;
-		if (y+bgofs<0)
-			bgofs = -y;
+		if (y+ds_bgoffset >= viewheight)
+			ds_bgoffset = viewheight-y-1;
+		if (y+ds_bgoffset < 0)
+			ds_bgoffset = -y;
 	}
 #endif
 
@@ -337,28 +239,28 @@ void R_MapPlane(INT32 y, INT32 x1, INT32 x2)
 		ds_colormap = colormaps;
 	else
 #endif
-	ds_colormap = planezlight[pindex];
+		ds_colormap = planezlight[pindex];
 
-	if (currentplane->extra_colormap)
+	// Jimita: True-color
+	ds_truecolormap = NULL;
+	if (cv_truecolormaps.value)
+	{
+		ds_foglight = ds_colormap-colormaps;
+		if (currentplane->slope)
+			R_SetTrueColormapDS(truecolormaps);
+		else
+			R_SetTrueColormapDS(planezlight_tc[pindex]);
+		if (currentplane->extra_colormap)
+			R_SetTrueColormapDS(currentplane->extra_colormap->truecolormap + (ds_truecolormap - truecolormaps));
+	}
+	else if (currentplane->extra_colormap)
 		ds_colormap = currentplane->extra_colormap->colormap + (ds_colormap - colormaps);
 
 	ds_y = y;
 	ds_x1 = x1;
 	ds_x2 = x2;
 
-	// profile drawer
-#ifdef TIMING
-	ProfZeroTimer();
-#endif
-
 	spanfunc();
-
-#ifdef TIMING
-	RDMSR(0x10, &mycount);
-	mytotal += mycount; // 64bit add
-	if (!(nombre--))
-	I_Error("spanfunc() CPU Spy reports: 0x%d %d\n", *((INT32 *)&mytotal+1), (INT32)mytotal);
-#endif
 }
 
 //
@@ -706,6 +608,7 @@ void R_DrawPlanes(void)
 				// Because of this hack, sky is not affected
 				//  by INVUL inverse mapping.
 				dc_colormap = colormaps;
+				dc_truecolormap = NULL;
 				dc_texturemid = skytexturemid;
 				dc_texheight = textureheight[skytexture]
 					>>FRACBITS;
@@ -716,11 +619,10 @@ void R_DrawPlanes(void)
 
 					if (dc_yl <= dc_yh)
 					{
-						angle = (pl->viewangle + xtoviewangle[x])>>ANGLETOSKYSHIFT;
 						dc_x = x;
-						dc_source =
-							R_GetColumn(skytexture,
-								angle);
+						angle = (pl->viewangle + xtoviewangle[x])>>ANGLETOSKYSHIFT;
+						//dc_iscale = FixedMul(skyscale, FINECOSINE(xtoviewangle[x]>>ANGLETOFINESHIFT));
+						dc_source = R_GetColumn(skytexture, angle);
 						wallcolfunc();
 					}
 				}
@@ -738,8 +640,8 @@ void R_DrawPlanes(void)
 		}
 	}
 #ifndef NOWATER
-	waterofs = (leveltime & 1)*16384;
-	wtofs = leveltime * 140;
+	ds_wateroffset = (leveltime & 1)*16384;
+	ds_watertimer = leveltime * 140;
 #endif
 }
 
@@ -758,24 +660,22 @@ void R_DrawSinglePlane(visplane_t *pl)
 	itswater = false;
 #endif
 	spanfunc = basespanfunc;
+	ds_transmap = 255;
 
 #ifdef POLYOBJECTS_PLANES
-	if (pl->polyobj && pl->polyobj->translucency != 0) {
-		spanfunc = R_DrawTranslucentSpan_8;
+	if (pl->polyobj && pl->polyobj->translucency != 0)
+	{
+		spanfunc = R_DrawTranslucentSpan_32;
 
 		// Hacked up support for alpha value in software mode Tails 09-24-2002 (sidenote: ported to polys 10-15-2014, there was no time travel involved -Red)
 		if (pl->polyobj->translucency >= 10)
 			return; // Don't even draw it
 		else if (pl->polyobj->translucency > 0)
-			ds_transmap = transtables + ((pl->polyobj->translucency-1)<<FF_TRANSSHIFT);
+			ds_transmap = V_AlphaTrans(pl->polyobj->translucency);
 		else // Opaque, but allow transparent flat pixels
 			spanfunc = splatfunc;
 
-#ifdef SHITPLANESPARENCY
-		if (spanfunc == splatfunc || (pl->extra_colormap && pl->extra_colormap->fog))
-#else
 		if (!pl->extra_colormap || !(pl->extra_colormap->fog & 2))
-#endif
 			light = (pl->lightlevel >> LIGHTSEGSHIFT);
 		else
 			light = LIGHTLEVELS-1;
@@ -803,44 +703,25 @@ void R_DrawSinglePlane(visplane_t *pl)
 
 		if (pl->ffloor->flags & FF_TRANSLUCENT)
 		{
-			spanfunc = R_DrawTranslucentSpan_8;
+			spanfunc = R_DrawTranslucentSpan_32;
 
 			// Hacked up support for alpha value in software mode Tails 09-24-2002
-			if (pl->ffloor->alpha < 12)
+			// Edited by Jimita the Cat for True-Color Mode
+			if (pl->ffloor->alpha < 1)
 				return; // Don't even draw it
-			else if (pl->ffloor->alpha < 38)
-				ds_transmap = transtables + ((tr_trans90-1)<<FF_TRANSSHIFT);
-			else if (pl->ffloor->alpha < 64)
-				ds_transmap = transtables + ((tr_trans80-1)<<FF_TRANSSHIFT);
-			else if (pl->ffloor->alpha < 89)
-				ds_transmap = transtables + ((tr_trans70-1)<<FF_TRANSSHIFT);
-			else if (pl->ffloor->alpha < 115)
-				ds_transmap = transtables + ((tr_trans60-1)<<FF_TRANSSHIFT);
-			else if (pl->ffloor->alpha < 140)
-				ds_transmap = transtables + ((tr_trans50-1)<<FF_TRANSSHIFT);
-			else if (pl->ffloor->alpha < 166)
-				ds_transmap = transtables + ((tr_trans40-1)<<FF_TRANSSHIFT);
-			else if (pl->ffloor->alpha < 192)
-				ds_transmap = transtables + ((tr_trans30-1)<<FF_TRANSSHIFT);
-			else if (pl->ffloor->alpha < 217)
-				ds_transmap = transtables + ((tr_trans20-1)<<FF_TRANSSHIFT);
-			else if (pl->ffloor->alpha < 243)
-				ds_transmap = transtables + ((tr_trans10-1)<<FF_TRANSSHIFT);
+			else if (pl->ffloor->alpha != 255)
+				ds_transmap = pl->ffloor->alpha;
 			else // Opaque, but allow transparent flat pixels
 				spanfunc = splatfunc;
 
-#ifdef SHITPLANESPARENCY
-			if (spanfunc == splatfunc || (pl->extra_colormap && pl->extra_colormap->fog))
-#else
 			if (!pl->extra_colormap || !(pl->extra_colormap->fog & 2))
-#endif
 				light = (pl->lightlevel >> LIGHTSEGSHIFT);
 			else
 				light = LIGHTLEVELS-1;
 		}
 		else if (pl->ffloor->flags & FF_FOG)
 		{
-			spanfunc = R_DrawFogSpan_8;
+			spanfunc = R_DrawFogSpan_32;
 			light = (pl->lightlevel >> LIGHTSEGSHIFT);
 		}
 		else light = (pl->lightlevel >> LIGHTSEGSHIFT);
@@ -855,9 +736,9 @@ void R_DrawSinglePlane(visplane_t *pl)
 			INT32 top, bottom;
 
 			itswater = true;
-			if (spanfunc == R_DrawTranslucentSpan_8)
+			if (spanfunc == R_DrawTranslucentSpan_32)
 			{
-				spanfunc = R_DrawTranslucentWaterSpan_8;
+				spanfunc = R_DrawTranslucentWaterSpan_32;
 
 				// Copy the current scene, ugh
 				top = pl->high-8;
@@ -869,9 +750,11 @@ void R_DrawSinglePlane(visplane_t *pl)
 					bottom = vid.height;
 
 				// Only copy the part of the screen we need
-				VID_BlitLinearScreen((splitscreen && viewplayer == &players[secondarydisplayplayer]) ? screens[0] + (top+(vid.height>>1))*vid.width : screens[0]+((top)*vid.width), screens[1]+((top)*vid.width),
-				                     vid.width, bottom-top,
-				                     vid.width, vid.width);
+				VID_BlitLinearScreen(
+					(splitscreen && viewplayer == &players[secondarydisplayplayer]) ? screen_main + (top+(vid.height>>1))*vid.width : screen_main+((top)*vid.width),
+					screen_altblit+((top)*vid.width),
+					vid.width, bottom-top
+				);
 			}
 		}
 #endif
@@ -1043,18 +926,21 @@ void R_DrawSinglePlane(visplane_t *pl)
 		ds_sv.z *= SFMULT;
 #undef SFMULT
 
-		if (spanfunc == R_DrawTranslucentSpan_8)
-			spanfunc = R_DrawTiltedTranslucentSpan_8;
+		if (spanfunc == R_DrawTranslucentSpan_32)
+			spanfunc = R_DrawTiltedTranslucentSpan_32;
 		else if (spanfunc == splatfunc)
-			spanfunc = R_DrawTiltedSplat_8;
+			spanfunc = R_DrawTiltedSplat_32;
 		else
-			spanfunc = R_DrawTiltedSpan_8;
+			spanfunc = R_DrawTiltedSpan_32;
 
-		planezlight = scalelight[light];
+		planezlight    = scalelight[light];
+		planezlight_tc = scalelight_tc[light];
 	} else
 #endif // ESLOPE
-
-	planezlight = zlight[light];
+	{
+		planezlight    = zlight   [light];
+		planezlight_tc = zlight_tc[light];
+	}
 
 	// set the maximum value for unsigned
 	pl->top[pl->maxx+1] = 0xffff;
@@ -1095,11 +981,11 @@ a 'smoothing' of the texture while
 using the palette colors.
 */
 #ifdef QUINCUNX
-	if (spanfunc == R_DrawSpan_8)
+	if (spanfunc == R_DrawSpan_32)
 	{
 		INT32 i;
-		ds_transmap = transtables + ((tr_trans50-1)<<FF_TRANSSHIFT);
-		spanfunc = R_DrawTranslucentSpan_8;
+		ds_transmap = V_AlphaTrans(tr_trans50);
+		spanfunc = R_DrawTranslucentSpan_32;
 		for (i=0; i<4; i++)
 		{
 			xoffs = pl->xoffs;
@@ -1132,7 +1018,8 @@ using the palette colors.
 			if (light < 0)
 				light = 0;
 
-			planezlight = zlight[light];
+			planezlight    = zlight   [light];
+			planezlight_tc = zlight_tc[light];
 
 			// set the maximum value for unsigned
 			pl->top[pl->maxx+1] = 0xffff;

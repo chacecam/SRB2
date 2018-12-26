@@ -83,9 +83,9 @@ boolean WipeInAction = false;
 INT32 lastwipetic = 0;
 
 #ifndef NOWIPE
-static UINT8 *wipe_scr_start; //screen 3
-static UINT8 *wipe_scr_end; //screen 4
-static UINT8 *wipe_scr; //screen 0 (main drawing)
+static UINT32 *wipe_scr_start; // screen 3
+static UINT32 *wipe_scr_end; // screen 4
+static UINT32 *wipe_scr; // screen 0 (main drawing)
 static fixed_t paldiv;
 
 /** Create fademask_t from lump
@@ -191,19 +191,18 @@ static void F_DoWipe(fademask_t *fademask)
 	// from and to, so it uses a little extra memory, but again, helps it run faster.
 	{
 		// wipe screen, start, end
-		UINT8       *w = wipe_scr;
-		const UINT8 *s = wipe_scr_start;
-		const UINT8 *e = wipe_scr_end;
+		UINT32 *w = wipe_scr;
+		UINT32 *s = wipe_scr_start;
+		UINT32 *e = wipe_scr_end;
 
 		// first pixel for each screen
-		UINT8       *w_base = w;
-		const UINT8 *s_base = s;
-		const UINT8 *e_base = e;
+		UINT32 *w_base = w;
+		UINT32 *s_base = s;
+		UINT32 *e_base = e;
 
 		// mask data, end
-		UINT8       *transtbl;
-		const UINT8 *mask    = fademask->mask;
-		const UINT8 *maskend = mask + fademask->size;
+		UINT8 *mask    = fademask->mask;
+		UINT8 *maskend = mask + fademask->size;
 
 		// rectangle draw hints
 		UINT32 draw_linestart, draw_rowstart;
@@ -211,7 +210,7 @@ static void F_DoWipe(fademask_t *fademask)
 		UINT32 draw_linestogo, draw_rowstogo;
 
 		// rectangle coordinates, etc.
-		UINT16* scrxpos = (UINT16*)malloc((fademask->width + 1)  * sizeof(UINT16));
+		UINT16* scrxpos = (UINT16*)malloc((fademask->width  + 1) * sizeof(UINT16));
 		UINT16* scrypos = (UINT16*)malloc((fademask->height + 1) * sizeof(UINT16));
 		UINT16 maskx, masky;
 		UINT32 relativepos;
@@ -232,8 +231,8 @@ static void F_DoWipe(fademask_t *fademask)
 		maskx = masky = 0;
 		do
 		{
-			draw_rowstart = scrxpos[maskx];
-			draw_rowend   = scrxpos[maskx + 1];
+			draw_rowstart  = scrxpos[maskx];
+			draw_rowend    = scrxpos[maskx + 1];
 			draw_linestart = scrypos[masky];
 			draw_lineend   = scrypos[masky + 1];
 
@@ -245,7 +244,7 @@ static void F_DoWipe(fademask_t *fademask)
 				// shortcut - memcpy source to work
 				while (draw_linestogo--)
 				{
-					M_Memcpy(w_base+relativepos, s_base+relativepos, draw_rowend-draw_rowstart);
+					M_Memcpy(w_base+relativepos, s_base+relativepos, (draw_rowend-draw_rowstart)*4);
 					relativepos += vid.width;
 				}
 			}
@@ -254,14 +253,15 @@ static void F_DoWipe(fademask_t *fademask)
 				// shortcut - memcpy target to work
 				while (draw_linestogo--)
 				{
-					M_Memcpy(w_base+relativepos, e_base+relativepos, draw_rowend-draw_rowstart);
+					M_Memcpy(w_base+relativepos, e_base+relativepos, (draw_rowend-draw_rowstart)*4);
 					relativepos += vid.width;
 				}
 			}
 			else
 			{
-				// pointer to transtable that this mask would use
-				transtbl = transtables + ((9 - *mask)<<FF_TRANSSHIFT);
+				// translucency that this mask would use
+				UINT8 alpha = V_AlphaTrans(9-*mask)/3.8f;
+				if (!alpha) alpha = 255;
 
 				// DRAWING LOOP
 				while (draw_linestogo--)
@@ -272,7 +272,10 @@ static void F_DoWipe(fademask_t *fademask)
 					draw_rowstogo = draw_rowend - draw_rowstart;
 
 					while (draw_rowstogo--)
-						*w++ = transtbl[ ( *e++ << 8 ) + *s++ ];
+					{
+						V_DrawPixelTrueColor(w, V_BlendTrueColor(*w,*e,alpha));
+						w++; e++;
+					}
 
 					relativepos += vid.width;
 				}
@@ -295,13 +298,13 @@ void F_WipeStartScreen(void)
 {
 #ifndef NOWIPE
 #ifdef HWRENDER
-	if(rendermode != render_soft)
+	if (rendermode != render_soft)
 	{
 		HWR_StartScreenWipe();
 		return;
 	}
 #endif
-	wipe_scr_start = screens[3];
+	wipe_scr_start = screen_fadestart;
 	I_ReadScreen(wipe_scr_start);
 #endif
 }
@@ -312,15 +315,15 @@ void F_WipeEndScreen(void)
 {
 #ifndef NOWIPE
 #ifdef HWRENDER
-	if(rendermode != render_soft)
+	if (rendermode != render_soft)
 	{
 		HWR_EndScreenWipe();
 		return;
 	}
 #endif
-	wipe_scr_end = screens[4];
+	wipe_scr_end = screen_fadeend;
 	I_ReadScreen(wipe_scr_end);
-	V_DrawBlock(0, 0, 0, vid.width, vid.height, wipe_scr_start);
+	VID_BlitLinearScreen(wipe_scr_start, screen_main, vid.width, vid.height);
 #endif
 }
 
@@ -341,7 +344,7 @@ void F_RunWipe(UINT8 wipetype, boolean drawMenu)
 
 	// Init the wipe
 	WipeInAction = true;
-	wipe_scr = screens[0];
+	wipe_scr = screen_main;
 
 	// lastwipetic should either be 0 or the tic we last wiped
 	// on for fade-to-black

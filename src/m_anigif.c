@@ -18,6 +18,7 @@
 #include "z_zone.h"
 #include "v_video.h"
 #include "i_video.h"
+#include "r_data.h"		// NearestColor
 
 // GIFs are always little-endian
 #include "byteptr.h"
@@ -45,12 +46,12 @@ static UINT8 gif_writeover = 0;
 // modified input 'left': returns leftmost known changed pixel
 // modified input 'right': returns rightmost known changed pixel
 //
-static UINT8 GIF_optimizecmprow(const UINT8 *dst, const UINT8 *src, INT32 row,
+static UINT8 GIF_optimizecmprow(const UINT32 *dst, const UINT32 *src, INT32 row,
 	INT32 *last, INT32 *left, INT32 *right)
 {
-	const UINT8 *dp = dst + (vid.width * row);
-	const UINT8 *sp = src + (vid.width * row);
-	const UINT8 *dtmp, *stmp;
+	const UINT32 *dp = dst + (vid.width * row);
+	const UINT32 *sp = src + (vid.width * row);
+	const UINT32 *dtmp, *stmp;
 	UINT8 doleft = 1, doright = 1;
 	INT32 i = 0;
 
@@ -115,7 +116,7 @@ static UINT8 GIF_optimizecmprow(const UINT8 *dst, const UINT8 *src, INT32 row,
 // modified input 'w': returns optimal width
 // modified input 'h': returns optimal height
 //
-static void GIF_optimizeregion(const UINT8 *dst, const UINT8 *src,
+static void GIF_optimizeregion(const UINT32 *dst, const UINT32 *src,
 	INT32 *x, INT32 *y, INT32 *w, INT32 *h)
 {
 	INT32 st = 0, sb = vid.height - 1; // work from both directions
@@ -211,10 +212,10 @@ static void GIF_bwrwrite(UINT32 idata)
 
 // SCReen BUFfer (obviously)
 // ---
-static UINT8 *scrbuf_pos;
-static UINT8 *scrbuf_linebegin;
-static UINT8 *scrbuf_lineend;
-static UINT8 *scrbuf_writeend;
+static UINT32 *scrbuf_pos;
+static UINT32 *scrbuf_linebegin;
+static UINT32 *scrbuf_lineend;
+static UINT32 *scrbuf_writeend;
 static INT16 scrbuf_downscaleamt = 1;
 
 
@@ -338,7 +339,8 @@ static void GIF_lzw(void)
 {
 	while (scrbuf_pos <= scrbuf_writeend)
 	{
-		GIF_feedByte(*scrbuf_pos);
+		// Jimita: True-color
+		GIF_feedByte(NearestColor((*scrbuf_pos)&0xff,((*scrbuf_pos)>>8)&0xff,((*scrbuf_pos)>>16)&0xff));
 		if (giflzw_nextCodeToAssign >= GIFLZW_MAXCODE)
 		{
 			GIF_bwrwrite(GIFLZW_TABLECLR);
@@ -459,7 +461,7 @@ static size_t gifframe_size = 8192;
 static void GIF_framewrite(void)
 {
 	UINT8 *p;
-	UINT8 *movie_screen = screens[2];
+	UINT32 *movie_screen = screen_sshotbuffer;
 	INT32 blitx, blity, blitw, blith;
 
 	if (!gifframe_data)
@@ -473,7 +475,7 @@ static void GIF_framewrite(void)
 	if (gif_optimize && gif_frames > 0)
 	{
 		// before blit movie_screen points to last frame, cur_screen points to this frame
-		UINT8 *cur_screen = screens[0];
+		UINT32 *cur_screen = screen_main;
 		GIF_optimizeregion(cur_screen, movie_screen, &blitx, &blity, &blitw, &blith);
 
 		// blit to temp screen
@@ -487,7 +489,7 @@ static void GIF_framewrite(void)
 
 		if (gif_frames == 0)
 			I_ReadScreen(movie_screen);
-		movie_screen = screens[0];
+		movie_screen = screen_main;
 	}
 
 	// screen regions are handled in GIF_lzw

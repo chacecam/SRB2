@@ -2835,61 +2835,10 @@ static void M_DrawSlider(INT32 x, INT32 y, const consvar_t *cv)
 	V_DrawMappedPatch(x + ((SLIDER_RANGE-1)*8*range)/100, y, 0, p, yellowmap);
 }
 
-//
-//  Draw a textbox, like Quake does, because sometimes it's difficult
-//  to read the text with all the stuff in the background...
-//
 void M_DrawTextBox(INT32 x, INT32 y, INT32 width, INT32 boxlines)
 {
 	// Solid color textbox.
 	V_DrawFill(x+5, y+5, width*8+6, boxlines*8+6, 239);
-	//V_DrawFill(x+8, y+8, width*8, boxlines*8, 31);
-/*
-	patch_t *p;
-	INT32 cx, cy, n;
-	INT32 step, boff;
-
-	step = 8;
-	boff = 8;
-
-	// draw left side
-	cx = x;
-	cy = y;
-	V_DrawScaledPatch(cx, cy, 0, W_CachePatchNum(viewborderlump[BRDR_TL], PU_CACHE));
-	cy += boff;
-	p = W_CachePatchNum(viewborderlump[BRDR_L], PU_CACHE);
-	for (n = 0; n < boxlines; n++)
-	{
-		V_DrawScaledPatch(cx, cy, V_WRAPY, p);
-		cy += step;
-	}
-	V_DrawScaledPatch(cx, cy, 0, W_CachePatchNum(viewborderlump[BRDR_BL], PU_CACHE));
-
-	// draw middle
-	V_DrawFlatFill(x + boff, y + boff, width*step, boxlines*step, st_borderpatchnum);
-
-	cx += boff;
-	cy = y;
-	while (width > 0)
-	{
-		V_DrawScaledPatch(cx, cy, V_WRAPX, W_CachePatchNum(viewborderlump[BRDR_T], PU_CACHE));
-		V_DrawScaledPatch(cx, y + boff + boxlines*step, V_WRAPX, W_CachePatchNum(viewborderlump[BRDR_B], PU_CACHE));
-		width--;
-		cx += step;
-	}
-
-	// draw right side
-	cy = y;
-	V_DrawScaledPatch(cx, cy, 0, W_CachePatchNum(viewborderlump[BRDR_TR], PU_CACHE));
-	cy += boff;
-	p = W_CachePatchNum(viewborderlump[BRDR_R], PU_CACHE);
-	for (n = 0; n < boxlines; n++)
-	{
-		V_DrawScaledPatch(cx, cy, V_WRAPY, p);
-		cy += step;
-	}
-	V_DrawScaledPatch(cx, cy, 0, W_CachePatchNum(viewborderlump[BRDR_BR], PU_CACHE));
-*/
 }
 
 //
@@ -3764,18 +3713,11 @@ static void M_StopMessage(INT32 choice)
 // You can even put multiple images in one menu!
 static void M_DrawImageDef(void)
 {
-	// Grr.  Need to autodetect for pic_ts.
-	pic_t *pictest = (pic_t *)W_CachePatchName(currentMenu->menuitems[itemOn].text,PU_CACHE);
-	if (!pictest->zero)
-		V_DrawScaledPic(0,0,0,W_GetNumForName(currentMenu->menuitems[itemOn].text));
+	patch_t *patch = W_CachePatchName(currentMenu->menuitems[itemOn].text,PU_CACHE);
+	if (patch->width <= BASEVIDWIDTH)
+		V_DrawScaledPatch(0,0,0,patch);
 	else
-	{
-		patch_t *patch = W_CachePatchName(currentMenu->menuitems[itemOn].text,PU_CACHE);
-		if (patch->width <= BASEVIDWIDTH)
-			V_DrawScaledPatch(0,0,0,patch);
-		else
-			V_DrawSmallScaledPatch(0,0,0,patch);
-	}
+		V_DrawSmallScaledPatch(0,0,0,patch);
 
 	if (currentMenu->numitems > 1)
 		V_DrawString(0,192,V_TRANSLUCENT, va("PAGE %d of %hd", itemOn+1, currentMenu->numitems));

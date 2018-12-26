@@ -25,6 +25,9 @@
 #include "p_slopes.h"
 #include "console.h" // con_clipviewtop
 
+// Jimita: True-color
+#include "v_video.h"
+
 // OPTIMIZE: closed two sided lines as single sided
 
 // True if any of the segs textures might be visible.
@@ -60,7 +63,8 @@ static fixed_t pixhigh, pixlow, pixhighstep, pixlowstep;
 static fixed_t topfrac, topstep;
 static fixed_t bottomfrac, bottomstep;
 
-static lighttable_t **walllights;
+static lighttable_t   **walllights;
+static lighttable32_t **walllights_tc;
 static INT16 *maskedtexturecol;
 #ifdef ESLOPE
 static fixed_t *maskedtextureheight = NULL;
@@ -183,13 +187,9 @@ static void R_DrawWallSplats(void)
 					colfunc = basecolfunc;
 				else
 				{
-					dc_transmap = transtables + ((tr_trans50 - 1)<<FF_TRANSSHIFT);
+					dc_transmap = V_AlphaTrans(tr_trans50);
 					colfunc = fuzzcolfunc;
 				}
-
-				break;
-			case SPLATDRAWMODE_SHADE:
-				colfunc = shadecolfunc;
 				break;
 		}
 
@@ -200,11 +200,16 @@ static void R_DrawWallSplats(void)
 		{
 			pindex = FixedMul(spryscale, FixedDiv(640, vid.width))>>LIGHTSCALESHIFT;
 			if (pindex >= MAXLIGHTSCALE)
-				pindex = MAXLIGHTSCALE - 1;
-			dc_colormap = walllights[pindex];
+				pindex = MAXLIGHTSCALE-1;
 
+			dc_colormap = walllights[pindex];
+			R_SetTrueColormap(walllights_tc[pindex]);
 			if (frontsector->extra_colormap)
-				dc_colormap = frontsector->extra_colormap->colormap + (dc_colormap - colormaps);
+			{
+				UINT8 *oldcolormap = dc_colormap;
+				dc_colormap = frontsector->extra_colormap->colormap + (oldcolormap - colormaps);
+				R_SetTrueColormap(frontsector->extra_colormap->truecolormap + (oldcolormap - colormaps));
+			}
 
 			sprtopscreen = centeryfrac - FixedMul(dc_texturemid, spryscale);
 			dc_iscale = 0xffffffffu / (unsigned)spryscale;
@@ -318,11 +323,11 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 		case 906:
 		case 907:
 		case 908:
-			dc_transmap = transtables + ((ldef->special-900)<<FF_TRANSSHIFT);
+			V_AlphaTrans(ldef->special-900);
 			colfunc = fuzzcolfunc;
 			break;
 		case 909:
-			colfunc = R_DrawFogColumn_8;
+			colfunc = R_DrawFogColumn_32;
 			windowtop = frontsector->ceilingheight;
 			windowbottom = frontsector->floorheight;
 			break;
@@ -331,12 +336,13 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 			break;
 	}
 
+	dc_transmap = 255;
 	if (curline->polyseg && curline->polyseg->translucency > 0)
 	{
 		if (curline->polyseg->translucency >= NUMTRANSMAPS)
 			return;
 
-		dc_transmap = transtables + ((curline->polyseg->translucency-1)<<FF_TRANSSHIFT);
+		dc_transmap = V_AlphaTrans(curline->polyseg->translucency);
 		colfunc = fuzzcolfunc;
 	}
 
@@ -430,7 +436,7 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 		else
 			lightnum = (frontsector->lightlevel >> LIGHTSEGSHIFT);
 
-		if (colfunc == R_DrawFogColumn_8
+		if (colfunc == R_DrawFogColumn_32
 			|| (frontsector->extra_colormap && frontsector->extra_colormap->fog))
 			;
 		else if (curline->v1->y == curline->v2->y)
@@ -439,11 +445,20 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 			lightnum++;
 
 		if (lightnum < 0)
+		{
 			walllights = scalelight[0];
+			walllights_tc = scalelight_tc[0];
+		}
 		else if (lightnum >= LIGHTLEVELS)
+		{
 			walllights = scalelight[LIGHTLEVELS - 1];
+			walllights_tc = scalelight_tc[LIGHTLEVELS - 1];
+		}
 		else
+		{
 			walllights = scalelight[lightnum];
+			walllights_tc = scalelight_tc[lightnum];
+		}
 	}
 
 	maskedtexturecol = ds->maskedtexturecol;
@@ -557,7 +572,8 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 
 				if (dc_numlights)
 				{
-					lighttable_t **xwalllights;
+					lighttable_t   **xwalllights;
+					lighttable32_t **xwalllights_tc;
 
 					sprbotscreen = INT32_MAX;
 					sprtopscreen = windowtop = (centeryfrac - FixedMul(dc_texturemid, spryscale));
@@ -576,21 +592,35 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 							continue;
 
 						if (rlight->lightnum < 0)
+						{
 							xwalllights = scalelight[0];
+							xwalllights_tc = scalelight_tc[0];
+						}
 						else if (rlight->lightnum >= LIGHTLEVELS)
+						{
 							xwalllights = scalelight[LIGHTLEVELS-1];
+							xwalllights_tc = scalelight_tc[LIGHTLEVELS-1];
+						}
 						else
+						{
 							xwalllights = scalelight[rlight->lightnum];
+							xwalllights_tc = scalelight_tc[rlight->lightnum];
+						}
 
 						pindex = FixedMul(spryscale, FixedDiv(640, vid.width))>>LIGHTSCALESHIFT;
-
 						if (pindex >= MAXLIGHTSCALE)
-							pindex = MAXLIGHTSCALE - 1;
+							pindex = MAXLIGHTSCALE-1;
 
 						if (rlight->extra_colormap)
+						{
 							rlight->rcolormap = rlight->extra_colormap->colormap + (xwalllights[pindex] - colormaps);
+							rlight->tc_rcolormap = rlight->extra_colormap->truecolormap + (xwalllights[pindex] - colormaps);		// Jimita: NOT xwalllights_tc
+						}
 						else
+						{
 							rlight->rcolormap = xwalllights[pindex];
+							rlight->tc_rcolormap = xwalllights_tc[pindex];
+						}
 
 						rlight->height += rlight->heightstep;
 						height = rlight->height;
@@ -598,6 +628,7 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 						if (height <= windowtop)
 						{
 							dc_colormap = rlight->rcolormap;
+							R_SetTrueColormap(rlight->tc_rcolormap);
 							continue;
 						}
 
@@ -611,12 +642,12 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 								rlight = &dc_lightlist[i];
 								rlight->height += rlight->heightstep;
 							}
-
 							continue;
 						}
 						colfunc_2s(col);
 						windowtop = windowbottom + 1;
 						dc_colormap = rlight->rcolormap;
+						R_SetTrueColormap(rlight->tc_rcolormap);
 					}
 					windowbottom = realbot;
 					if (windowtop < windowbottom)
@@ -633,9 +664,14 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 					pindex = MAXLIGHTSCALE - 1;
 
 				dc_colormap = walllights[pindex];
+				R_SetTrueColormap(walllights_tc[pindex]);
 
 				if (frontsector->extra_colormap)
-					dc_colormap = frontsector->extra_colormap->colormap + (dc_colormap - colormaps);
+				{
+					UINT8 *oldcolormap = dc_colormap;
+					dc_colormap = frontsector->extra_colormap->colormap + (oldcolormap - colormaps);
+					R_SetTrueColormap(frontsector->extra_colormap->truecolormap + (oldcolormap - colormaps));
+				}
 
 				sprtopscreen = centeryfrac - FixedMul(dc_texturemid, spryscale);
 				dc_iscale = 0xffffffffu / (unsigned)spryscale;
@@ -768,31 +804,17 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 		texnum = R_GetTextureNum(sides[newline->sidenum[0]].midtexture);
 	}
 
+	dc_transmap = 255;
 	if (pfloor->flags & FF_TRANSLUCENT)
 	{
 		boolean fuzzy = true;
 
 		// Hacked up support for alpha value in software mode Tails 09-24-2002
-		if (pfloor->alpha < 12)
+		// Edited by Jimita the Cat for True-Color Mode
+		if (pfloor->alpha < 1)
 			return; // Don't even draw it
-		else if (pfloor->alpha < 38)
-			dc_transmap = transtables + ((tr_trans90-1)<<FF_TRANSSHIFT);
-		else if (pfloor->alpha < 64)
-			dc_transmap = transtables + ((tr_trans80-1)<<FF_TRANSSHIFT);
-		else if (pfloor->alpha < 89)
-			dc_transmap = transtables + ((tr_trans70-1)<<FF_TRANSSHIFT);
-		else if (pfloor->alpha < 115)
-			dc_transmap = transtables + ((tr_trans60-1)<<FF_TRANSSHIFT);
-		else if (pfloor->alpha < 140)
-			dc_transmap = transtables + ((tr_trans50-1)<<FF_TRANSSHIFT);
-		else if (pfloor->alpha < 166)
-			dc_transmap = transtables + ((tr_trans40-1)<<FF_TRANSSHIFT);
-		else if (pfloor->alpha < 192)
-			dc_transmap = transtables + ((tr_trans30-1)<<FF_TRANSSHIFT);
-		else if (pfloor->alpha < 217)
-			dc_transmap = transtables + ((tr_trans20-1)<<FF_TRANSSHIFT);
-		else if (pfloor->alpha < 243)
-			dc_transmap = transtables + ((tr_trans10-1)<<FF_TRANSSHIFT);
+		else if (pfloor->alpha != 255)
+			dc_transmap = pfloor->alpha;
 		else
 			fuzzy = false; // Opaque
 
@@ -800,7 +822,7 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 			colfunc = fuzzcolfunc;
 	}
 	else if (pfloor->flags & FF_FOG)
-		colfunc = R_DrawFogColumn_8;
+		colfunc = R_DrawFogColumn_32;
 
 #ifdef ESLOPE
 	range = max(ds->x2-ds->x1, 1);
@@ -948,18 +970,28 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 			lightnum = R_FakeFlat(frontsector, &tempsec, &templight, &templight, false)
 				->lightlevel >> LIGHTSEGSHIFT;
 
-		if (pfloor->flags & FF_FOG || (frontsector->extra_colormap && frontsector->extra_colormap->fog));
-			else if (curline->v1->y == curline->v2->y)
-		lightnum--;
+		if (pfloor->flags & FF_FOG || (frontsector->extra_colormap && frontsector->extra_colormap->fog))
+			;
+		else if (curline->v1->y == curline->v2->y)
+			lightnum--;
 		else if (curline->v1->x == curline->v2->x)
 			lightnum++;
 
 		if (lightnum < 0)
+		{
 			walllights = scalelight[0];
+			walllights_tc = scalelight_tc[0];
+		}
 		else if (lightnum >= LIGHTLEVELS)
+		{
 			walllights = scalelight[LIGHTLEVELS-1];
+			walllights_tc = scalelight_tc[LIGHTLEVELS-1];
+		}
 		else
+		{
 			walllights = scalelight[lightnum];
+			walllights_tc = scalelight_tc[lightnum];
+		}
 	}
 
 	maskedtexturecol = ds->thicksidecol;
@@ -1041,11 +1073,13 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 	{
 		if (maskedtexturecol[dc_x] != INT16_MAX)
 		{
-			// SoM: New code does not rely on R_DrawColumnShadowed_8 which
+			// SoM: New code does not rely on R_DrawColumnShadowed_32 which
 			// will (hopefully) put less strain on the stack.
 			if (dc_numlights)
 			{
-				lighttable_t **xwalllights;
+				lighttable_t   **xwalllights;
+				lighttable32_t **xwalllights_tc;
+
 				fixed_t height;
 				fixed_t bheight = 0;
 				INT32 solid = 0;
@@ -1095,30 +1129,50 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 						lightnum = rlight->lightnum;
 
 						if (lightnum < 0)
+						{
 							xwalllights = scalelight[0];
+							xwalllights_tc = scalelight_tc[0];
+						}
 						else if (lightnum >= LIGHTLEVELS)
+						{
 							xwalllights = scalelight[LIGHTLEVELS-1];
+							xwalllights_tc = scalelight_tc[LIGHTLEVELS-1];
+						}
 						else
+						{
 							xwalllights = scalelight[lightnum];
+							xwalllights_tc = scalelight_tc[lightnum];
+						}
 
 						pindex = FixedMul(spryscale, FixedDiv(640, vid.width))>>LIGHTSCALESHIFT;
-
-						if (pindex >=  MAXLIGHTSCALE)
+						if (pindex >= MAXLIGHTSCALE)
 							pindex = MAXLIGHTSCALE-1;
 
 						if (pfloor->flags & FF_FOG)
 						{
 							if (pfloor->master->frontsector->extra_colormap)
+							{
 								rlight->rcolormap = pfloor->master->frontsector->extra_colormap->colormap + (xwalllights[pindex] - colormaps);
+								rlight->tc_rcolormap = pfloor->master->frontsector->extra_colormap->truecolormap + (xwalllights[pindex] - colormaps);
+							}
 							else
+							{
 								rlight->rcolormap = xwalllights[pindex];
+								rlight->tc_rcolormap = xwalllights_tc[pindex];
+							}
 						}
 						else
 						{
 							if (rlight->extra_colormap)
+							{
 								rlight->rcolormap = rlight->extra_colormap->colormap + (xwalllights[pindex] - colormaps);
+								rlight->tc_rcolormap = rlight->extra_colormap->truecolormap + (xwalllights[pindex] - colormaps);
+							}
 							else
+							{
 								rlight->rcolormap = xwalllights[pindex];
+								rlight->tc_rcolormap = xwalllights_tc[pindex];
+							}
 						}
 					}
 
@@ -1154,7 +1208,10 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 					if (height <= windowtop)
 					{
 						if (lighteffect)
+						{
 							dc_colormap = rlight->rcolormap;
+							R_SetTrueColormap(rlight->tc_rcolormap);
+						}
 						if (solid && windowtop < bheight)
 							windowtop = bheight;
 						continue;
@@ -1180,7 +1237,10 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 					else
 						windowtop = windowbottom + 1;
 					if (lighteffect)
+					{
 						dc_colormap = rlight->rcolormap;
+						R_SetTrueColormap(rlight->tc_rcolormap);
+					}
 				}
 				windowbottom = sprbotscreen;
 				if (windowtop < windowbottom)
@@ -1192,15 +1252,27 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 
 			// calculate lighting
 			pindex = FixedMul(spryscale, FixedDiv(640, vid.width))>>LIGHTSCALESHIFT;
-
 			if (pindex >= MAXLIGHTSCALE)
-				pindex = MAXLIGHTSCALE - 1;
+				pindex = MAXLIGHTSCALE-1;
 
-			dc_colormap = walllights[pindex];
-			if (frontsector->extra_colormap)
-				dc_colormap = frontsector->extra_colormap->colormap + (dc_colormap - colormaps);
-			if (pfloor->flags & FF_FOG && pfloor->master->frontsector->extra_colormap)
-				dc_colormap = pfloor->master->frontsector->extra_colormap->colormap + (dc_colormap - colormaps);
+			// Jimita: True-color
+			{
+				UINT8 *colormap_pointer;
+				dc_colormap = walllights[pindex];
+				R_SetTrueColormap(walllights_tc[pindex]);
+				colormap_pointer = dc_colormap;
+				if (frontsector->extra_colormap)
+				{
+					dc_colormap = frontsector->extra_colormap->colormap + (colormap_pointer - colormaps);
+					R_SetTrueColormap(frontsector->extra_colormap->truecolormap + (colormap_pointer - colormaps));
+				}
+				if (pfloor->flags & FF_FOG)
+				{
+					dc_foglight = colormap_pointer-colormaps;
+					if (pfloor->master->frontsector->extra_colormap)
+						dc_colormap = pfloor->master->frontsector->extra_colormap->colormap + (colormap_pointer - colormaps);
+				}
+			}
 
 #ifdef ESLOPE
 			if      (top_frac > (INT64)CLAMPMAX) sprtopscreen = windowtop = CLAMPMAX;
@@ -1242,19 +1314,6 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 //
 #define HEIGHTBITS              12
 #define HEIGHTUNIT              (1<<HEIGHTBITS)
-
-
-//profile stuff ---------------------------------------------------------
-//#define TIMING
-#ifdef TIMING
-#include "p5prof.h"
-INT64 mycount;
-INT64 mytotal = 0;
-UINT32 nombre = 100000;
-//static   char runtest[10][80];
-#endif
-//profile stuff ---------------------------------------------------------
-
 
 static void R_RenderSegLoop (void)
 {
@@ -1422,21 +1481,26 @@ static void R_RenderSegLoop (void)
 		{
 			// calculate lighting
 			pindex = FixedMul(rw_scale, FixedDiv(640, vid.width))>>LIGHTSCALESHIFT;
-
-			if (pindex >=  MAXLIGHTSCALE)
+			if (pindex >= MAXLIGHTSCALE)
 				pindex = MAXLIGHTSCALE-1;
 
 			dc_colormap = walllights[pindex];
+			R_SetTrueColormap(walllights_tc[pindex]);
 			dc_x = rw_x;
 			dc_iscale = 0xffffffffu / (unsigned)rw_scale;
 
 			if (frontsector->extra_colormap)
-				dc_colormap = frontsector->extra_colormap->colormap + (dc_colormap - colormaps);
+			{
+				UINT8 *oldcolormap = dc_colormap;
+				dc_colormap = frontsector->extra_colormap->colormap + (oldcolormap - colormaps);
+				R_SetTrueColormap(frontsector->extra_colormap->truecolormap + (oldcolormap - colormaps));
+			}
 		}
 
 		if (dc_numlights)
 		{
-			lighttable_t **xwalllights;
+			lighttable_t   **xwalllights;
+			lighttable32_t **xwalllights_tc;
 			for (i = 0; i < dc_numlights; i++)
 			{
 				INT32 lightnum;
@@ -1450,23 +1514,37 @@ static void R_RenderSegLoop (void)
 					lightnum++;
 
 				if (lightnum < 0)
+				{
 					xwalllights = scalelight[0];
+					xwalllights_tc = scalelight_tc[0];
+				}
 				else if (lightnum >= LIGHTLEVELS)
+				{
 					xwalllights = scalelight[LIGHTLEVELS-1];
+					xwalllights_tc = scalelight_tc[LIGHTLEVELS-1];
+				}
 				else
+				{
 					xwalllights = scalelight[lightnum];
+					xwalllights_tc = scalelight_tc[lightnum];
+				}
 
 				pindex = FixedMul(rw_scale, FixedDiv(640, vid.width))>>LIGHTSCALESHIFT;
-
-				if (pindex >=  MAXLIGHTSCALE)
+				if (pindex >= MAXLIGHTSCALE)
 					pindex = MAXLIGHTSCALE-1;
 
 				if (dc_lightlist[i].extra_colormap)
+				{
 					dc_lightlist[i].rcolormap = dc_lightlist[i].extra_colormap->colormap + (xwalllights[pindex] - colormaps);
+					dc_lightlist[i].tc_rcolormap = dc_lightlist[i].extra_colormap->truecolormap + (xwalllights[pindex] - colormaps);
+				}
 				else
+				{
 					dc_lightlist[i].rcolormap = xwalllights[pindex];
+					dc_lightlist[i].tc_rcolormap = xwalllights_tc[pindex];
+				}
 
-				colfunc = R_DrawColumnShadowed_8;
+				colfunc = R_DrawColumnShadowed_32;
 			}
 		}
 
@@ -1483,21 +1561,6 @@ static void R_RenderSegLoop (void)
 				dc_texturemid = rw_midtexturemid;
 				dc_source = R_GetColumn(midtexture,texturecolumn);
 				dc_texheight = textureheight[midtexture]>>FRACBITS;
-
-				//profile stuff ---------------------------------------------------------
-#ifdef TIMING
-				ProfZeroTimer();
-#endif
-				colfunc();
-#ifdef TIMING
-				RDMSR(0x10,&mycount);
-				mytotal += mycount;      //64bit add
-
-				if (nombre--==0)
-					I_Error("R_DrawColumn CPU Spy reports: 0x%d %d\n", *((INT32 *)&mytotal+1),
-						(INT32)mytotal);
-#endif
-				//profile stuff ---------------------------------------------------------
 
 				// dont draw anything more for this column, since
 				// a midtexture blocks the view
@@ -2576,11 +2639,20 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			lightnum++;
 
 		if (lightnum < 0)
+		{
 			walllights = scalelight[0];
+			walllights_tc = scalelight_tc[0];
+		}
 		else if (lightnum >= LIGHTLEVELS)
+		{
 			walllights = scalelight[LIGHTLEVELS - 1];
+			walllights_tc = scalelight_tc[LIGHTLEVELS - 1];
+		}
 		else
+		{
 			walllights = scalelight[lightnum];
+			walllights_tc = scalelight_tc[lightnum];
+		}
 	}
 
 	// if a floor / ceiling plane is on the wrong side
@@ -3058,7 +3130,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		}
 	}
 
-#ifdef WALLSPLATS
+/*#ifdef WALLSPLATS
 	if (linedef->splats && cv_splats.value)
 	{
 		// Isn't a bit wasteful to copy the ENTIRE array for every drawseg?
@@ -3070,7 +3142,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		R_DrawWallSplats();
 	}
 	else
-#endif
+#endif*/
 		R_RenderSegLoop();
 	colfunc = wallcolfunc;
 

@@ -195,7 +195,7 @@ void Y_IntermissionDrawer(void)
 	else if (!usetile)
 	{
 		if (rendermode == render_soft && usebuffer)
-			VID_BlitLinearScreen(screens[1], screens[0], vid.width*vid.bpp, vid.height, vid.width*vid.bpp, vid.rowbytes);
+			VID_BlitLinearScreen(screen_altblit, screen_main, vid.width, vid.height);
 #ifdef HWRENDER
 		else if(rendermode != render_soft && usebuffer)
 		{

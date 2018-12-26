@@ -34,22 +34,22 @@
 #define RUSEASM //MSC.NET can't patch itself
 #endif
 
-// --------------------------------------------
-// assembly or c drawer routines for 8bpp/16bpp
-// --------------------------------------------
-void (*wallcolfunc)(void); // new wall column drawer to draw posts >128 high
+// ===============================
+//   C drawer routines for 32bpp
+// ===============================
 void (*colfunc)(void); // standard column, up to 128 high posts
-
 void (*basecolfunc)(void);
+void (*wallcolfunc)(void); // new wall column drawer to draw posts >128 high
+void (*walldrawerfunc)(void);
 void (*fuzzcolfunc)(void); // standard fuzzy effect column drawer
 void (*transcolfunc)(void); // translation column drawer
-void (*shadecolfunc)(void); // smokie test..
-void (*spanfunc)(void); // span drawer, use a 64x64 tile
-void (*splatfunc)(void); // span drawer w/ transparency
-void (*basespanfunc)(void); // default span func for color mode
 void (*transtransfunc)(void); // translucent translated column drawer
 void (*twosmultipatchfunc)(void); // for cols with transparent pixels
 void (*twosmultipatchtransfunc)(void); // for cols with transparent pixels AND translucency
+
+void (*spanfunc)(void); // span drawer
+void (*basespanfunc)(void); // default span func for color mode
+void (*splatfunc)(void); // span drawer w/ transparency
 
 // ------------------
 // global video state
@@ -76,16 +76,6 @@ static void SCR_ChangeFullscreen (void);
 consvar_t cv_fullscreen = {"fullscreen", "Yes", CV_SAVE|CV_CALL, CV_YesNo, SCR_ChangeFullscreen, 0, NULL, NULL, 0, 0, NULL};
 
 // =========================================================================
-//                           SCREEN VARIABLES
-// =========================================================================
-
-INT32 scr_bpp; // current video mode bytes per pixel
-UINT8 *scr_borderpatch; // flat used to fill the reduced view borders set at ST_Init()
-
-// =========================================================================
-
-//  Short and Tall sky drawer, for the current color mode
-void (*walldrawerfunc)(void);
 
 boolean R_ASM = true;
 boolean R_486 = false;
@@ -95,7 +85,6 @@ boolean R_SSE = false;
 boolean R_3DNow = false;
 boolean R_MMXExt = false;
 boolean R_SSE2 = false;
-
 
 void SCR_SetMode(void)
 {
@@ -110,22 +99,19 @@ void SCR_SetMode(void)
 	V_SetPalette(0);
 
 	//
-	//  setup the right draw routines for either 8bpp or 16bpp
+	//  setup the right draw routines
 	//
-	if (true)//vid.bpp == 1) //Always run in 8bpp. todo: remove all 16bpp code?
-	{
-		spanfunc = basespanfunc = R_DrawSpan_8;
-		splatfunc = R_DrawSplat_8;
-		transcolfunc = R_DrawTranslatedColumn_8;
-		transtransfunc = R_DrawTranslatedTranslucentColumn_8;
+	spanfunc = basespanfunc = R_DrawSpan_32;
+	splatfunc = R_DrawSplat_32;
+	transcolfunc = R_DrawTranslatedColumn_32;
+	transtransfunc = R_DrawTranslatedTranslucentColumn_32;
 
-		colfunc = basecolfunc = R_DrawColumn_8;
-		shadecolfunc = R_DrawShadeColumn_8;
-		fuzzcolfunc = R_DrawTranslucentColumn_8;
-		walldrawerfunc = R_DrawWallColumn_8;
-		twosmultipatchfunc = R_Draw2sMultiPatchColumn_8;
-		twosmultipatchtransfunc = R_Draw2sMultiPatchTranslucentColumn_8;
-#ifdef RUSEASM
+	colfunc = basecolfunc = R_DrawColumn_32;
+	fuzzcolfunc = R_DrawTranslucentColumn_32;
+	walldrawerfunc = R_DrawWallColumn_32;
+	twosmultipatchfunc = R_Draw2sMultiPatchColumn_32;
+	twosmultipatchtransfunc = R_Draw2sMultiPatchTranslucentColumn_32;
+/*#ifdef RUSEASM
 		if (R_ASM)
 		{
 			if (R_MMX)
@@ -146,26 +132,8 @@ void SCR_SetMode(void)
 				twosmultipatchfunc = R_Draw2sMultiPatchColumn_8_ASM;
 			}
 		}
-#endif
-	}
-/*	else if (vid.bpp > 1)
-	{
-		I_OutputMsg("using highcolor mode\n");
-		spanfunc = basespanfunc = R_DrawSpan_16;
-		transcolfunc = R_DrawTranslatedColumn_16;
-		transtransfunc = R_DrawTranslucentColumn_16; // No 16bit operation for this function
-
-		colfunc = basecolfunc = R_DrawColumn_16;
-		shadecolfunc = NULL; // detect error if used somewhere..
-		fuzzcolfunc = R_DrawTranslucentColumn_16;
-		walldrawerfunc = R_DrawWallColumn_16;
-	}*/
-	else
-		I_Error("unknown bytes per pixel mode %d\n", vid.bpp);
-/*#if !defined (DC) && !defined (WII)
-	if (SCR_IsAspectCorrect(vid.width, vid.height))
-		CONS_Alert(CONS_WARNING, M_GetText("Resolution is not aspect-correct!\nUse a multiple of %dx%d\n"), BASEVIDWIDTH, BASEVIDHEIGHT);
 #endif*/
+
 	// set the apprpriate drawer for the sky (tall or INT16)
 	setmodeneeded = 0;
 }
@@ -267,9 +235,6 @@ void SCR_Recalc(void)
 {
 	if (dedicated)
 		return;
-
-	// bytes per pixel quick access
-	scr_bpp = vid.bpp;
 
 	// scale 1,2,3 times in x and y the patches for the menus and overlays...
 	// calculated once and for all, used by routines in v_video.c
