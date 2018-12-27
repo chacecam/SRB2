@@ -1308,18 +1308,23 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 			if (pindex >= MAXLIGHTSCALE)
 				pindex = MAXLIGHTSCALE-1;
 
+			// Jimita: True-color
 			{
 				UINT8 *colormap_pointer;
 				dc_colormap = walllights[pindex];
 				R_SetTrueColormap(walllights_tc[pindex]);
 				colormap_pointer = dc_colormap;
 
-				if (pfloor->flags & FF_FOG)
-					dc_foglight = colormap_pointer-colormaps;
-				else if (frontsector->extra_colormap)
+				if (frontsector->extra_colormap)
 				{
 					dc_colormap = frontsector->extra_colormap->colormap + (colormap_pointer - colormaps);
 					R_SetTrueColormap(frontsector->extra_colormap->truecolormap + (colormap_pointer - colormaps));
+				}
+				if (pfloor->flags & FF_FOG)
+				{
+					dc_foglight = colormap_pointer-colormaps;
+					if (pfloor->master->frontsector->extra_colormap)
+						dc_colormap = pfloor->master->frontsector->extra_colormap->colormap + (colormap_pointer - colormaps);
 				}
 			}
 
