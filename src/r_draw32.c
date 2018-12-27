@@ -602,7 +602,7 @@ void R_DrawFogColumn_32(void)
 	} while (count--);
 }
 
-/**	\brief The R_DrawShadeColumn_32 function
+/**	\brief The R_DrawColumnShadowed_32 function
 	This is for 3D floors that cast shadows on walls.
 
 	This function just cuts the column up into sections and calls R_DrawColumn_32

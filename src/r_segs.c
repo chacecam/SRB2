@@ -1204,6 +1204,9 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 							{
 								rlight->rcolormap = pfloor->master->frontsector->extra_colormap->colormap + (xwalllights[pindex] - colormaps);
 								rlight->tc_rcolormap = pfloor->master->frontsector->extra_colormap->truecolormap + (xwalllights[pindex] - colormaps);
+								// Jimita (27-12-2018)
+								dc_transmap = 128;
+								colfunc = fuzzcolfunc;
 							}
 							else
 							{
@@ -1321,11 +1324,7 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 					R_SetTrueColormap(frontsector->extra_colormap->truecolormap + (colormap_pointer - colormaps));
 				}
 				if (pfloor->flags & FF_FOG)
-				{
 					dc_foglight = colormap_pointer-colormaps;
-					if (pfloor->master->frontsector->extra_colormap)
-						dc_colormap = pfloor->master->frontsector->extra_colormap->colormap + (colormap_pointer - colormaps);
-				}
 			}
 
 			// draw the texture

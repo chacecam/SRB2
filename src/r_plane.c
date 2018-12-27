@@ -184,6 +184,7 @@ void R_MapPlane(INT32 y, INT32 x1, INT32 x2)
 	angle_t angle, planecos, planesin;
 	fixed_t distance, span;
 	size_t pindex;
+	extracolormap_t *colormap;
 
 #ifdef RANGECHECK
 	if (x2 < x1 || x1 < 0 || x2 >= viewwidth || y > viewheight)
@@ -253,15 +254,23 @@ void R_MapPlane(INT32 y, INT32 x1, INT32 x2)
 	if (cv_truecolormaps.value)
 	{
 		ds_foglight = ds_colormap-colormaps;
+
 		if (currentplane->slope)
 			R_SetTrueColormapDS(truecolormaps);
 		else
 			R_SetTrueColormapDS(planezlight_tc[pindex]);
-		if (currentplane->extra_colormap)
+		if ((colormap = currentplane->extra_colormap))
 			R_SetTrueColormapDS(currentplane->extra_colormap->truecolormap + (ds_truecolormap - truecolormaps));
 	}
-	else if (currentplane->extra_colormap)
+	else if ((colormap = currentplane->extra_colormap))
 		ds_colormap = currentplane->extra_colormap->colormap + (ds_colormap - colormaps);
+
+	// Jimita (27-12-2018)
+	if (colormap && spanfunc == R_DrawFogSpan_32)
+	{
+		ds_transmap = 128;
+		spanfunc = R_DrawTranslucentSpan_32;
+	}
 
 	ds_y = y;
 	ds_x1 = x1;
