@@ -933,6 +933,7 @@ void R_DrawTiltedTranslucentSpan_32(void)
 
 	UINT8 *source;
 	UINT8 *colormap;
+	UINT32 *truecolormap;
 	UINT32 *dest;
 
 	double startz, startu, startv;
@@ -959,25 +960,7 @@ void R_DrawTiltedTranslucentSpan_32(void)
 
 	dest = &topleft[ds_y*vid.width + ds_x1];
 	source = ds_source;
-	//colormap = ds_colormap;
 
-#if 0	// The "perfect" reference version of this routine. Pretty slow.
-		// Use it only to see how things are supposed to look.
-	i = 0;
-	do
-	{
-		double z = 1.f/iz;
-		u = (INT64)(uz*z) + viewx;
-		v = (INT64)(vz*z) + viewy;
-
-		colormap = planezlight[tiltlighting[ds_x1++]] + (ds_colormap - colormaps);
-		V_DrawPixelTrueColor(dest, V_BlendTrueColor(*dest, V_GetTrueColor((colormap[source[((v >> nflatyshift) & nflatmask) | (u >> nflatxshift)]] << 8)), ds_transmap));
-		dest++;
-		iz += ds_sz.x;
-		uz += ds_su.x;
-		vz += ds_sv.x;
-	} while (--width >= 0);
-#else
 #define SPANSIZE 16
 #define INVSPAN	0.0625f
 
@@ -988,7 +971,6 @@ void R_DrawTiltedTranslucentSpan_32(void)
 	izstep = ds_sz.x * SPANSIZE;
 	uzstep = ds_su.x * SPANSIZE;
 	vzstep = ds_sv.x * SPANSIZE;
-	//x1 = 0;
 	width++;
 
 	while (width >= SPANSIZE)
@@ -1008,7 +990,14 @@ void R_DrawTiltedTranslucentSpan_32(void)
 		for (i = SPANSIZE-1; i >= 0; i--)
 		{
 			colormap = planezlight[tiltlighting[ds_x1++]] + (ds_colormap - colormaps);
-			V_DrawPixelTrueColor(dest, V_BlendTrueColor(*dest, V_GetTrueColor((colormap[source[((v >> nflatyshift) & nflatmask) | (u >> nflatxshift)]] << 8)), ds_transmap));
+			if (ds_truecolormap)
+			{
+				truecolormap = planezlight_tc[tiltlighting[ds_x1]] + (ds_truecolormap - truecolormaps);
+				V_DrawPixelTrueColor(dest, V_BlendTrueColor(*dest, (truecolormap[source[((v >> nflatyshift) & nflatmask) | (u >> nflatxshift)]]), ds_transmap));
+			}
+			else
+				V_DrawPixelTrueColor(dest, V_BlendTrueColor(*dest, V_GetTrueColor((colormap[source[((v >> nflatyshift) & nflatmask) | (u >> nflatxshift)]])), ds_transmap));
+
 			dest++;
 			u += stepu;
 			v += stepv;
@@ -1023,8 +1012,15 @@ void R_DrawTiltedTranslucentSpan_32(void)
 		{
 			u = (INT64)(startu);
 			v = (INT64)(startv);
+
 			colormap = planezlight[tiltlighting[ds_x1++]] + (ds_colormap - colormaps);
-			V_DrawPixelTrueColor(dest, V_BlendTrueColor(*dest, V_GetTrueColor((colormap[source[((v >> nflatyshift) & nflatmask) | (u >> nflatxshift)]] << 8)), ds_transmap));
+			if (ds_truecolormap)
+			{
+				truecolormap = planezlight_tc[tiltlighting[ds_x1]] + (ds_truecolormap - truecolormaps);
+				V_DrawPixelTrueColor(dest, V_BlendTrueColor(*dest, (truecolormap[source[((v >> nflatyshift) & nflatmask) | (u >> nflatxshift)]]), ds_transmap));
+			}
+			else
+				V_DrawPixelTrueColor(dest, V_BlendTrueColor(*dest, V_GetTrueColor((colormap[source[((v >> nflatyshift) & nflatmask) | (u >> nflatxshift)]])), ds_transmap));
 		}
 		else
 		{
@@ -1045,14 +1041,20 @@ void R_DrawTiltedTranslucentSpan_32(void)
 			for (; width != 0; width--)
 			{
 				colormap = planezlight[tiltlighting[ds_x1++]] + (ds_colormap - colormaps);
-				V_DrawPixelTrueColor(dest, V_BlendTrueColor(*dest, V_GetTrueColor((colormap[source[((v >> nflatyshift) & nflatmask) | (u >> nflatxshift)]] << 8)), ds_transmap));
+				if (ds_truecolormap)
+				{
+					truecolormap = planezlight_tc[tiltlighting[ds_x1]] + (ds_truecolormap - truecolormaps);
+					V_DrawPixelTrueColor(dest, V_BlendTrueColor(*dest, (truecolormap[source[((v >> nflatyshift) & nflatmask) | (u >> nflatxshift)]]), ds_transmap));
+				}
+				else
+					V_DrawPixelTrueColor(dest, V_BlendTrueColor(*dest, V_GetTrueColor((colormap[source[((v >> nflatyshift) & nflatmask) | (u >> nflatxshift)]])), ds_transmap));
+
 				dest++;
 				u += stepu;
 				v += stepv;
 			}
 		}
 	}
-#endif
 }
 
 void R_DrawTiltedSplat_32(void)
@@ -1065,14 +1067,15 @@ void R_DrawTiltedSplat_32(void)
 
 	UINT8 *source;
 	UINT8 *colormap;
+	UINT32 *truecolormap;
 	UINT32 *dest;
-
-	UINT8 val;
 
 	double startz, startu, startv;
 	double izstep, uzstep, vzstep;
 	double endz, endu, endv;
 	UINT32 stepu, stepv;
+
+	UINT8 val;
 
 	iz = ds_sz.z + ds_sz.y*(centery-ds_y) + ds_sz.x*(ds_x1-centerx);
 
@@ -1093,30 +1096,9 @@ void R_DrawTiltedSplat_32(void)
 
 	dest = &topleft[ds_y*vid.width + ds_x1];
 	source = ds_source;
-	//colormap = ds_colormap;
 
-#if 0	// The "perfect" reference version of this routine. Pretty slow.
-		// Use it only to see how things are supposed to look.
-	i = 0;
-	do
-	{
-		double z = 1.f/iz;
-		u = (INT64)(uz*z) + viewx;
-		v = (INT64)(vz*z) + viewy;
-
-		colormap = planezlight[tiltlighting[ds_x1++]] + (ds_colormap - colormaps);
-
-		val = source[((v >> nflatyshift) & nflatmask) | (u >> nflatxshift)];
-		if (val != TRANSPARENTPIXEL)
-			*dest = colormap[val];
-		dest++;
-		iz += ds_sz.x;
-		uz += ds_su.x;
-		vz += ds_sv.x;
-	} while (--width >= 0);
-#else
-#define SPANSIZE 16
-#define INVSPAN	0.0625f
+	#define SPANSIZE 16
+	#define INVSPAN	0.0625f
 
 	startz = 1.f/iz;
 	startu = uz*startz;
@@ -1125,7 +1107,6 @@ void R_DrawTiltedSplat_32(void)
 	izstep = ds_sz.x * SPANSIZE;
 	uzstep = ds_su.x * SPANSIZE;
 	vzstep = ds_sv.x * SPANSIZE;
-	//x1 = 0;
 	width++;
 
 	while (width >= SPANSIZE)
@@ -1144,10 +1125,21 @@ void R_DrawTiltedSplat_32(void)
 
 		for (i = SPANSIZE-1; i >= 0; i--)
 		{
-			colormap = planezlight[tiltlighting[ds_x1++]] + (ds_colormap - colormaps);
+			colormap = planezlight[tiltlighting[ds_x1]] + (ds_colormap - colormaps);
+
 			val = source[((v >> nflatyshift) & nflatmask) | (u >> nflatxshift)];
 			if (val != TRANSPARENTPIXEL)
-				*dest = colormap[val];
+			{
+				if (ds_truecolormap)
+				{
+					truecolormap = planezlight_tc[tiltlighting[ds_x1]] + (ds_truecolormap - truecolormaps);
+					V_DrawPixelTrueColor(dest, truecolormap[val]);
+				}
+				else
+					V_DrawPixelTrueColor(dest, V_GetTrueColor(colormap[val]));
+			}
+
+			ds_x1++;
 			dest++;
 			u += stepu;
 			v += stepv;
@@ -1162,10 +1154,21 @@ void R_DrawTiltedSplat_32(void)
 		{
 			u = (INT64)(startu);
 			v = (INT64)(startv);
-			colormap = planezlight[tiltlighting[ds_x1++]] + (ds_colormap - colormaps);
+			colormap = planezlight[tiltlighting[ds_x1]] + (ds_colormap - colormaps);
+
 			val = source[((v >> nflatyshift) & nflatmask) | (u >> nflatxshift)];
 			if (val != TRANSPARENTPIXEL)
-				*dest = colormap[val];
+			{
+				if (ds_truecolormap)
+				{
+					truecolormap = planezlight_tc[tiltlighting[ds_x1]] + (ds_truecolormap - truecolormaps);
+					V_DrawPixelTrueColor(dest, truecolormap[val]);
+				}
+				else
+					V_DrawPixelTrueColor(dest, V_GetTrueColor(colormap[val]));
+			}
+
+			ds_x1++;
 		}
 		else
 		{
@@ -1185,17 +1188,27 @@ void R_DrawTiltedSplat_32(void)
 
 			for (; width != 0; width--)
 			{
-				colormap = planezlight[tiltlighting[ds_x1++]] + (ds_colormap - colormaps);
+				colormap = planezlight[tiltlighting[ds_x1]] + (ds_colormap - colormaps);
+
 				val = source[((v >> nflatyshift) & nflatmask) | (u >> nflatxshift)];
 				if (val != TRANSPARENTPIXEL)
-					*dest = colormap[val];
+				{
+					if (ds_truecolormap)
+					{
+						truecolormap = planezlight_tc[tiltlighting[ds_x1]] + (ds_truecolormap - truecolormaps);
+						V_DrawPixelTrueColor(dest, truecolormap[val]);
+					}
+					else
+						V_DrawPixelTrueColor(dest, V_GetTrueColor(colormap[val]));
+				}
+
+				ds_x1++;
 				dest++;
 				u += stepu;
 				v += stepv;
 			}
 		}
 	}
-#endif
 }
 #endif // ESLOPE
 
