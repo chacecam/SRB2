@@ -76,7 +76,7 @@ typedef struct viddef_s
 	UINT32 *direct; // linear frame buffer, or vga base mem.
 	INT32  dupx, dupy; // scale 1, 2, 3 value for menus & overlays
 	INT32  fdupx, fdupy; // same as dupx, dupy, but exact value when aspect ratio isn't 320/200
-	INT32  bpp; // BYTES per pixel: 1 = 256color, 2 = highcolor
+	INT32  bpp; // BYTES per pixel: 4 = 32bpp
 
 	INT32 baseratio; // Used to get the correct value for lighting walls
 
@@ -106,7 +106,7 @@ typedef struct vmode_s
 	char *name;
 	UINT32 width, height;
 	UINT32 rowbytes; // bytes per scanline
-	UINT32 bytesperpixel; // 1 for 256c, 2 for highcolor
+	UINT32 bytesperpixel; // 4 for truecolor
 	INT32 windowed; // if true this is a windowed mode
 	INT32 numpages;
 	vesa_extra_t *pextradata; // vesa mode extra data

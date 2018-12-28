@@ -10,8 +10,6 @@
 
 rendermode_t rendermode = render_soft;
 
-boolean highcolor = false;
-
 boolean allow_fullscreen = false;
 
 
@@ -46,7 +44,7 @@ INT32 VID_SetMode(INT32 modenum)
   vid.modenum = 0;
   vid.width = 320;
   vid.height = 240;
-  vid.bpp = 1;
+  vid.bpp = 4;
   vid.buffer = android_surface;
   return 0;
 }

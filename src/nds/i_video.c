@@ -28,8 +28,6 @@
 
 rendermode_t rendermode = render_opengl;
 
-boolean highcolor = false;
-
 boolean allow_fullscreen = false;
 
 consvar_t cv_vidwait = {"vid_wait", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -38,7 +36,7 @@ void I_StartupGraphics(void)
 {
 	vid.width = 256;
 	vid.height = 192;
-	vid.bpp = 1;
+	vid.bpp = 4;
 	vid.rowbytes = vid.width * vid.bpp;
 	vid.recalc = true;
 

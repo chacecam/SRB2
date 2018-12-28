@@ -1739,7 +1739,6 @@ INT32 VID_SetMode(INT32 modeNum)
 	SDLdoUngrabMouse();
 	vid.recalc = true;
 	BitsPerPixel = (Uint8)cv_scr_depth.value;
-	//vid.bpp = BitsPerPixel==8?1:2;
 	// Window title
 	SDL_WM_SetCaption("SRB2 "VERSIONSTRING, "SRB2");
 
@@ -1920,7 +1919,7 @@ void I_StartupGraphics(void)
 	vid.height = BASEVIDHEIGHT; // BitsPerPixel is the SDL interface's
 	vid.recalc = true; // Set up the console stufff
 	vid.direct = NULL; // Maybe direct access?
-	vid.bpp = 1; // This is the game engine's Bpp
+	vid.bpp = 4; // This is the game engine's Bpp
 	vid.WndParent = NULL; //For the window?
 
 #ifdef HAVE_TTF

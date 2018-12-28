@@ -661,10 +661,7 @@ INT32 VID_SetMode(INT32 modenum)
 	{
 		if (rendermode == render_opengl)
 		{
-			// don't accept depth < 16 for OpenGL mode (too much ugly)
-			if (cv_scr_depth.value < 16)
-				CV_SetValue(&cv_scr_depth,  16);
-			vid.bpp = cv_scr_depth.value/8;
+			vid.bpp = 4;
 			vid.u.windowed = (bWinParm || !cv_fullscreen.value);
 			pcurrentmode->bytesperpixel = vid.bpp;
 			pcurrentmode->windowed = vid.u.windowed;
