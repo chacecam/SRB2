@@ -236,14 +236,8 @@ void    VID_Init (void)
 	// setup the vesa_modes list
 	VID_VesaGetExtraModes ();
 
-	// the game boots in 320x200 standard VGA, but
-	// we need a highcolor mode to run the game in highcolor
-	if (highcolor && numvidmodes==0)
-		I_Error ("No 15bit highcolor VESA2 video mode found, cannot run in highcolor.\n");
-
 	// add the vga modes at the start of the modes list
 	VGA_Init();
-
 
 #ifdef DEBUG
 	CONS_Printf("VID_SetMode(%d)\n",vid.modenum);
@@ -419,12 +413,6 @@ int VID_VesaGetModeInfo (int modenum)
 		dosmemget (MASK_LINEAR(__tb), sizeof (vesamodeinfo_t), &vesamodeinfo);
 
 		bytes_per_pixel = (vesamodeinfo.BitsPerPixel+1)/8;
-
-		// we add either highcolor or lowcolor video modes, not the two
-		if (highcolor && (vesamodeinfo.BitsPerPixel != 15))
-			return false;
-		if (!highcolor && (vesamodeinfo.BitsPerPixel != 8))
-			return false;
 
 		if ((bytes_per_pixel > 2) ||
 			(vesamodeinfo.XResolution > MAXVIDWIDTH) ||

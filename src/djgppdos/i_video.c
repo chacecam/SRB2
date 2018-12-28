@@ -47,8 +47,6 @@
 static unsigned long dascreen;
 static int gfx_use_vesa1;
 
-boolean    highcolor;
-
 #define SCREENDEPTH   1     // bytes per pixel, do NOT change.
 
 rendermode_t    rendermode=render_soft;
@@ -314,9 +312,6 @@ void I_StartupGraphics(void)
 	I_SaveOldVideoMode();
 
 	CONS_Printf("Vid_Init...");
-
-	// 0 for 256 color, else use highcolor modes
-	highcolor = M_CheckParm ("-highcolor");
 
 	VID_Init();
 

@@ -51,8 +51,6 @@ rendermode_t rendermode = render_soft;
 consvar_t cv_vidwait = {"vid_wait", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 static consvar_t cv_stretch = {"stretch", "On", CV_SAVE|CV_NOSHOWHELP, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-boolean highcolor;
-
 static BOOL bDIBMode; // means we are using DIB instead of DirectDraw surfaces
 static BITMAPINFO* bmiMain = NULL;
 static HDC hDCMain = NULL;
@@ -347,12 +345,6 @@ static BOOL GetExtraModesCallback(int width, int height, int bpp)
 {
 	CONS_Printf("mode %d x %d x %d bpp\n", width, height, bpp);
 
-	// skip all unwanted modes
-	if (highcolor && bpp != 15)
-		goto skip;
-	if (!highcolor && bpp != 8)
-		goto skip;
-
 	if (bpp > 16 || width > MAXVIDWIDTH || height > MAXVIDHEIGHT)
 		goto skip;
 
@@ -502,11 +494,6 @@ static void VID_Init(void)
 			// get available display modes for the device
 			VID_GetExtraModes();
 		}
-
-	// the game boots in 320x200 standard VGA, but
-	// we need a highcolor mode to run the game in highcolor
-	if (highcolor && !numvidmodes)
-		I_Error("Cannot run in highcolor - No 15bit highcolor DirectX video mode found.");
 
 	// add windowed mode at the start of the list, very important!
 	WindowMode_Init();
