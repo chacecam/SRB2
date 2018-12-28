@@ -1318,14 +1318,13 @@ static void R_ProjectSprite(mobj_t *thing)
 
 	// determine the transmap (lightlevel & special effects)
 	vis->transmap = 0;
-
-	// specific translucency
-	if (!cv_translucency.value)
-		; // no translucency
-	else if (thing->flags2 & MF2_SHADOW)
-		vis->transmap = V_AlphaTrans((vis->mobj->frame & FF_TRANSMASK)>>FF_TRANSSHIFT);
-	else if (thing->frame & FF_TRANSMASK)
-		vis->transmap = V_AlphaTrans((vis->mobj->frame & FF_TRANSMASK)>>FF_TRANSSHIFT);
+	if (vfx_translucency)
+	{
+		if (thing->flags2 & MF2_SHADOW)
+			vis->transmap = V_AlphaTrans(tr_trans50);
+		else if (thing->frame & FF_TRANSMASK)
+			vis->transmap = V_AlphaTrans((vis->mobj->frame & FF_TRANSMASK)>>FF_TRANSSHIFT);
+	}
 
 	if (((thing->frame & FF_FULLBRIGHT) || (thing->flags2 & MF2_SHADOW))
 		&& (!vis->extra_colormap || !(vis->extra_colormap->fog & 1)))
@@ -1520,7 +1519,7 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 
 	// specific translucency
 	vis->transmap = 0;
-	if (thing->frame & FF_TRANSMASK)
+	if (vfx_translucency && thing->frame & FF_TRANSMASK)
 		vis->transmap = V_AlphaTrans((thing->frame & FF_TRANSMASK)>>FF_TRANSSHIFT);
 
 	vis->mobjflags = 0;

@@ -266,6 +266,14 @@ static void D_Display(void)
 	if (nodrawers)
 		return; // for comparative timing/profiling
 
+	// Jimita (27-12-2018)
+#define HAS_VFX(conditional) (!cv_simplifyvfx.value) ? conditional : false;
+	vfx_translucency = HAS_VFX(cv_translucency.value)
+	vfx_colormaps = HAS_VFX(cv_truecolormaps.value)
+	vfx_water = HAS_VFX(true)
+	vfx_quincunx = false;
+#undef HAS_VFX
+
 	// check for change of screen size (video mode)
 	if (setmodeneeded && !wipe)
 		SCR_SetMode(); // change video mode
@@ -588,7 +596,7 @@ void D_SRB2Loop(void)
 
 	// hack to start on a nice clear console screen.
 	COM_ImmedExecute("cls;version");
-	CONS_Printf("True-color rendering code by \x82Jimita\n");
+	CONS_Printf("True-color rendering code by Jimita\n");
 
 	if (rendermode == render_soft)
 		V_DrawScaledPatch(0, 0, 0, (patch_t *)W_CacheLumpNum(W_GetNumForName("CONSBACK"), PU_CACHE));

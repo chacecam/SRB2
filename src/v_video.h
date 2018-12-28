@@ -39,6 +39,7 @@ extern UINT32 *screen_sshotbuffer;
 extern UINT32 *screen_fadestart;
 extern UINT32 *screen_fadeend;
 extern UINT32 *screen_postimage;
+extern consvar_t cv_simplifyvfx;
 
 extern const UINT8 gammatable[5][256];
 extern consvar_t cv_ticrate, cv_usegamma, cv_allcaps, cv_constextsize;

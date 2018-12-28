@@ -1182,8 +1182,9 @@ static menuitem_t OP_VideoOptionsMenu[] =
 	{IT_STRING | IT_CALL,  NULL,   "Video Modes...",      M_VideoModeMenu,     10},
 
 #ifdef HWRENDER
-	{IT_SUBMENU|IT_STRING, NULL,   "3D Card Options...",  &OP_OpenGLOptionsDef,    20},
+	{IT_SUBMENU|IT_STRING, NULL,   "Hardware Mode Options...",  &OP_OpenGLOptionsDef,    20},
 #endif
+	{IT_STRING | IT_CVAR,  NULL,   "Simplify VFX",  			&cv_simplifyvfx,      20},
 
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	{IT_STRING|IT_CVAR,      NULL, "Fullscreen",          &cv_fullscreen,    30},
@@ -2851,9 +2852,13 @@ void M_Init(void)
 	quitmsg[QUIT3MSG6] = M_GetText("Aww, is Egg Rock Zone too\ndifficult for you?\n\n(Press 'Y' to quit)");
 
 #ifdef HWRENDER
-	// Permanently hide some options based on render mode
+	// Permanently hide or show some options based on render mode
+	OP_VideoOptionsMenu[1].status = (IT_SUBMENU|IT_STRING);
+	OP_VideoOptionsMenu[2].status = (IT_CVAR|IT_STRING);
 	if (rendermode == render_soft)
 		OP_VideoOptionsMenu[1].status = IT_DISABLED;
+	else if (rendermode == render_opengl)
+		OP_VideoOptionsMenu[2].status = IT_DISABLED;
 #endif
 
 #ifndef NONET

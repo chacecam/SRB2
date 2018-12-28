@@ -70,6 +70,12 @@ void (*tiltedsplatfunc)(void); // tilted splat
 void (*tiltedtransspanfunc)(void); // tilted translucent span
 #endif
 
+// Jimita (27-12-2018)
+boolean vfx_translucency;
+boolean vfx_colormaps;
+boolean vfx_water;
+boolean vfx_quincunx;
+
 // ------------------
 // global video state
 // ------------------
@@ -237,6 +243,7 @@ void SCR_Startup(void)
 	vid.baseratio = FRACUNIT;
 
 	V_Init();
+	CV_RegisterVar(&cv_simplifyvfx);
 	CV_RegisterVar(&cv_ticrate);
 	CV_RegisterVar(&cv_constextsize);
 
@@ -334,6 +341,10 @@ void SCR_CheckDefaultMode(void)
 		// see note above
 		setmodeneeded = VID_GetModeForSize(cv_scr_width.value, cv_scr_height.value) + 1;
 	}
+
+	// no video mode changes will crash the game
+	if (!setmodeneeded)
+		setmodeneeded = 1;
 }
 
 // sets the modenum as the new default video mode to be saved in the config file

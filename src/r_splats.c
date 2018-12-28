@@ -462,6 +462,10 @@ static void R_RenderFloorSplat(floorsplat_t *pSplat, vertex_t *verts, UINT8 *pTe
 		light = 0;
 	planezlight = zlight[light];
 
+	ds_transmap = 255;
+	if (vfx_translucency)
+		ds_transmap = V_AlphaTrans(tr_trans50);
+
 	for (y = miny; y <= maxy; y++)
 	{
 		x1 = rastertab[y].minx>>FRACBITS;
@@ -510,7 +514,6 @@ static void R_RenderFloorSplat(floorsplat_t *pSplat, vertex_t *verts, UINT8 *pTe
 		{
 			ds_x1 = x1;
 			ds_x2 = x2;
-			ds_transmap = V_AlphaTrans(tr_trans50);
 			splatfunc();
 		}
 

@@ -161,6 +161,12 @@ extern void (*tiltedsplatfunc)(void); // tilted splat
 extern void (*tiltedtransspanfunc)(void); // tilted translucent span
 #endif
 
+// Jimita (27-12-2018)
+extern boolean vfx_translucency;
+extern boolean vfx_colormaps;
+extern boolean vfx_water;
+extern boolean vfx_quincunx;
+
 // -----
 // CPUID
 // -----

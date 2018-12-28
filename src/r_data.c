@@ -1158,14 +1158,14 @@ INT32 R_ColormapNumForName(char *name)
 void R_SetTrueColormap(UINT32 *colormap)
 {
 	dc_truecolormap = colormap;
-	if (!cv_truecolormaps.value)
+	if (!vfx_colormaps)
 		dc_truecolormap = NULL;
 }
 
 void R_SetTrueColormapDS(UINT32 *colormap)
 {
 	ds_truecolormap = colormap;
-	if (!cv_truecolormaps.value)
+	if (!vfx_colormaps)
 		ds_truecolormap = NULL;
 }
 

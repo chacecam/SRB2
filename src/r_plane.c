@@ -251,7 +251,7 @@ void R_MapPlane(INT32 y, INT32 x1, INT32 x2)
 
 	// Jimita: True-color
 	ds_truecolormap = NULL;
-	if (cv_truecolormaps.value)
+	if (vfx_colormaps)
 	{
 		ds_foglight = ds_colormap-colormaps;
 
@@ -266,12 +266,17 @@ void R_MapPlane(INT32 y, INT32 x1, INT32 x2)
 		ds_colormap = currentplane->extra_colormap->colormap + (ds_colormap - colormaps);
 
 	// Jimita (27-12-2018)
-	if (colormap && spanfunc == fogspanfunc)
+	if (vfx_translucency)
 	{
-		ds_transmap = 128;
-		ds_blendcolor = colormap->tc_rgba;
-		spanfunc = transspanfunc;
+		if (colormap && spanfunc == fogspanfunc)
+		{
+			ds_transmap = 128;
+			ds_blendcolor = colormap->tc_rgba;
+			spanfunc = transspanfunc;
+		}
 	}
+	else
+		spanfunc = basespanfunc;
 
 	ds_y = y;
 	ds_x1 = x1;
@@ -679,14 +684,19 @@ void R_DrawSinglePlane(visplane_t *pl)
 #ifdef POLYOBJECTS_PLANES
 	if (pl->polyobj && pl->polyobj->translucency != 0)
 	{
-		spanfunc = R_DrawTranslucentSpan_32;
-
 		// Hacked up support for alpha value in software mode Tails 09-24-2002 (sidenote: ported to polys 10-15-2014, there was no time travel involved -Red)
-		if (pl->polyobj->translucency >= 10)
-			return; // Don't even draw it
-		else if (pl->polyobj->translucency > 0)
-			ds_transmap = V_AlphaTrans(pl->polyobj->translucency);
-		else // Opaque, but allow transparent flat pixels
+		// Edited by Jimita for True-Color Mode
+		if (vfx_translucency)
+		{
+			spanfunc = transspanfunc;
+			if (pl->polyobj->translucency >= 10)
+				return; // Don't even draw it
+			else if (pl->polyobj->translucency > 0)
+				ds_transmap = V_AlphaTrans(pl->polyobj->translucency);
+			else // Opaque, but allow transparent flat pixels
+				spanfunc = splatfunc;
+		}
+		else
 			spanfunc = splatfunc;
 
 		if (!pl->extra_colormap || !(pl->extra_colormap->fog & 2))
@@ -717,15 +727,19 @@ void R_DrawSinglePlane(visplane_t *pl)
 
 		if (pl->ffloor->flags & FF_TRANSLUCENT)
 		{
-			spanfunc = R_DrawTranslucentSpan_32;
-
 			// Hacked up support for alpha value in software mode Tails 09-24-2002
 			// Edited by Jimita for True-Color Mode
-			if (pl->ffloor->alpha < 1)
-				return; // Don't even draw it
-			else if (pl->ffloor->alpha != 255)
-				ds_transmap = pl->ffloor->alpha;
-			else // Opaque, but allow transparent flat pixels
+			if (vfx_translucency)
+			{
+				spanfunc = transspanfunc;
+				if (pl->ffloor->alpha < 1)
+					return; // Don't even draw it
+				else if (pl->ffloor->alpha != 255)
+					ds_transmap = pl->ffloor->alpha;
+				else // Opaque, but allow transparent flat pixels
+					spanfunc = splatfunc;
+			}
+			else
 				spanfunc = splatfunc;
 
 			if (!pl->extra_colormap || !(pl->extra_colormap->fog & 2))
@@ -745,7 +759,7 @@ void R_DrawSinglePlane(visplane_t *pl)
 #ifdef ESLOPE
 				&& !pl->slope
 #endif
-			)
+			&& vfx_water)
 		{
 			INT32 top, bottom;
 
@@ -995,11 +1009,11 @@ a 'smoothing' of the texture while
 using the palette colors.
 */
 #ifdef QUINCUNX
-	if (spanfunc == R_DrawSpan_32)
+	if (vfx_quincunx && spanfunc == basespanfunc)
 	{
 		INT32 i;
 		ds_transmap = V_AlphaTrans(tr_trans50);
-		spanfunc = R_DrawTranslucentSpan_32;
+		spanfunc = transspanfunc;
 		for (i=0; i<4; i++)
 		{
 			xoffs = pl->xoffs;

@@ -183,13 +183,13 @@ static void R_DrawWallSplats(void)
 				colfunc = basecolfunc;
 				break;
 			case SPLATDRAWMODE_TRANS:
-				if (!cv_translucency.value)
-					colfunc = basecolfunc;
-				else
+				if (vfx_translucency)
 				{
 					dc_transmap = V_AlphaTrans(tr_trans50);
 					colfunc = fuzzcolfunc;
 				}
+				else
+					colfunc = basecolfunc;
 				break;
 		}
 
@@ -313,29 +313,34 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 	// hack translucent linedef types
 	dc_transmap = 255;
 	ldef = curline->linedef;
-	switch (ldef->special)
+	if (vfx_translucency)
 	{
-		case 900:
-		case 901:
-		case 902:
-		case 903:
-		case 904:
-		case 905:
-		case 906:
-		case 907:
-		case 908:
-			dc_transmap = V_AlphaTrans(ldef->special-900);
-			colfunc = fuzzcolfunc;
-			break;
-		case 909:
-			colfunc = fogcolfunc;
-			windowtop = frontsector->ceilingheight;
-			windowbottom = frontsector->floorheight;
-			break;
-		default:
-			colfunc = basecolfunc;
-			break;
+		switch (ldef->special)
+		{
+			case 900:
+			case 901:
+			case 902:
+			case 903:
+			case 904:
+			case 905:
+			case 906:
+			case 907:
+			case 908:
+				dc_transmap = V_AlphaTrans(ldef->special-900);
+				colfunc = fuzzcolfunc;
+				break;
+			case 909:
+				colfunc = fogcolfunc;
+				windowtop = frontsector->ceilingheight;
+				windowbottom = frontsector->floorheight;
+				break;
+			default:
+				colfunc = basecolfunc;
+				break;
+		}
 	}
+	else
+		colfunc = basecolfunc;
 
 	if (curline->polyseg && curline->polyseg->translucency > 0)
 	{
@@ -817,10 +822,15 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 
 		// Hacked up support for alpha value in software mode Tails 09-24-2002
 		// Edited by Jimita for True-Color Mode
-		if (pfloor->alpha < 1)
-			return; // Don't even draw it
-		else if (pfloor->alpha != 255)
-			dc_transmap = pfloor->alpha;
+		if (vfx_translucency)
+		{
+			if (pfloor->alpha < 1)
+				return; // Don't even draw it
+			else if (pfloor->alpha != 255)
+				dc_transmap = pfloor->alpha;
+			else
+				fuzzy = false; // Opaque
+		}
 		else
 			fuzzy = false; // Opaque
 
@@ -1205,9 +1215,14 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 								rlight->rcolormap = pfloor->master->frontsector->extra_colormap->colormap + (xwalllights[pindex] - colormaps);
 								rlight->tc_rcolormap = pfloor->master->frontsector->extra_colormap->truecolormap + (xwalllights[pindex] - colormaps);
 								// Jimita (27-12-2018)
-								dc_transmap = 128;
-								dc_blendcolor = pfloor->master->frontsector->extra_colormap->tc_rgba;
-								colfunc = blendcolfunc;
+								if (vfx_translucency)
+								{
+									dc_transmap = 128;
+									dc_blendcolor = pfloor->master->frontsector->extra_colormap->tc_rgba;
+									colfunc = blendcolfunc;
+								}
+								else
+									colfunc = basecolfunc;
 							}
 							else
 							{
@@ -1331,9 +1346,14 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 					{
 						dc_colormap = pfloor->master->frontsector->extra_colormap->colormap + (colormap_pointer - colormaps);
 						// Jimita (27-12-2018)
-						dc_transmap = 128;
-						dc_blendcolor = pfloor->master->frontsector->extra_colormap->tc_rgba;
-						colfunc = blendcolfunc;
+						if (vfx_translucency)
+						{
+							dc_transmap = 128;
+							dc_blendcolor = pfloor->master->frontsector->extra_colormap->tc_rgba;
+							colfunc = blendcolfunc;
+						}
+						else
+							colfunc = basecolfunc;
 					}
 				}
 			}

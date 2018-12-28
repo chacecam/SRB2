@@ -273,7 +273,7 @@ static void F_DoWipe(fademask_t *fademask)
 
 					while (draw_rowstogo--)
 					{
-						V_DrawPixelTrueColor(w, V_BlendTrueColor(*w,*e,alpha));
+						V_DrawPixelTrueColor(w,V_BlendTrueColor(*w,*e,alpha));
 						w++; e++;
 					}
 
