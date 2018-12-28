@@ -30,48 +30,43 @@ extern UINT32 *topleft;
 // -------------------------
 
 extern INT32 dc_x, dc_yl, dc_yh;
+extern lighttable_t *dc_colormap;
 extern fixed_t dc_iscale, dc_texturemid;
 extern UINT8 dc_hires;
+extern INT32 dc_texheight;
 
 extern UINT8 *dc_source; // first pixel in a column
 
 // Jimita: True-color
-extern lighttable_t   *dc_colormap;
+extern UINT8 dc_transmap;
+extern UINT32 dc_foglight;
+extern UINT32 dc_blendcolor;
 extern lighttable32_t *dc_truecolormap;
 
 // translucency stuff here
 #define NUMTRANSTABLES 9 // how many translucency tables are used
 extern UINT8 *transtables;
 
-// Jimita: True-color
-extern UINT8 dc_transmap;
-extern UINT32 dc_foglight;
-
 // translation stuff here
-
 extern UINT8 *dc_translation;
-
 extern struct r_lightlist_s *dc_lightlist;
 extern INT32 dc_numlights, dc_maxlights;
-
-//Fix TUTIFRUTI
-extern INT32 dc_texheight;
 
 // -----------------------
 // SPAN DRAWING CODE STUFF
 // -----------------------
 
 extern INT32 ds_y, ds_x1, ds_x2;
+extern lighttable_t *ds_colormap;
 extern fixed_t ds_xfrac, ds_yfrac, ds_xstep, ds_ystep;
 
-extern UINT8 *ds_source;
+extern UINT8 *ds_source; // first pixel in a span
 
 // Jimita: True-color
-extern lighttable_t *ds_colormap;
-extern UINT32 *ds_truecolormap;
-
 extern UINT8 ds_transmap;
 extern UINT32 ds_foglight;
+extern UINT32 ds_blendcolor;
+extern UINT32 *ds_truecolormap;
 
 #ifdef ESLOPE
 typedef struct {
@@ -88,10 +83,6 @@ extern UINT32 nflatyshift;
 extern UINT32 nflatshiftup;
 extern UINT32 nflatmask;
 
-// ===================================
-//  r_draw.c COMMON ROUTINES FOR 8bpp
-// ===================================
-
 #define GTC_CACHE 1
 
 #define TC_DEFAULT    -1
@@ -105,30 +96,29 @@ UINT8* R_GetTranslationColormap(INT32 skinnum, skincolors_t color, UINT8 flags);
 void R_FlushTranslationColormapCache(void);
 UINT8 R_GetColorByName(const char *name);
 
-// -----------------
-// 32bpp DRAWING CODE
-// -----------------
+// ====================
+//  32bpp DRAWING CODE
+// ====================
 
-// Columns
 void R_DrawColumn_32(void);
-#define R_DrawWallColumn_32	R_DrawColumn_32
-void R_DrawShadeColumn_32(void);
 void R_DrawTranslucentColumn_32(void);
-
-void R_Draw2sMultiPatchColumn_32(void);
-void R_Draw2sMultiPatchTranslucentColumn_32(void);
-void R_DrawFogSpan_32(void);
-void R_DrawFogColumn_32(void);
 void R_DrawColumnShadowed_32(void);
-
+void R_DrawFogColumn_32(void);
+void R_DrawBlendColumn_32(void);
 void R_DrawTranslatedColumn_32(void);
 void R_DrawTranslatedTranslucentColumn_32(void);
+void R_Draw2sMultiPatchColumn_32(void);
+void R_Draw2sMultiPatchTranslucentColumn_32(void);
 
 // Spans
 void R_DrawSpan_32(void);
 void R_DrawSplat_32(void);
-void R_DrawTranslucentSplat_32(void);
+
 void R_DrawTranslucentSpan_32(void);
+void R_DrawTranslucentSplat_32(void);
+
+void R_DrawFogSpan_32(void);
+void R_DrawBlendSpan_32(void);
 
 #ifndef NOWATER
 void R_DrawTranslucentWaterSpan_32(void);
@@ -139,10 +129,10 @@ extern INT32 ds_watertimer;
 
 // Tilted spans
 #ifdef ESLOPE
-void R_CalcTiltedLighting(fixed_t start, fixed_t end);
 void R_DrawTiltedSpan_32(void);
-void R_DrawTiltedTranslucentSpan_32(void);
 void R_DrawTiltedSplat_32(void);
+void R_DrawTiltedTranslucentSpan_32(void);
+void R_CalcTiltedLighting(fixed_t start, fixed_t end);
 #endif
 
 // (Unused)

@@ -491,29 +491,6 @@ static void D_Display(void)
 	M_Drawer(); // menu is drawn even on top of everything
 	// focus lost moved to M_Drawer
 
-	/* debugging */
-	/*int x0 = 50, y0 = 50, size = 16;
-	int x = x0, y = y0;
-	int i, count = 0;
-	for (i=0;i<256;i++)
-	{
-		int ws, hs;
-		count++;
-		for (hs=0;hs<size;hs++)
-			for (ws=0;ws<size;ws++)
-			{
-				V_DrawPixelTrueColor(screen_main + (y+hs)*vid.width + (x+ws), truecolormaps[i+(((I_GetTime()/4)%31)*256)]);
-				V_DrawPixelTrueColor(screen_main + (y+hs)*vid.width + (x+ws+270), V_GetTrueColor(colormaps[i+(((I_GetTime()/4)%31)*256)]));
-			}
-		x+=size;
-		if (count >= 16)
-		{
-			count=0;
-			y+=size;
-			x=x0;
-		}
-	}*/
-
 	//
 	// wipe update
 	//

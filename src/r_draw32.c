@@ -567,6 +567,7 @@ void R_DrawFogSpan_32(void)
 
 		dest += 4;
 		count -= 4;
+		#undef FOG
 	}
 
 	while (count--)
@@ -671,7 +672,7 @@ void R_DrawColumnShadowed_32(void)
 	}
 	dc_yh = realyh;
 	if (dc_yl <= realyh)
-		walldrawerfunc();		// R_DrawWallColumn_32
+		basecolfunc();		// R_DrawColumn_32
 }
 
 // ==========================================================================
@@ -774,7 +775,6 @@ void R_CalcTiltedLighting(fixed_t start, fixed_t end)
 			tiltlighting[i] = MAXLIGHTSCALE-1;
 	}
 }
-
 
 /**	\brief The R_DrawTiltedSpan_32 function
 	Edited by Jimita for True-Color Mode
@@ -1514,3 +1514,51 @@ void R_DrawTranslucentWaterSpan_32(void)
 	}
 }
 #endif
+
+// Jimita (27-12-2018)
+void R_DrawBlendColumn_32(void)
+{
+	UINT32 *dest;
+	INT32 count = (dc_yh-dc_yl);
+
+	// Zero length, column does not exceed a pixel.
+	if (count < 0)
+		return;
+
+#ifdef RANGECHECK
+	if ((unsigned)dc_x >= (unsigned)vid.width || dc_yl < 0 || dc_yh >= vid.height)
+		I_Error("R_DrawBlendColumn_32: %d to %d at %d", dc_yl, dc_yh, dc_x);
+#endif
+
+	dest = &topleft[dc_yl*vid.width + dc_x];
+	do
+	{
+		V_DrawPixelTrueColor(dest, V_BlendTrueColor(*dest, dc_blendcolor, dc_transmap));
+		dest += vid.width;
+	} while (count--);
+}
+
+void R_DrawBlendSpan_32(void)
+{
+	UINT32 *dest = &topleft[ds_y*vid.width+ds_x1];
+	size_t count = (ds_x2-ds_x1)+1;
+
+	while (count >= 4)
+	{
+		#define FOG(i) V_DrawPixelTrueColor(dest+i, V_BlendTrueColor(*(dest+i), ds_blendcolor, ds_transmap));
+		FOG(0)
+		FOG(1)
+		FOG(2)
+		FOG(3)
+
+		dest += 4;
+		count -= 4;
+		#undef FOG
+	}
+
+	while (count--)
+	{
+		V_DrawPixelTrueColor(dest, V_BlendTrueColor(*dest, ds_blendcolor, ds_transmap));
+		dest++;
+	}
+}

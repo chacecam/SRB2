@@ -121,21 +121,45 @@ typedef struct vmode_s
 #define NUMSPECIALMODES  4
 extern vmode_t specialmodes[NUMSPECIALMODES];
 
-// ---------------------------------------------
-// color mode dependent drawer function pointers
-// ---------------------------------------------
+// ==================================
+// column rendering function pointers
+// ==================================
 
-extern void (*wallcolfunc)(void);
 extern void (*colfunc)(void);
 extern void (*basecolfunc)(void);
+
 extern void (*fuzzcolfunc)(void);
+extern void (*shadowcolfunc)(void);
+extern void (*fogcolfunc)(void);
+extern void (*blendcolfunc)(void);
 extern void (*transcolfunc)(void);
-extern void (*spanfunc)(void);
-extern void (*basespanfunc)(void);
-extern void (*splatfunc)(void);
 extern void (*transtransfunc)(void);
 extern void (*twosmultipatchfunc)(void);
 extern void (*twosmultipatchtransfunc)(void);
+
+// ================================
+// span rendering function pointers
+// ================================
+
+extern void (*spanfunc)(void);
+extern void (*basespanfunc)(void);
+
+extern void (*splatfunc)(void);
+extern void (*transspanfunc)(void);
+extern void (*transsplatfunc)(void);
+extern void (*fogspanfunc)(void);
+extern void (*blendspanfunc)(void);
+
+#ifndef NOWATER
+extern void (*waterspanfunc)(void); // water
+#endif
+
+// tilted span drawers
+#ifdef ESLOPE
+extern void (*tiltedspanfunc)(void); // tilted span
+extern void (*tiltedsplatfunc)(void); // tilted splat
+extern void (*tiltedtransspanfunc)(void); // tilted translucent span
+#endif
 
 // -----
 // CPUID
@@ -157,9 +181,6 @@ extern INT32 setmodeneeded; // mode number to set if needed, or 0
 extern consvar_t cv_scr_width, cv_scr_height, cv_scr_depth, cv_renderview, cv_fullscreen;
 // wait for page flipping to end or not
 extern consvar_t cv_vidwait;
-
-// quick fix for tall/short skies, depending on bytesperpixel
-extern void (*walldrawerfunc)(void);
 
 // Change video mode, only at the start of a refresh.
 void SCR_SetMode(void);

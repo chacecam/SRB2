@@ -37,19 +37,38 @@
 // ===============================
 //   C drawer routines for 32bpp
 // ===============================
-void (*colfunc)(void); // standard column, up to 128 high posts
-void (*basecolfunc)(void);
-void (*wallcolfunc)(void); // new wall column drawer to draw posts >128 high
-void (*walldrawerfunc)(void);
-void (*fuzzcolfunc)(void); // standard fuzzy effect column drawer
-void (*transcolfunc)(void); // translation column drawer
-void (*transtransfunc)(void); // translucent translated column drawer
+
+void (*colfunc)(void); // current column drawer
+
+void (*basecolfunc)(void); // standard column
+void (*fuzzcolfunc)(void); // translucency
+void (*shadowcolfunc)(void); // ?
+void (*fogcolfunc)(void); // fog column
+void (*blendcolfunc)(void); // color blending
+void (*transcolfunc)(void); // colormapped
+void (*transtransfunc)(void); // translucent colormapped
 void (*twosmultipatchfunc)(void); // for cols with transparent pixels
 void (*twosmultipatchtransfunc)(void); // for cols with transparent pixels AND translucency
 
-void (*spanfunc)(void); // span drawer
-void (*basespanfunc)(void); // default span func for color mode
-void (*splatfunc)(void); // span drawer w/ transparency
+void (*spanfunc)(void); // current span drawer
+void (*basespanfunc)(void); // standard span
+
+void (*splatfunc)(void); // span drawer w/ transparent pixels
+void (*transspanfunc)(void); // translucent span
+void (*transsplatfunc)(void); // translucent splat (unused)
+void (*fogspanfunc)(void); // fog span
+void (*blendspanfunc)(void); // color blending
+
+#ifndef NOWATER
+void (*waterspanfunc)(void); // water
+#endif
+
+// tilted span drawers
+#ifdef ESLOPE
+void (*tiltedspanfunc)(void); // tilted span
+void (*tiltedsplatfunc)(void); // tilted splat
+void (*tiltedtransspanfunc)(void); // tilted translucent span
+#endif
 
 // ------------------
 // global video state
@@ -101,40 +120,35 @@ void SCR_SetMode(void)
 	//
 	//  setup the right draw routines
 	//
-	spanfunc = basespanfunc = R_DrawSpan_32;
-	splatfunc = R_DrawSplat_32;
-	transcolfunc = R_DrawTranslatedColumn_32;
-	transtransfunc = R_DrawTranslatedTranslucentColumn_32;
 
 	colfunc = basecolfunc = R_DrawColumn_32;
 	fuzzcolfunc = R_DrawTranslucentColumn_32;
-	walldrawerfunc = R_DrawWallColumn_32;
+	shadowcolfunc = R_DrawColumnShadowed_32;
+	transcolfunc = R_DrawTranslatedColumn_32;
+	transtransfunc = R_DrawTranslatedTranslucentColumn_32;
 	twosmultipatchfunc = R_Draw2sMultiPatchColumn_32;
 	twosmultipatchtransfunc = R_Draw2sMultiPatchTranslucentColumn_32;
-/*#ifdef RUSEASM
-		if (R_ASM)
-		{
-			if (R_MMX)
-			{
-				colfunc = basecolfunc = R_DrawColumn_8_MMX;
-				//shadecolfunc = R_DrawShadeColumn_8_ASM;
-				//fuzzcolfunc = R_DrawTranslucentColumn_8_ASM;
-				walldrawerfunc = R_DrawWallColumn_8_MMX;
-				twosmultipatchfunc = R_Draw2sMultiPatchColumn_8_MMX;
-				spanfunc = basespanfunc = R_DrawSpan_8_MMX;
-			}
-			else
-			{
-				colfunc = basecolfunc = R_DrawColumn_8_ASM;
-				//shadecolfunc = R_DrawShadeColumn_8_ASM;
-				//fuzzcolfunc = R_DrawTranslucentColumn_8_ASM;
-				walldrawerfunc = R_DrawWallColumn_8_ASM;
-				twosmultipatchfunc = R_Draw2sMultiPatchColumn_8_ASM;
-			}
-		}
-#endif*/
 
-	// set the apprpriate drawer for the sky (tall or INT16)
+	spanfunc = basespanfunc = R_DrawSpan_32;
+	splatfunc = R_DrawSplat_32;
+	transspanfunc = R_DrawTranslucentSpan_32;
+	transsplatfunc = R_DrawTranslucentSplat_32;
+#ifndef NOWATER
+	waterspanfunc = R_DrawTranslucentWaterSpan_32;
+#endif
+#ifdef ESLOPE
+	tiltedspanfunc = R_DrawTiltedSpan_32;
+	tiltedsplatfunc = R_DrawTiltedSplat_32;
+	tiltedtransspanfunc = R_DrawTiltedTranslucentSpan_32;
+#endif
+
+	// Jimita (27-12-2018)
+	fogcolfunc = R_DrawFogColumn_32;
+	blendcolfunc = R_DrawBlendColumn_32;
+
+	fogspanfunc = R_DrawFogSpan_32;
+	blendspanfunc = R_DrawBlendSpan_32;
+
 	setmodeneeded = 0;
 }
 

@@ -274,7 +274,7 @@ static void R_Render2sidedMultiPatchColumn(column_t *column)
 	{
 		dc_source = (UINT8 *)column + 3;
 
-		if (colfunc == wallcolfunc)
+		if (colfunc == basecolfunc)
 			twosmultipatchfunc();
 		else if (colfunc == fuzzcolfunc)
 			twosmultipatchtransfunc();
@@ -328,12 +328,12 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 			colfunc = fuzzcolfunc;
 			break;
 		case 909:
-			colfunc = R_DrawFogColumn_32;
+			colfunc = fogcolfunc;
 			windowtop = frontsector->ceilingheight;
 			windowbottom = frontsector->floorheight;
 			break;
 		default:
-			colfunc = wallcolfunc;
+			colfunc = basecolfunc;
 			break;
 	}
 
@@ -436,7 +436,7 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 		else
 			lightnum = (frontsector->lightlevel >> LIGHTSEGSHIFT);
 
-		if (colfunc == R_DrawFogColumn_32
+		if (colfunc == fogcolfunc
 			|| (frontsector->extra_colormap && frontsector->extra_colormap->fog))
 			;
 		else if (curline->v1->y == curline->v2->y)
@@ -738,7 +738,7 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 			spryscale += rw_scalestep;
 		}
 	}
-	colfunc = wallcolfunc;
+	colfunc = basecolfunc;
 }
 
 // Loop through R_DrawMaskedColumn calls
@@ -801,7 +801,7 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 	frontsector = curline->frontsector == pfloor->target ? curline->backsector : curline->frontsector;
 	texnum = R_GetTextureNum(sides[pfloor->master->sidenum[0]].midtexture);
 
-	colfunc = wallcolfunc;
+	colfunc = basecolfunc;
 
 	if (pfloor->master->flags & ML_TFERLINE)
 	{
@@ -828,7 +828,7 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 			colfunc = fuzzcolfunc;
 	}
 	else if (pfloor->flags & FF_FOG)
-		colfunc = R_DrawFogColumn_32;
+		colfunc = fogcolfunc;
 
 #ifdef ESLOPE
 	range = max(ds->x2-ds->x1, 1);
@@ -1206,7 +1206,8 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 								rlight->tc_rcolormap = pfloor->master->frontsector->extra_colormap->truecolormap + (xwalllights[pindex] - colormaps);
 								// Jimita (27-12-2018)
 								dc_transmap = 128;
-								colfunc = fuzzcolfunc;
+								dc_blendcolor = pfloor->master->frontsector->extra_colormap->tc_rgba;
+								colfunc = blendcolfunc;
 							}
 							else
 							{
@@ -1331,7 +1332,8 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 						dc_colormap = pfloor->master->frontsector->extra_colormap->colormap + (colormap_pointer - colormaps);
 						// Jimita (27-12-2018)
 						dc_transmap = 128;
-						colfunc = fuzzcolfunc;
+						dc_blendcolor = pfloor->master->frontsector->extra_colormap->tc_rgba;
+						colfunc = blendcolfunc;
 					}
 				}
 			}
@@ -1341,7 +1343,7 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 			spryscale += rw_scalestep;
 		}
 	}
-	colfunc = wallcolfunc;
+	colfunc = basecolfunc;
 
 #undef CLAMPMAX
 #undef CLAMPMIN
@@ -1575,7 +1577,7 @@ static void R_RenderSegLoop (void)
 					dc_lightlist[i].tc_rcolormap = xwalllights_tc[pindex];
 				}
 
-				colfunc = R_DrawColumnShadowed_32;
+				colfunc = shadowcolfunc;
 			}
 		}
 
@@ -3183,21 +3185,8 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		}
 	}
 
-/*#ifdef WALLSPLATS
-	if (linedef->splats && cv_splats.value)
-	{
-		// Isn't a bit wasteful to copy the ENTIRE array for every drawseg?
-		M_Memcpy(last_ceilingclip + ds_p->x1, ceilingclip + ds_p->x1,
-			sizeof (INT16) * (ds_p->x2 - ds_p->x1 + 1));
-		M_Memcpy(last_floorclip + ds_p->x1, floorclip + ds_p->x1,
-			sizeof (INT16) * (ds_p->x2 - ds_p->x1 + 1));
-		R_RenderSegLoop();
-		R_DrawWallSplats();
-	}
-	else
-#endif*/
-		R_RenderSegLoop();
-	colfunc = wallcolfunc;
+	R_RenderSegLoop();
+	colfunc = basecolfunc;
 
 	if (portalline) // if curline is a portal, set portalrender for drawseg
 		ds_p->portalpass = portalrender+1;

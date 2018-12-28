@@ -1055,7 +1055,6 @@ void R_InitColormapsTC(UINT8 palindex)
 	{
 		for (color = 0; color < 256; color++)
 			truecolormaps[color + (row * 256)] = V_BlendTrueColor(fadecolor,V_GetTrueColor(color),alpha);
-			//truecolormaps[color + (row * 256)] = V_GetTrueColor(colormaps[color + (row * 256)]);
 		alpha -= 8;
 	}
 }
@@ -1183,13 +1182,14 @@ static int RoundUp(double number);
 
 INT32 R_CreateColormap(char *p1, char *p2, char *p3)
 {
-	double cmaskr, cmaskg, cmaskb, cdestr, cdestg, cdestb;
+	double cmaskr, cmaskg, cmaskb, cdestr = 0, cdestg = 0, cdestb = 0;
 	double maskamt = 0, othermask = 0;
 	int mask, fog = 0;
 	size_t mapnum = num_extra_colormaps;
 	size_t i;
-	UINT32 cr, cg, cb, maskcolor, fadecolor;
+	UINT32 cr = 0, cg = 0, cb = 0, maskcolor, fadecolor;
 	UINT32 fadestart = 0, fadeend = 31, fadedist = 31;
+	UINT32 rgb_color = 0xFF000000;
 
 #define HEX2INT(x) (UINT32)(x >= '0' && x <= '9' ? x - '0' : x >= 'a' && x <= 'f' ? x - 'a' + 10 : x >= 'A' && x <= 'F' ? x - 'A' + 10 : 0)
 	if (p1[0] == '#')
@@ -1281,13 +1281,16 @@ INT32 R_CreateColormap(char *p1, char *p2, char *p3)
 	extra_colormaps[mapnum].fadeend = (UINT16)fadeend;
 	extra_colormaps[mapnum].fog = fog;
 
+	// Jimita: True-color
+	extra_colormaps[mapnum].tc_rgba = rgb_color|((cb<<16)|(cg<<8)|cr);
+	extra_colormaps[mapnum].tc_fadergba = rgb_color|((llrint(cdestb)<<16)|(llrint(cdestg)<<8)|llrint(cdestr));
+
 	// This code creates the colormap array used by software renderer
 	if (rendermode == render_soft)
 	{
 		double r, g, b, cbrightness;
 		int p;
 		char *colormap_p;
-		// Jimita: True-color
 		UINT32 *colormap_p32;
 
 		// Initialise the map and delta arrays
@@ -1332,7 +1335,7 @@ INT32 R_CreateColormap(char *p1, char *p2, char *p3)
 		{
 			for (i = 0; i < 256; i++)
 			{
-				UINT32 rgb_color = 0xFF000000;
+				rgb_color = 0xFF000000;
 
 				*colormap_p = NearestColor((UINT8)RoundUp(map[i][0]), (UINT8)RoundUp(map[i][1]), (UINT8)RoundUp(map[i][2]));
 				colormap_p++;

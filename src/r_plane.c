@@ -266,10 +266,11 @@ void R_MapPlane(INT32 y, INT32 x1, INT32 x2)
 		ds_colormap = currentplane->extra_colormap->colormap + (ds_colormap - colormaps);
 
 	// Jimita (27-12-2018)
-	if (colormap && spanfunc == R_DrawFogSpan_32)
+	if (colormap && spanfunc == fogspanfunc)
 	{
 		ds_transmap = 128;
-		spanfunc = R_DrawTranslucentSpan_32;
+		ds_blendcolor = colormap->tc_rgba;
+		spanfunc = transspanfunc;
 	}
 
 	ds_y = y;
@@ -599,7 +600,6 @@ void R_DrawPlanes(void)
 	INT32 i;
 
 	spanfunc = basespanfunc;
-	wallcolfunc = walldrawerfunc;
 
 	for (i = 0; i < MAXVISPLANES; i++, pl++)
 	{
@@ -637,7 +637,7 @@ void R_DrawPlanes(void)
 						angle = (pl->viewangle + xtoviewangle[x])>>ANGLETOSKYSHIFT;
 						//dc_iscale = FixedMul(skyscale, FINECOSINE(xtoviewangle[x]>>ANGLETOFINESHIFT));
 						dc_source = R_GetColumn(skytexture, angle);
-						wallcolfunc();
+						basecolfunc();
 					}
 				}
 				continue;
@@ -735,7 +735,7 @@ void R_DrawSinglePlane(visplane_t *pl)
 		}
 		else if (pl->ffloor->flags & FF_FOG)
 		{
-			spanfunc = R_DrawFogSpan_32;
+			spanfunc = fogspanfunc;
 			light = (pl->lightlevel >> LIGHTSEGSHIFT);
 		}
 		else light = (pl->lightlevel >> LIGHTSEGSHIFT);
@@ -750,9 +750,9 @@ void R_DrawSinglePlane(visplane_t *pl)
 			INT32 top, bottom;
 
 			itswater = true;
-			if (spanfunc == R_DrawTranslucentSpan_32)
+			if (spanfunc == transspanfunc)
 			{
-				spanfunc = R_DrawTranslucentWaterSpan_32;
+				spanfunc = waterspanfunc;
 
 				// Copy the current scene, ugh
 				top = pl->high-8;
@@ -940,19 +940,19 @@ void R_DrawSinglePlane(visplane_t *pl)
 		ds_sv.z *= SFMULT;
 #undef SFMULT
 
-		if (spanfunc == R_DrawTranslucentSpan_32)
-			spanfunc = R_DrawTiltedTranslucentSpan_32;
+		if (spanfunc == transspanfunc)
+			spanfunc = tiltedtransspanfunc;
 		else if (spanfunc == splatfunc)
-			spanfunc = R_DrawTiltedSplat_32;
+			spanfunc = tiltedsplatfunc;
 		else
-			spanfunc = R_DrawTiltedSpan_32;
+			spanfunc = tiltedspanfunc;
 
-		planezlight    = scalelight[light];
+		planezlight = scalelight[light];
 		planezlight_tc = scalelight_tc[light];
 	} else
 #endif // ESLOPE
 	{
-		planezlight    = zlight   [light];
+		planezlight = zlight[light];
 		planezlight_tc = zlight_tc[light];
 	}
 

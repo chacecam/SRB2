@@ -59,26 +59,24 @@ INT32 columnofs[MAXVIDWIDTH*4];
 
 UINT32 *topleft;
 
+UINT8 *transtables; // translucency tables
+
 // =========================================================================
 //                      COLUMN DRAWING CODE STUFF
 // =========================================================================
 
 INT32 dc_x = 0, dc_yl = 0, dc_yh = 0;
+lighttable_t *dc_colormap;
 fixed_t dc_iscale, dc_texturemid;
-UINT8 dc_hires; // under MSVC boolean is a byte, while on other systems, it a bit,
-               // soo lets make it a byte on all system for the ASM code
+UINT8 dc_hires;
+
 UINT8 *dc_source;
+UINT8 dc_transmap;
 
 // Jimita: True-color
-lighttable_t   *dc_colormap;
 lighttable32_t *dc_truecolormap;
-
-// -----------------------
-// translucency stuff here
-// -----------------------
-UINT8 *transtables; // translucency tables
-UINT8 dc_transmap; // Jimita: True-color
-UINT32 dc_foglight; // Jimita: True-color
+UINT32 dc_foglight;
+UINT32 dc_blendcolor;
 
 // ----------------------
 // translation stuff here
@@ -97,12 +95,14 @@ lighttable_t *ds_colormap;
 fixed_t ds_xfrac, ds_yfrac, ds_xstep, ds_ystep;
 
 UINT8 *ds_source;
+UINT8 ds_transmap;
 
 // Jimita: True-color
-UINT8 ds_transmap;
 UINT32 *ds_truecolormap;
 UINT32 ds_foglight;
+UINT32 ds_blendcolor;
 
+// Water
 #ifndef NOWATER
 INT32 ds_bgoffset = 0;
 INT32 ds_wateroffset = 0;
