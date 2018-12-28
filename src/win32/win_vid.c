@@ -392,7 +392,7 @@ void I_FinishUpdate(void)
 			/// optimized for p2 or mmx??
 			if (ScreenHeight > vid.height)
 			{
-				UINT8 *ptr = (UINT8 *)ScreenPtr;
+				UINT8 *ptr = (UINT32 *)ScreenPtr;
 				size_t half_excess = ScreenPitch*(ScreenHeight-vid.height)/2;
 				memset(ptr, 0x1F, half_excess);
 				ptr += half_excess;
@@ -401,7 +401,7 @@ void I_FinishUpdate(void)
 				memset(ptr, 0x1F, half_excess);
 			}
 			else
-				VID_BlitLinearScreen(screen_main, (UINT8 *)ScreenPtr, vid.width, vid.height);
+				VID_BlitLinearScreen(screen_main, (UINT32 *)ScreenPtr, vid.width, vid.height);
 
 			UnlockScreen();
 
