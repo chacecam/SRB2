@@ -19,6 +19,8 @@
 #ifndef _H_GXGAPILIB_
 #define _H_GXGAPILIB_
 
+#include "../doomtype.h"
+
 //#define WIN32_LEAN_AND_MEAN
 #define RPC_NO_WINDOWS_H
 #include <windows.h>
@@ -52,7 +54,7 @@ extern int                                      ScreenWidth;
 extern int                                      ScreenHeight;
 extern BOOL                                     ScreenLocked;                   // Screen surface is being locked
 extern int                                      ScreenPitch;                    // offset from one line to the next
-extern LPDWORD                                  ScreenPtr;                              // memory of the surface
+UINT32                                          *ScreenPtr;                     // memory of the surface
 
 extern BOOL                                     bDX0300;
 

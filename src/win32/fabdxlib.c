@@ -19,6 +19,7 @@
 ///	- converted to C for Doom Legacy
 
 #include "../doomdef.h"
+#include "../doomtype.h"
 
 #ifdef _WINDOWS
 
@@ -51,7 +52,7 @@ int                        ScreenWidth;
 int                        ScreenHeight;
 BOOL                       ScreenLocked;         // Screen surface is being locked
 int                        ScreenPitch;          // offset from one line to the next
-LPDWORD                    ScreenPtr;            // memory of the surface
+UINT32                     *ScreenPtr;           // memory of the surface
 
 
 //
@@ -531,7 +532,7 @@ boolean LockScreen(VOID)
 	if (ddrval == DD_OK)
 	{
 		ScreenLocked = TRUE;
-		ScreenPtr    = (LPDWORD)ddsd.lpSurface;
+		ScreenPtr    = (UINT32 *)ddsd.lpSurface;
 		ScreenPitch = ddsd.
 #ifdef DUMMYUNIONNAMEN
 		 DUMMYUNIONNAMEN(1).

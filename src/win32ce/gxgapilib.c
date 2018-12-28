@@ -18,6 +18,8 @@
 /// \brief Zak Larue-Buckley's GX and GAPI library v1.0
 
 #include "../doomdef.h"
+#include "../doomtype.h"
+
 //#define WIN32_LEAN_AND_MEAN
 #define RPC_NO_WINDOWS_H
 #include <windows.h>
@@ -47,7 +49,7 @@ int                        ScreenWidth;
 int                        ScreenHeight;
 BOOL                       ScreenLocked;         // Screen surface is being locked
 int                        ScreenPitch;          // offset from one line to the next
-LPDWORD                    ScreenPtr;            // memory of the surface
+UINT32                     *ScreenPtr;           // memory of the surface
 
 
 //
@@ -501,7 +503,7 @@ boolean LockScreen(VOID)
 	if (ddrval == DD_OK)
 	{
 		ScreenLocked = TRUE;
-		ScreenPtr    = (LPDWORD)ddsd.lpSurface;
+		ScreenPtr    = (UINT32 *)ddsd.lpSurface;
 		ScreenPitch = ddsd.
 #ifdef DUMMYUNIONNAMEN
 		 DUMMYUNIONNAMEN(1).
