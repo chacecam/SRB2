@@ -144,8 +144,6 @@ static char vidModeName[33][32]; // allow 33 different modes
 
 rendermode_t rendermode=render_soft;
 
-boolean highcolor = false;
-
 // synchronize page flipping with screen refresh
 #if defined(DC) || (defined(GP2X) && !defined(HAVE_GP2XSDL))
 consvar_t cv_vidwait = {"vid_wait", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
