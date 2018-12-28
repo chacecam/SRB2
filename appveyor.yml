@@ -37,11 +37,6 @@ install:
 
 configuration:
 - SDL
-- DD
-
-matrix:
-  allow_failures:
-    - configuration: DD
 
 before_build:
 - set Path=%MINGW_SDK%\bin;%Path%
@@ -73,7 +68,7 @@ test: off
 #deploy:
 #  - provider: FTP
 #    protocol: ftps
-#    host: 
+#    host:
 #      secure: NsLJEPIBvmwCOj8Tg8RoRQ==
 #    username:
 #      secure: ejxi5mvk7oLYu7QtbYojajEPigMy0mokaKhuEVuDZcA=
