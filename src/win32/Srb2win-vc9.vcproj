@@ -82,7 +82,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="dxguid.lib winmm.lib ws2_32.lib dinput8.lib"
-				OutputFile="$(OutDir)\srb2win.exe"
+				OutputFile="$(OutDir)\srb2truecolor.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				GenerateDebugInformation="true"
@@ -182,7 +182,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="dxguid.lib winmm.lib ws2_32.lib dinput8.lib"
-				OutputFile="$(OutDir)\srb2win.exe"
+				OutputFile="$(OutDir)\srb2truecolor.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				GenerateDebugInformation="true"
@@ -282,7 +282,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="dxguid.lib winmm.lib ws2_32.lib dinput8.lib"
-				OutputFile="$(OutDir)\srb2win.exe"
+				OutputFile="$(OutDir)\srb2truecolor.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				GenerateDebugInformation="true"
@@ -382,7 +382,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="dxguid.lib winmm.lib ws2_32.lib dinput8.lib"
-				OutputFile="$(OutDir)\srb2win.exe"
+				OutputFile="$(OutDir)\srb2truecolor.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				GenerateDebugInformation="true"
