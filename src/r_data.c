@@ -16,6 +16,7 @@
 #include "i_video.h"
 #include "r_local.h"
 #include "r_sky.h"
+#include "st_stuff.h"
 #include "p_local.h"
 #include "m_misc.h"
 #include "r_data.h"
@@ -1285,6 +1286,14 @@ INT32 R_CreateColormap(char *p1, char *p2, char *p3)
 	extra_colormaps[mapnum].tc_rgba = rgb_color|((cb<<16)|(cg<<8)|cr);
 	extra_colormaps[mapnum].tc_fadergba = rgb_color|((llrint(cdestb)<<16)|(llrint(cdestg)<<8)|llrint(cdestr));
 
+	memset(extra_colormaps[mapnum].hex1, 0, 8);
+	memset(extra_colormaps[mapnum].hex2, 0, 8);
+	memset(extra_colormaps[mapnum].hex3, 0, 8);
+
+	if (p1[0] == '#') strcpy(extra_colormaps[mapnum].hex1, p1);
+	if (p2[0] == '#') strcpy(extra_colormaps[mapnum].hex2, p2);
+	if (p3[0] == '#') strcpy(extra_colormaps[mapnum].hex3, p3);
+
 	// This code creates the colormap array used by software renderer
 	if (rendermode == render_soft)
 	{
@@ -1300,9 +1309,10 @@ INT32 R_CreateColormap(char *p1, char *p2, char *p3)
 		//  map[i]'s values are decremented by after each use
 		for (i = 0; i < 256; i++)
 		{
-			r = pLocalPalette[i].s.red;
-			g = pLocalPalette[i].s.green;
-			b = pLocalPalette[i].s.blue;
+			RGBA_t rgba = (st_palette > 0) ? V_GetColorPal(i,st_palette) : V_GetColor(i);
+			r = rgba.s.red;
+			g = rgba.s.green;
+			b = rgba.s.blue;
 			cbrightness = sqrt((r*r) + (g*g) + (b*b));
 
 			map[i][0] = (cbrightness * cmaskr) + (r * othermask);

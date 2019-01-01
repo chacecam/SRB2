@@ -2667,8 +2667,8 @@ boolean P_SetupLevel(boolean skipprecip)
 	CON_Drawer(); // let the user know what we are going to do
 	I_FinishUpdate(); // page flip or blit buffer
 
-
 	// Reset the palette
+	st_palette = 0;				// jim 01012019
 	if (rendermode != render_none)
 		V_SetPaletteLump("PLAYPAL");
 

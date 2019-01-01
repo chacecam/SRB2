@@ -267,12 +267,10 @@ static void D_Display(void)
 		return; // for comparative timing/profiling
 
 	// Jimita (27-12-2018)
-#define HAS_VFX(conditional) (!cv_simplifyvfx.value) ? conditional : false;
-	vfx_translucency = HAS_VFX(cv_translucency.value)
-	vfx_colormaps = HAS_VFX(cv_truecolormaps.value)
-	vfx_water = HAS_VFX(true)
+	vfx_translucency = cv_translucency.value;
+	vfx_colormaps = cv_truecolormaps.value;
+	vfx_water = true;
 	vfx_quincunx = false;
-#undef HAS_VFX
 
 	// check for change of screen size (video mode)
 	if (setmodeneeded && !wipe)
@@ -425,33 +423,6 @@ static void D_Display(void)
 					V_DoPostProcessor(0, postimgtype, postimgparam);
 				if (postimgtype2)
 					V_DoPostProcessor(1, postimgtype2, postimgparam2);
-
-				// Jimita: True-color
-				if (players[displayplayer].flashcount)
-				{
-					UINT8 red = 0xff, green = 0xff, blue = 0xff, alpha = 0xc0;
-					// This won't change if the flash palettes are changed unfortunately, but it works for its purpose
-					if (players[displayplayer].flashpal == PAL_NUKE)
-						green = blue = 0x7F; // The nuke palette is kind of pink-ish
-					if (players[displayplayer].flashpal == 5 /*&& !strcmp(mapmd5,"1922568290d7db17210feb2f260eebeb")*/)
-						red = 0, green = 160, blue = 230, alpha = 50;
-					{
-						UINT32 *desttop = screen_main;
-						UINT32 *dest = desttop;
-						INT32 height = vid.height;
-						INT32 count, line;
-						for (;(--height >= 0) && dest < desttop+vid.width*vid.height; dest += vid.width)
-						{
-							count = vid.width;
-							line = 0;
-							while (count > 0)
-							{
-								V_DrawPixelTrueColor((dest+line), V_BlendTrueColor(*(dest+line),0xFF000000|blue<<16|green<<8|red,alpha));
-								count--; line++;
-							}
-						}
-					}
-				}
 			}
 		}
 
@@ -596,7 +567,7 @@ void D_SRB2Loop(void)
 
 	// hack to start on a nice clear console screen.
 	COM_ImmedExecute("cls;version");
-	CONS_Printf("True-color rendering code by Jimita\n");
+	//CONS_Printf("True-color rendering code by Jimita\n");
 
 	if (rendermode == render_soft)
 		V_DrawScaledPatch(0, 0, 0, (patch_t *)W_CacheLumpNum(W_GetNumForName("CONSBACK"), PU_CACHE));
@@ -760,6 +731,7 @@ void D_StartTitle(void)
 	CON_ToggleOff();
 
 	// Reset the palette
+	st_palette = 0;				// jim 01012019
 	if (rendermode != render_none)
 		V_SetPaletteLump("PLAYPAL");
 }

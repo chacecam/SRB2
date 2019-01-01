@@ -1184,7 +1184,6 @@ static menuitem_t OP_VideoOptionsMenu[] =
 #ifdef HWRENDER
 	{IT_SUBMENU|IT_STRING, NULL,   "Hardware Mode Options...",  &OP_OpenGLOptionsDef,    20},
 #endif
-	{IT_STRING | IT_CVAR,  NULL,   "Simplify VFX",  			&cv_simplifyvfx,      20},
 
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	{IT_STRING|IT_CVAR,      NULL, "Fullscreen",          &cv_fullscreen,    30},
@@ -2854,11 +2853,8 @@ void M_Init(void)
 #ifdef HWRENDER
 	// Permanently hide or show some options based on render mode
 	OP_VideoOptionsMenu[1].status = (IT_SUBMENU|IT_STRING);
-	OP_VideoOptionsMenu[2].status = (IT_CVAR|IT_STRING);
 	if (rendermode == render_soft)
 		OP_VideoOptionsMenu[1].status = IT_DISABLED;
-	else if (rendermode == render_opengl)
-		OP_VideoOptionsMenu[2].status = IT_DISABLED;
 #endif
 
 #ifndef NONET

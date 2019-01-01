@@ -243,7 +243,6 @@ void SCR_Startup(void)
 	vid.baseratio = FRACUNIT;
 
 	V_Init();
-	CV_RegisterVar(&cv_simplifyvfx);
 	CV_RegisterVar(&cv_ticrate);
 	CV_RegisterVar(&cv_constextsize);
 

@@ -206,8 +206,7 @@ void ST_doPaletteStuff(void)
 	if (paused || P_AutoPause())
 		palette = 0;
 	else if (stplyr && stplyr->flashcount)
-		return;	// sowwy
-		//palette = stplyr->flashpal;
+		palette = stplyr->flashpal;
 	else
 		palette = 0;
 
@@ -227,6 +226,16 @@ void ST_doPaletteStuff(void)
 			V_SetPaletteLump(GetPalette()); // Reset the palette
 			if (!splitscreen)
 				V_SetPalette(palette);
+
+			// jim 01012019
+			if (rendermode == render_soft)
+			{
+				size_t i, colormapn = num_extra_colormaps;
+				num_extra_colormaps = 0;
+				for (i = 0; i < colormapn; i++)
+					R_CreateColormap(extra_colormaps[i].hex1, extra_colormaps[i].hex2, extra_colormaps[i].hex3);
+				R_InitColormapsTC(colormaps[(31*256)+31]);
+			}
 		}
 	}
 }

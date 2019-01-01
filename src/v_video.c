@@ -45,8 +45,6 @@ UINT32 *screen_fadestart;
 UINT32 *screen_fadeend;
 UINT32 *screen_postimage;
 
-consvar_t cv_simplifyvfx = {"simplify_vfx", "No", 0, CV_YesNo, NULL, 0, NULL, NULL, 0, 0, NULL};
-
 static CV_PossibleValue_t gamma_cons_t[] = {{0, "MIN"}, {4, "MAX"}, {0, NULL}};
 static void CV_usegamma_OnChange(void);
 

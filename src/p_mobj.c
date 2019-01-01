@@ -10433,7 +10433,7 @@ mobj_t *P_SPMAngle(mobj_t *source, mobjtype_t type, angle_t angle, UINT8 allowai
 
 //
 // P_FlashPal
-// Flashes a player's palette.  ARMAGEDDON BLASTS!
+// Flashes a player's palette. ARMAGEDDON BLASTS!
 //
 void P_FlashPal(player_t *pl, UINT16 type, UINT16 duration)
 {

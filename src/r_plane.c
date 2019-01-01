@@ -754,35 +754,38 @@ void R_DrawSinglePlane(visplane_t *pl)
 		}
 		else light = (pl->lightlevel >> LIGHTSEGSHIFT);
 
-#ifndef NOWATER
-		if (pl->ffloor->flags & FF_RIPPLE
-#ifdef ESLOPE
-				&& !pl->slope
-#endif
-			&& vfx_water)
+		if (vfx_water)
 		{
-			INT32 top, bottom;
-
-			itswater = true;
-			if (spanfunc == transspanfunc)
+#ifndef NOWATER
+			if (pl->ffloor->flags & FF_RIPPLE
+#ifdef ESLOPE
+					&& !pl->slope
+#endif
+				)
 			{
-				spanfunc = waterspanfunc;
+				INT32 top, bottom;
 
-				// Copy the current scene, ugh
-				top = pl->high-8;
-				bottom = pl->low+8;
+				itswater = true;
+				if (spanfunc == transspanfunc)
+				{
+					spanfunc = waterspanfunc;
 
-				if (top < 0)
-					top = 0;
-				if (bottom > vid.height)
-					bottom = vid.height;
+					// Copy the current scene, ugh
+					top = pl->high-8;
+					bottom = pl->low+8;
 
-				// Only copy the part of the screen we need
-				VID_BlitLinearScreen(
-					(splitscreen && viewplayer == &players[secondarydisplayplayer]) ? screen_main + (top+(vid.height>>1))*vid.width : screen_main+((top)*vid.width),
-					screen_altblit+((top)*vid.width),
-					vid.width, bottom-top
-				);
+					if (top < 0)
+						top = 0;
+					if (bottom > vid.height)
+						bottom = vid.height;
+
+					// Only copy the part of the screen we need
+					VID_BlitLinearScreen(
+						(splitscreen && viewplayer == &players[secondarydisplayplayer]) ? screen_main + (top+(vid.height>>1))*vid.width : screen_main+((top)*vid.width),
+						screen_altblit+((top)*vid.width),
+						vid.width, bottom-top
+					);
+				}
 			}
 		}
 #endif

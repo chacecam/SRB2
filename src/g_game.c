@@ -5718,6 +5718,7 @@ boolean G_CheckDemoStatus(void)
 void G_SetGamestate(gamestate_t newstate)
 {
 	gamestate = newstate;
+	st_palette = 0;				// jim 01012019
 }
 
 /* These functions handle the exitgame flag. Before, when the user

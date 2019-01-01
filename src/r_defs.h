@@ -65,6 +65,10 @@ typedef struct
 	lighttable32_t *truecolormap;
 	INT32 tc_rgba;
 	INT32 tc_fadergba;
+
+	char hex1[8];
+	char hex2[8];
+	char hex3[8];
 } extracolormap_t;
 
 //

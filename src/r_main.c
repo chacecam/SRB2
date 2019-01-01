@@ -1205,6 +1205,7 @@ void R_RenderPlayerView(player_t *player)
 	portal_pair *portal;
 	const boolean skybox = (skyboxmo[0] && cv_skybox.value);
 
+	M_Memset32(screen_main, 0, vid.width * vid.height * 4);
 	if (cv_homremoval.value && player == &players[displayplayer]) // if this is display player 1
 	{
 		if (cv_homremoval.value == 1)
