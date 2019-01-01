@@ -821,12 +821,11 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 		boolean fuzzy = true;
 
 		// Hacked up support for alpha value in software mode Tails 09-24-2002
-		// Edited by Jimita for True-Color Mode
 		if (vfx_translucency)
 		{
 			if (pfloor->alpha < 1)
 				return; // Don't even draw it
-			else if (pfloor->alpha != 255)
+			else if (pfloor->alpha != 256)
 				dc_transmap = pfloor->alpha;
 			else
 				fuzzy = false; // Opaque

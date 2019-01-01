@@ -684,8 +684,8 @@ void R_DrawSinglePlane(visplane_t *pl)
 #ifdef POLYOBJECTS_PLANES
 	if (pl->polyobj && pl->polyobj->translucency != 0)
 	{
-		// Hacked up support for alpha value in software mode Tails 09-24-2002 (sidenote: ported to polys 10-15-2014, there was no time travel involved -Red)
-		// Edited by Jimita for True-Color Mode
+		// Hacked up support for alpha value in software mode Tails 09-24-2002
+		// (sidenote: ported to polys 10-15-2014, there was no time travel involved -Red)
 		if (vfx_translucency)
 		{
 			spanfunc = transspanfunc;
@@ -728,13 +728,12 @@ void R_DrawSinglePlane(visplane_t *pl)
 		if (pl->ffloor->flags & FF_TRANSLUCENT)
 		{
 			// Hacked up support for alpha value in software mode Tails 09-24-2002
-			// Edited by Jimita for True-Color Mode
 			if (vfx_translucency)
 			{
 				spanfunc = transspanfunc;
 				if (pl->ffloor->alpha < 1)
 					return; // Don't even draw it
-				else if (pl->ffloor->alpha != 255)
+				else if (pl->ffloor->alpha != 256)
 					ds_transmap = pl->ffloor->alpha;
 				else // Opaque, but allow transparent flat pixels
 					spanfunc = splatfunc;
