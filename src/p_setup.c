@@ -1418,13 +1418,11 @@ static void P_LoadRawSideDefs2(void *data)
 			case 606:
 				if (rendermode == render_soft || rendermode == render_none)
 				{
-					boolean found = false;
 					if (msd->toptexture[0] == '#' || msd->bottomtexture[0] == '#')
 					{
 						sec->midmap = R_CreateColormap(msd->toptexture, msd->midtexture,
 							msd->bottomtexture);
 						sd->toptexture = sd->bottomtexture = 0;
-						found = true;
 					}
 					else
 					{
@@ -1441,14 +1439,16 @@ static void P_LoadRawSideDefs2(void *data)
 						else
 							sd->bottomtexture = num;
 					}
-
-					// Jimita: True-color
+					break;
+				}
+#ifdef HWRENDER
+				else
+				{
 					if ((msd->toptexture[0] == '#' && msd->toptexture[1] && msd->toptexture[2] && msd->toptexture[3] && msd->toptexture[4] && msd->toptexture[5] && msd->toptexture[6])
 						|| (msd->bottomtexture[0] == '#' && msd->bottomtexture[1] && msd->bottomtexture[2] && msd->bottomtexture[3] && msd->bottomtexture[4] && msd->bottomtexture[5] && msd->bottomtexture[6]))
 					{
 						char *col;
-						if (!found)
-							sec->midmap = R_CreateColormap(msd->toptexture, msd->midtexture, msd->bottomtexture);
+						sec->midmap = R_CreateColormap(msd->toptexture, msd->midtexture, msd->bottomtexture);
 
 						sd->toptexture = sd->bottomtexture = 0;
 #define HEX2INT(x) (x >= '0' && x <= '9' ? x - '0' : x >= 'a' && x <= 'f' ? x - 'a' + 10 : x >= 'A' && x <= 'F' ? x - 'A' + 10 : 0)
@@ -1512,6 +1512,7 @@ static void P_LoadRawSideDefs2(void *data)
 					}
 					break;
 				}
+#endif
 			case 413: // Change music
 			{
 				char process[8+1];

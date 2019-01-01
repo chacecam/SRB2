@@ -233,7 +233,12 @@ void ST_doPaletteStuff(void)
 				size_t i, colormapn = num_extra_colormaps;
 				num_extra_colormaps = 0;
 				for (i = 0; i < colormapn; i++)
-					R_CreateColormap(extra_colormaps[i].hex1, extra_colormaps[i].hex2, extra_colormaps[i].hex3);
+				{
+					char hex1[8]; strcpy(hex1, extra_colormaps[i].hex1);
+					char hex2[8]; strcpy(hex2, extra_colormaps[i].hex2);
+					char hex3[8]; strcpy(hex3, extra_colormaps[i].hex3);
+					R_CreateColormap(hex1, hex2, hex3);
+				}
 				R_InitColormapsTC(colormaps[(31*256)+31]);
 			}
 		}
