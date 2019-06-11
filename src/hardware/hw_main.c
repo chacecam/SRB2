@@ -163,6 +163,16 @@ void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, UINT32 mixcolor, UIN
 	fog_color.s.green = (UINT8)(((float)fog_color.s.green) * fog_alpha);
 	fog_color.s.blue = (UINT8)(((float)fog_color.s.blue) * fog_alpha);
 
+	{
+		float fog = fog_alpha - (light_level/255.0f);
+		float red = (fog_color.s.red/255.0f) * fog / 1.0f + (final_color.s.red/255.0f) * (1.0f - fog) / 1.0f;
+		float green = (fog_color.s.green/255.0f) * fog / 1.0f + (final_color.s.green/255.0f) * (1.0f - fog) / 1.0f;
+		float blue = (fog_color.s.blue/255.0f) * fog / 1.0f + (final_color.s.blue/255.0f) * (1.0f - fog) / 1.0f;
+		final_color.s.red = (UINT8)(red*255.0f);
+		final_color.s.green = (UINT8)(green*255.0f);
+		final_color.s.blue = (UINT8)(blue*255.0f);
+	}
+
 	Surface->PolyColor.rgba = final_color.rgba;
 	Surface->FadeColor.rgba = fog_color.rgba;
 	Surface->LightInfo.light_level = light_level;
