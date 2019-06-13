@@ -1394,6 +1394,7 @@ void R_RegisterEngineStuff(void)
 	CV_RegisterVar(&cv_grgammared);
 	CV_RegisterVar(&cv_grfovchange);
 	CV_RegisterVar(&cv_grfog);
+	CV_RegisterVar(&cv_grfogfunction);
 	CV_RegisterVar(&cv_grsoftwarefog);
 	CV_RegisterVar(&cv_grfogdensity);
 	CV_RegisterVar(&cv_grmd2);

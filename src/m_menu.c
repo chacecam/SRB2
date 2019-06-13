@@ -1098,7 +1098,7 @@ static menuitem_t OP_VideoOptionsMenu[] =
 	{IT_STRING | IT_CALL,  NULL,   "Video Modes...",      M_VideoModeMenu,     10},
 
 #ifdef HWRENDER
-	{IT_SUBMENU|IT_STRING, NULL,   "GPU Options...",  &OP_OpenGLOptionsDef,    20},
+	{IT_SUBMENU|IT_STRING, NULL,   "OpenGL Options...",  &OP_OpenGLOptionsDef, 20},
 #endif
 
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
@@ -1144,6 +1144,7 @@ static menuitem_t OP_OpenGLFogMenu[] =
 	{IT_STRING|IT_CVAR,       NULL, "Fog",         &cv_grfog,        10},
 	{IT_STRING|IT_CVAR,       NULL, "Fog density", &cv_grfogdensity, 20},
 	{IT_STRING|IT_CVAR,       NULL, "Software fog",&cv_grsoftwarefog,30},
+	{IT_STRING|IT_CVAR,       NULL, "Fog algorithm",&cv_grfogfunction,40},
 };
 
 static menuitem_t OP_OpenGLColorMenu[] =

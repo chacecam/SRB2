@@ -59,11 +59,13 @@ static void CV_Gammaxxx_ONChange(void);
 // but they won't do anything.
 static CV_PossibleValue_t grgamma_cons_t[] = {{1, "MIN"}, {255, "MAX"}, {0, NULL}};
 static CV_PossibleValue_t grfogdensity_cons_t[] = {{FRACUNIT/2, "MIN"}, {FRACUNIT*2, "MAX"}, {0, NULL}};
+static CV_PossibleValue_t grfogfunction_cons_t[] = {{1, "exp"}, {2, "exp2"}, {0, NULL}};
 
 consvar_t cv_grshaders = {"gr_shaders", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_grfog = {"gr_fog", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_grsoftwarefog = {"gr_softwarefog", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_grfogdensity = {"gr_fogdensity", "1", CV_SAVE|CV_FLOAT, grfogdensity_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_grfogfunction = {"gr_fogfunction", "exp2", CV_SAVE, grfogfunction_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_grfogdensity = {"gr_fogdensity", "1.0", CV_SAVE|CV_FLOAT, grfogdensity_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_grfovchange = {"gr_fovchange", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_grgammared = {"gr_gammared", "127", CV_SAVE|CV_CALL, grgamma_cons_t,
                            CV_Gammaxxx_ONChange, 0, NULL, NULL, 0, 0, NULL};
@@ -76,7 +78,7 @@ static CV_PossibleValue_t CV_MD2[] = {{0, "Off"}, {1, "On"}, {2, "Old"}, {0, NUL
 
 consvar_t cv_grmd2 = {"gr_md2", "Off", CV_SAVE, CV_MD2, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_grshearing = {"gr_shearing", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_grspritebillboarding = {"gr_spritebillboarding", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_grspritebillboarding = {"gr_spritebillboarding", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 #endif
 
 const UINT8 gammatable[5][256] =
