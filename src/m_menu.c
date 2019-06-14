@@ -1143,8 +1143,6 @@ static menuitem_t OP_OpenGLFogMenu[] =
 {
 	{IT_STRING|IT_CVAR,       NULL, "Fog",         &cv_grfog,        10},
 	{IT_STRING|IT_CVAR,       NULL, "Fog density", &cv_grfogdensity, 20},
-	{IT_STRING|IT_CVAR,       NULL, "Software fog",&cv_grsoftwarefog,30},
-	{IT_STRING|IT_CVAR,       NULL, "Fog algorithm",&cv_grfogfunction,40},
 };
 
 static menuitem_t OP_OpenGLColorMenu[] =
