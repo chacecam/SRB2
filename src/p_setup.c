@@ -446,10 +446,10 @@ static void P_LoadRawSegs(UINT8 *data, size_t i)
 		li->v2 = &vertexes[SHORT(ml->v2)];
 
 		li->length = P_SegLength(li);
+		li->flength = P_SegLengthFloat(li);
 #ifdef HWRENDER
 		if (rendermode == render_opengl)
 		{
-			li->flength = P_SegLengthFloat(li);
 			//Hurdler: 04/12/2000: for now, only used in hardware mode
 			li->lightmaps = NULL; // list of static lightmap for this seg
 		}

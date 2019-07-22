@@ -573,12 +573,13 @@ typedef struct seg_s
 	sector_t *frontsector;
 	sector_t *backsector;
 
-	fixed_t length;	// precalculated seg length
+	// precalculated seg length
+	fixed_t length;
+	float flength;
 #ifdef HWRENDER
 	// new pointers so that AdjustSegs doesn't mess with v1/v2
 	void *pv1; // polyvertex_t
 	void *pv2; // polyvertex_t
-	float flength; // length of the seg, used by hardware renderer
 
 	lightmap_t *lightmaps; // for static lightmap
 #endif

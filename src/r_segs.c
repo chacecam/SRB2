@@ -47,8 +47,8 @@ fixed_t rw_distancefixed;
 //
 static INT32 rw_x, rw_stopx;
 static angle_t rw_centerangle;
-static fixed_t rw_offset;
-static fixed_t rw_offset2; // for splats
+static float rw_offset;
+static float rw_offset2; // for splats
 static float rw_scale, rw_scalestep;
 static float rw_midtexturemid, rw_toptexturemid, rw_bottomtexturemid;
 static float worldtop, worldbottom, worldhigh, worldlow;
@@ -126,6 +126,7 @@ static void R_DrawWallSplats(void)
 	column_t *col;
 	patch_t *patch;
 	fixed_t texturecolumn;
+	float ftexturecolumn;
 
 	splat = (wallsplat_t *)linedef->splats;
 
@@ -216,11 +217,10 @@ static void R_DrawWallSplats(void)
 
 			// find column of patch, from perspective
 			angle = (rw_centerangle + xtoviewangle[dc_x])>>ANGLETOFINESHIFT;
-				texturecolumn = rw_offset2 - splat->offset
-					- FixedMul(FINETANGENT(angle), rw_distancefixed);
+			ftexturecolumn = rw_offset2 - FIXED_TO_FLOAT(splat->offset) - (FIXED_TO_FLOAT(FINETANGENT(angle))*rw_distance);
 
 			// FIXME!
-			texturecolumn >>= FRACBITS;
+			texturecolumn = llrintf(ftexturecolumn);
 			if (texturecolumn < 0 || texturecolumn >= SHORT(patch->width))
 				continue;
 
@@ -1397,8 +1397,9 @@ static void R_RenderSegLoop (void)
 
 	INT32     mid;
 	fixed_t texturecolumn = 0;
+	float ftexturecolumn = 0.0f;
 #ifdef ESLOPE
-	fixed_t oldtexturecolumn = -1;
+	float oldtexturecolumn = -1.0f;
 #endif
 	INT32     top;
 	INT32     bottom;
@@ -1407,7 +1408,7 @@ static void R_RenderSegLoop (void)
 	for (; rw_x < rw_stopx; rw_x++)
 	{
 		// mark floor / ceiling areas
-		yl = (INT32)llrintf(topfrac);
+		yl = (INT32)llrintf(floor(topfrac));
 
 		// no space above wall?
 		top = ceilingclip[rw_x]+1;
@@ -1430,7 +1431,7 @@ static void R_RenderSegLoop (void)
 			}
 		}
 
-		yh = (INT32)llrintf(bottomfrac);
+		yh = (INT32)llrintf(floor(bottomfrac));
 		bottom = floorclip[rw_x]-1;
 
 		if (yh > bottom)
@@ -1521,20 +1522,20 @@ static void R_RenderSegLoop (void)
 		//SoM: Calculate offsets for Thick fake floors.
 		// calculate texture offset
 		angle = (rw_centerangle + xtoviewangle[rw_x])>>ANGLETOFINESHIFT;
-		texturecolumn = rw_offset-FixedMul(FINETANGENT(angle),rw_distancefixed);
+		ftexturecolumn = rw_offset - (FIXED_TO_FLOAT(FINETANGENT(angle))*rw_distance);
 
 #ifdef ESLOPE
-		if (oldtexturecolumn != -1) {
-			float texcol = FIXED_TO_FLOAT(oldtexturecolumn-texturecolumn);
+		if (FLOAT_INEQUALITY(oldtexturecolumn, -1.0f)) {
+			float texcol = oldtexturecolumn-ftexturecolumn;
 			rw_bottomtexturemid += (rw_bottomtextureslide*texcol);
 			rw_midtexturemid    += (rw_midtextureslide*texcol);
 			rw_toptexturemid    += (rw_toptextureslide*texcol);
 			rw_midtextureback   += (rw_midtexturebackslide*texcol);
 		}
-		oldtexturecolumn = texturecolumn;
+		oldtexturecolumn = ftexturecolumn;
 #endif
 
-		texturecolumn >>= FRACBITS;
+		texturecolumn = llrintf(ftexturecolumn);
 
 		// texturecolumn and lighting are independent of wall tiers
 		if (segtextured)
@@ -1742,21 +1743,54 @@ static void R_RenderSegLoop (void)
 	}
 }
 
-// Uses precalculated seg->length
-static INT64 R_CalcSegDist(seg_t *seg, INT64 x2, INT64 y2)
+static float R_CalcSegDistFloat(seg_t *seg, float x2, float y2, boolean overflow)
 {
+	float v1x = FIXED_TO_FLOAT(seg->v1->x);
+	float v1y = FIXED_TO_FLOAT(seg->v1->y);
+	float v2x = FIXED_TO_FLOAT(seg->v2->x);
+	float v2y = FIXED_TO_FLOAT(seg->v2->y);
+	float dx, dy, vdx, vdy;
+
+	// The seg is vertical.
 	if (!seg->linedef->dy)
-		return llabs(y2 - seg->v1->y);
+		rw_distance = fabsf(y2 - v1y);
+	// The seg is horizontal.
 	else if (!seg->linedef->dx)
-		return llabs(x2 - seg->v1->x);
+		rw_distance = fabsf(x2 - v1x);
+	// Uses precalculated seg->length
+	else if (overflow)
+	{
+		dx = v2x-v1x;
+		dy = v2y-v1y;
+		vdx = x2-v1x;
+		vdy = y2-v1y;
+		rw_distance = ((dy*vdx)-(dx*vdy))/(seg->flength);
+	}
+	// Linguica's fix converted to floating-point math
 	else
 	{
-		INT64 dx = (seg->v2->x)-(seg->v1->x);
-		INT64 dy = (seg->v2->y)-(seg->v1->y);
-		INT64 vdx = x2-(seg->v1->x);
-		INT64 vdy = y2-(seg->v1->y);
-		return ((dy*vdx)-(dx*vdy))/(seg->length);
+		fixed_t x, y;
+		float a, c, ac;
+
+		v1x -= FIXED_TO_FLOAT(viewx);
+		v1y -= FIXED_TO_FLOAT(viewy);
+		v2x -= FIXED_TO_FLOAT(viewx);
+		v2y -= FIXED_TO_FLOAT(viewy);
+		dx = v2x - v1x;
+		dy = v2y - v1y;
+
+		a = (v1x*v2y) - (v1y*v2x);
+		c = (dx*dx) + (dy*dy);
+		ac = (a/c);
+
+		x = FLOAT_TO_FIXED(ac*(-dy));
+		y = FLOAT_TO_FIXED(ac*dx);
+
+		rw_distancefixed = R_PointToDist(viewx + x, viewy + y);
+		rw_distance = FIXED_TO_FLOAT(rw_distancefixed);
 	}
+
+	return rw_distance;
 }
 
 //
@@ -1769,7 +1803,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 	fixed_t       hyp;
 	fixed_t       sineval;
 	angle_t       distangle, offsetangle;
-	boolean longboi, overflow;
+	boolean overflow;
 #ifndef ESLOPE
 	fixed_t       vtop;
 #endif
@@ -1816,17 +1850,32 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 
 	distangle = ANGLE_90 - offsetangle;
 	sineval = FINESINE(distangle>>ANGLETOFINESHIFT);
-
 	hyp = R_PointToDist(curline->v1->x, curline->v1->y);
-	rw_distancefixed = FixedMul(hyp, sineval);
 	overflow = (hyp >= INT32_MAX);
-	longboi = (curline->length > 512<<FRACBITS);
 
+	// The seg is vertical.
+	if (curline->v1->y == curline->v2->y)
+	{
+		rw_distancefixed = abs(viewy - curline->v1->y);
+		rw_distance = FIXED_TO_FLOAT(rw_distancefixed);
+	}
+	// The seg is horizontal.
+	else if (curline->v1->x == curline->v2->x)
+	{
+		rw_distancefixed = abs(viewx - curline->v1->x);
+		rw_distance = FIXED_TO_FLOAT(rw_distancefixed);
+	}
 	// big room fix
-	if (longboi || overflow)
-		rw_distancefixed = (fixed_t)R_CalcSegDist(curline,viewx,viewy);
-
-	rw_distance = FIXED_TO_FLOAT(rw_distancefixed);
+	else if ((curline->length >= 1024<<FRACBITS) || overflow)
+	{
+		rw_distance = R_CalcSegDistFloat(curline, FIXED_TO_FLOAT(viewx), FIXED_TO_FLOAT(viewy), overflow);
+		rw_distancefixed = FLOAT_TO_FIXED(rw_distance);
+	}
+	else
+	{
+		rw_distance = FIXED_TO_FLOAT(hyp) * FIXED_TO_FLOAT(sineval);
+		rw_distancefixed = FLOAT_TO_FIXED(rw_distance);
+	}
 
 	ds_p->x1 = rw_x = start;
 	ds_p->x2 = stop;
@@ -1894,7 +1943,8 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		range = 1.0f;
 	}
 
-	ds_p->scalestep = rw_scalestep = (ds_p->scale2 - rw_scale) / (range);
+	rw_scalestep = (ds_p->scale2 - ds_p->scale1) / range;
+	ds_p->scalestep = rw_scalestep;
 
 	// calculate texture boundaries
 	//  and decide if floor / ceiling marks are needed
@@ -1960,6 +2010,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		worldtopfixed = frontsector->ceilingheight - viewz;
 	}
 	worldtop = FIXED_TO_FLOAT(worldtopfixed);
+	worldtopslope = FIXED_TO_FLOAT(worldtopslopefixed);
 
 #ifdef ESLOPE
 	if (frontsector->f_slope) {
@@ -1973,6 +2024,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		worldbottomfixed = frontsector->floorheight - viewz;
 	}
 	worldbottom = FIXED_TO_FLOAT(worldbottomfixed);
+	worldbottomslope = FIXED_TO_FLOAT(worldbottomslopefixed);
 
 	midtexture = toptexture = bottomtexture = maskedtexture = 0;
 	ds_p->maskedtexturecol = NULL;
@@ -2694,24 +2746,14 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			offsetangle = ANGLE_90;
 
 		sineval = FINESINE(offsetangle>>ANGLETOFINESHIFT);
-		rw_offset = FixedMul(hyp, sineval);
-
-		// big room fix
-		if (overflow)
-		{
-			INT64 dx = (curline->v2->x)-(curline->v1->x);
-			INT64 dy = (curline->v2->y)-(curline->v1->y);
-			INT64 vdx = viewx-(curline->v1->x);
-			INT64 vdy = viewy-(curline->v1->y);
-			rw_offset = ((dx*vdx-dy*vdy))/(curline->length);
-		}
+		rw_offset = FIXED_TO_FLOAT(hyp) * FIXED_TO_FLOAT(sineval);
 
 		if (rw_normalangle-rw_angle1 < ANGLE_180)
 			rw_offset = -rw_offset;
 
 		/// don't use texture offset for splats
-		rw_offset2 = rw_offset + curline->offset;
-		rw_offset += sidedef->textureoffset + curline->offset;
+		rw_offset2 = rw_offset + FIXED_TO_FLOAT(curline->offset);
+		rw_offset += FIXED_TO_FLOAT(sidedef->textureoffset + curline->offset);
 		rw_centerangle = ANGLE_90 + viewangle - rw_normalangle;
 
 		// calculate light table

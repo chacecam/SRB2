@@ -45,6 +45,8 @@ typedef INT32 fixed_t;
 */
 #define FIXED_TO_FLOAT(x) (((float)(x)) / ((float)FRACUNIT))
 #define FLOAT_TO_FIXED(f) (fixed_t)((f) * ((float)FRACUNIT))
+#define FLOAT_EQUALITY(x,y) (fabsf(x - y) < 1.0E-36f)
+#define FLOAT_INEQUALITY(x,y) (fabsf(x - y) > 1.0E-36f)
 
 
 #if defined (__WATCOMC__) && FRACBITS == 16
