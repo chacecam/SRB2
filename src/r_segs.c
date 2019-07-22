@@ -2010,7 +2010,9 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		worldtopfixed = frontsector->ceilingheight - viewz;
 	}
 	worldtop = FIXED_TO_FLOAT(worldtopfixed);
+#ifdef ESLOPE
 	worldtopslope = FIXED_TO_FLOAT(worldtopslopefixed);
+#endif
 
 #ifdef ESLOPE
 	if (frontsector->f_slope) {
@@ -2024,7 +2026,9 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		worldbottomfixed = frontsector->floorheight - viewz;
 	}
 	worldbottom = FIXED_TO_FLOAT(worldbottomfixed);
+#ifdef ESLOPE
 	worldbottomslope = FIXED_TO_FLOAT(worldbottomslopefixed);
+#endif
 
 	midtexture = toptexture = bottomtexture = maskedtexture = 0;
 	ds_p->maskedtexturecol = NULL;
