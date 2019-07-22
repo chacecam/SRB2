@@ -102,7 +102,8 @@ extern angle_t doubleclipangle;
 extern INT32 viewangletox[FINEANGLES/2];
 extern angle_t xtoviewangle[MAXVIDWIDTH+1];
 
-extern fixed_t rw_distance;
+extern float rw_distance;
+extern fixed_t rw_distancefixed;
 extern angle_t rw_normalangle;
 
 // angle to line origin

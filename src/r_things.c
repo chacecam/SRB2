@@ -593,6 +593,7 @@ INT16 *mceilingclip;
 
 fixed_t spryscale = 0, sprtopscreen = 0, sprbotscreen = 0;
 fixed_t windowtop = 0, windowbottom = 0;
+float maskedscale = 0.0f, maskedtopscreen = 0.0f, maskedbotscreen = 0.0f;
 
 void R_DrawMaskedColumn(column_t *column)
 {
@@ -1890,10 +1891,10 @@ static void R_CreateDrawNodes(void)
 				if (rover->x1 > r2->thickseg->x2 || rover->x2 < r2->thickseg->x1)
 					continue;
 
-				scale = r2->thickseg->scale1 > r2->thickseg->scale2 ? r2->thickseg->scale1 : r2->thickseg->scale2;
+				scale = r2->thickseg->scale1 > r2->thickseg->scale2 ? FLOAT_TO_FIXED(r2->thickseg->scale1) : FLOAT_TO_FIXED(r2->thickseg->scale2);
 				if (scale <= rover->scale)
 					continue;
-				scale = r2->thickseg->scale1 + (r2->thickseg->scalestep * (sintersect - r2->thickseg->x1));
+				scale = FLOAT_TO_FIXED(r2->thickseg->scale1) + (FLOAT_TO_FIXED(r2->thickseg->scalestep) * (sintersect - r2->thickseg->x1));
 				if (scale <= rover->scale)
 					continue;
 
@@ -1943,10 +1944,10 @@ static void R_CreateDrawNodes(void)
 				if (rover->x1 > r2->seg->x2 || rover->x2 < r2->seg->x1)
 					continue;
 
-				scale = r2->seg->scale1 > r2->seg->scale2 ? r2->seg->scale1 : r2->seg->scale2;
+				scale = r2->seg->scale1 > r2->seg->scale2 ? FLOAT_TO_FIXED(r2->seg->scale1) : FLOAT_TO_FIXED(r2->seg->scale2);
 				if (scale <= rover->scale)
 					continue;
-				scale = r2->seg->scale1 + (r2->seg->scalestep * (sintersect - r2->seg->x1));
+				scale = FLOAT_TO_FIXED(r2->seg->scale1) + (FLOAT_TO_FIXED(r2->seg->scalestep) * (sintersect - r2->seg->x1));
 
 				if (rover->scale < scale)
 				{
@@ -2072,8 +2073,8 @@ void R_ClipSprites(void)
 		INT32		x;
 		INT32		r1;
 		INT32		r2;
-		fixed_t		scale;
-		fixed_t		lowscale;
+		float		scale;
+		float		lowscale;
 		INT32		silhouette;
 
 		spr = R_GetVisSprite(clippedvissprites);
@@ -2118,8 +2119,8 @@ void R_ClipSprites(void)
 				scale = ds->scale2;
 			}
 
-			if (scale < spr->scale ||
-			    (lowscale < spr->scale &&
+			if (FLOAT_TO_FIXED(scale) < spr->scale ||
+			    (FLOAT_TO_FIXED(lowscale) < spr->scale &&
 			     !R_PointOnSegSide (spr->gx, spr->gy, ds->curline)))
 			{
 				// masked mid texture?

@@ -643,9 +643,9 @@ typedef struct drawseg_s
 	INT32 x1;
 	INT32 x2;
 
-	fixed_t scale1;
-	fixed_t scale2;
-	fixed_t scalestep;
+	float scale1;
+	float scale2;
+	float scalestep;
 
 	INT32 silhouette; // 0 = none, 1 = bottom, 2 = top, 3 = both
 
@@ -667,7 +667,7 @@ typedef struct drawseg_s
 	UINT8 portalpass; // if > 0 and <= portalrender, do not affect sprite clipping
 
 #ifdef ESLOPE
-	fixed_t maskedtextureheight[MAXVIDWIDTH]; // For handling sloped midtextures
+	float maskedtextureheight[MAXVIDWIDTH]; // For handling sloped midtextures
 
 	vertex_t leftpos, rightpos; // Used for rendering FOF walls with slopes
 #endif

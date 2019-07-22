@@ -1454,10 +1454,10 @@ void R_DrawColumnShadowed_8(void)
 		// anyway because the lighting of the top should be affected.
 		solid = dc_lightlist[i].flags & FF_CUTSOLIDS;
 
-		height = dc_lightlist[i].height >> LIGHTSCALESHIFT;
+		height = dc_lightlist[i].height >> FRACBITS;
 		if (solid)
 		{
-			bheight = dc_lightlist[i].botheight >> LIGHTSCALESHIFT;
+			bheight = dc_lightlist[i].botheight >> FRACBITS;
 			if (bheight < height)
 			{
 				// confounded slopes sometimes allow partial invertedness,

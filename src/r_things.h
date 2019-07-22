@@ -39,6 +39,10 @@ extern fixed_t sprbotscreen;
 extern fixed_t windowtop;
 extern fixed_t windowbottom;
 
+extern float maskedscale;
+extern float maskedtopscreen;
+extern float maskedbotscreen;
+
 void R_DrawMaskedColumn(column_t *column);
 void R_SortVisSprites(void);
 

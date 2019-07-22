@@ -99,17 +99,17 @@ typedef struct planemgr_s
 {
 	visplane_t *plane;
 	fixed_t height;
-	fixed_t f_pos; // F for Front sector
-	fixed_t b_pos; // B for Back sector
-	fixed_t f_frac, f_step;
-	fixed_t b_frac, b_step;
-	INT16 f_clip[MAXVIDWIDTH];
-	INT16 c_clip[MAXVIDWIDTH];
+	float f_pos; // F for Front sector
+	float b_pos; // B for Back sector
+	float f_frac, f_step;
+	float b_frac, b_step;
+	float f_clip[MAXVIDWIDTH];
+	float c_clip[MAXVIDWIDTH];
 
 #ifdef ESLOPE
 	// For slope rendering; the height at the other end
-	fixed_t f_pos_slope;
-	fixed_t b_pos_slope;
+	float f_pos_slope;
+	float b_pos_slope;
 
 	struct pslope_s *slope;
 #endif
