@@ -783,9 +783,9 @@ static void R_SetupFreelook(void)
 		dy = FixedMul(AIMINGTODY(aimingangle), (viewwidth/BASEVIDWIDTH)<<FRACBITS);
 		yslope = &yslopetab[viewheight*8 - (viewheight/2 + (dy>>FRACBITS))];
 	}
-	centeryfrac = ((viewheight<<FRACBITS)>>1) + dy;
+	centery = (viewheight/2) + (dy>>FRACBITS);
+	centeryfrac = centery<<FRACBITS;
 	centeryfloat = FIXED_TO_FLOAT(centeryfrac);
-	centery = centeryfrac>>FRACBITS;
 }
 
 #undef AIMINGTODY
