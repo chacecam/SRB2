@@ -1639,7 +1639,7 @@ static void R_RenderSegLoop (void)
 			if (toptexture)
 			{
 				// top wall
-				mid = (INT32)llrintf(pixhigh);
+				mid = (INT32)llrintf(ceil(pixhigh));
 				pixhigh += pixhighstep;
 
 				if (mid >= floorclip[rw_x])
@@ -1671,7 +1671,7 @@ static void R_RenderSegLoop (void)
 			if (bottomtexture)
 			{
 				// bottom wall
-				mid = (INT32)llrintf(pixlow);
+				mid = (INT32)llrintf(ceil(pixlow));
 				pixlow += pixlowstep;
 
 				// no space above wall?
