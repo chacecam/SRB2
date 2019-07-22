@@ -52,8 +52,10 @@ static fixed_t rw_offset2; // for splats
 static float rw_scale, rw_scalestep;
 static float rw_midtexturemid, rw_toptexturemid, rw_bottomtexturemid;
 static float worldtop, worldbottom, worldhigh, worldlow;
+static fixed_t worldtopfixed, worldbottomfixed, worldhighfixed, worldlowfixed;
 #ifdef ESLOPE
 static float worldtopslope, worldbottomslope, worldhighslope, worldlowslope; // worldtop/bottom at end of slope
+static fixed_t worldtopslopefixed, worldbottomslopefixed, worldhighslopefixed, worldlowslopefixed; // worldtop/bottom at end of slope
 static float rw_toptextureslide, rw_midtextureslide, rw_bottomtextureslide; // Defines how to adjust Y offsets along the wall for slopes
 static float rw_midtextureback, rw_midtexturebackslide; // Values for masked midtexture height calculation
 #endif
@@ -1948,27 +1950,29 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 	}
 
 	if (frontsector->c_slope) {
-		worldtop = FIXED_TO_FLOAT(P_GetZAt(frontsector->c_slope, segleft.x, segleft.y) - viewz);
-		worldtopslope = FIXED_TO_FLOAT(P_GetZAt(frontsector->c_slope, segright.x, segright.y) - viewz);
+		worldtopfixed = P_GetZAt(frontsector->c_slope, segleft.x, segleft.y) - viewz;
+		worldtopslopefixed = P_GetZAt(frontsector->c_slope, segright.x, segright.y) - viewz;
 	} else {
-		worldtopslope =
+		worldtopslopefixed =
 #else
 	{
 #endif
-		worldtop = FIXED_TO_FLOAT(frontsector->ceilingheight - viewz);
+		worldtopfixed = frontsector->ceilingheight - viewz;
 	}
+	worldtop = FIXED_TO_FLOAT(worldtopfixed);
 
 #ifdef ESLOPE
 	if (frontsector->f_slope) {
-		worldbottom = FIXED_TO_FLOAT(P_GetZAt(frontsector->f_slope, segleft.x, segleft.y) - viewz);
-		worldbottomslope = FIXED_TO_FLOAT(P_GetZAt(frontsector->f_slope, segright.x, segright.y) - viewz);
+		worldbottomfixed = P_GetZAt(frontsector->f_slope, segleft.x, segleft.y) - viewz;
+		worldbottomslopefixed = P_GetZAt(frontsector->f_slope, segright.x, segright.y) - viewz;
 	} else {
-		worldbottomslope =
+		worldbottomslopefixed =
 #else
 	{
 #endif
-		worldbottom = FIXED_TO_FLOAT(frontsector->floorheight - viewz);
+		worldbottomfixed = frontsector->floorheight - viewz;
 	}
+	worldbottom = FIXED_TO_FLOAT(worldbottomfixed);
 
 	midtexture = toptexture = bottomtexture = maskedtexture = 0;
 	ds_p->maskedtexturecol = NULL;
@@ -2073,27 +2077,27 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 
 #ifdef ESLOPE
 		if (backsector->c_slope) {
-			worldhigh = FIXED_TO_FLOAT(P_GetZAt(backsector->c_slope, segleft.x, segleft.y) - viewz);
-			worldhighslope = FIXED_TO_FLOAT(P_GetZAt(backsector->c_slope, segright.x, segright.y) - viewz);
+			worldhighfixed = P_GetZAt(backsector->c_slope, segleft.x, segleft.y) - viewz;
+			worldhighslopefixed = P_GetZAt(backsector->c_slope, segright.x, segright.y) - viewz;
 		} else {
-			worldhighslope =
+			worldhighslopefixed =
 #else
 		{
 #endif
-			worldhigh = FIXED_TO_FLOAT(backsector->ceilingheight - viewz);
+			worldhighfixed = backsector->ceilingheight - viewz;
 		}
 
 
 #ifdef ESLOPE
 		if (backsector->f_slope) {
-			worldlow = FIXED_TO_FLOAT(P_GetZAt(backsector->f_slope, segleft.x, segleft.y) - viewz);
-			worldlowslope = FIXED_TO_FLOAT(P_GetZAt(backsector->f_slope, segright.x, segright.y) - viewz);
+			worldlowfixed = P_GetZAt(backsector->f_slope, segleft.x, segleft.y) - viewz;
+			worldlowslopefixed = P_GetZAt(backsector->f_slope, segright.x, segright.y) - viewz;
 		} else {
-			worldlowslope =
+			worldlowslopefixed =
 #else
 		{
 #endif
-			worldlow = FIXED_TO_FLOAT(backsector->floorheight - viewz);
+			worldlowfixed = backsector->floorheight - viewz;
 		}
 
 
@@ -2102,19 +2106,28 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			&& backsector->ceilingpic == skyflatnum)
 		{
 #ifdef ESLOPE
-			worldtopslope = worldhighslope =
+			worldtopslopefixed = worldhighslopefixed =
 #endif
-			worldtop = worldhigh;
+			worldtopfixed = worldhighfixed;
 		}
+
+		worldhigh = FIXED_TO_FLOAT(worldhighfixed);
+		worldlow = FIXED_TO_FLOAT(worldlowfixed);
+		worldtop = FIXED_TO_FLOAT(worldtopfixed);
+#ifdef ESLOPE
+		worldhighslope = FIXED_TO_FLOAT(worldhighslopefixed);
+		worldlowslope = FIXED_TO_FLOAT(worldlowslopefixed);
+		worldtopslope = FIXED_TO_FLOAT(worldtopslopefixed);
+#endif // ESLOPE
 
 		ds_p->sprtopclip = ds_p->sprbottomclip = NULL;
 		ds_p->silhouette = 0;
 
 		if (
 #ifdef ESLOPE
-			worldbottomslope > worldlowslope ||
+			worldbottomslopefixed > worldlowslopefixed ||
 #endif
-			worldbottom > worldlow)
+			worldbottomfixed > worldlowfixed)
 		{
 			ds_p->silhouette = SIL_BOTTOM;
 #ifdef ESLOPE
@@ -2139,9 +2152,9 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 
 		if (
 #ifdef ESLOPE
-			worldtopslope < worldhighslope ||
+			worldtopslopefixed < worldhighslopefixed ||
 #endif
-			worldtop < worldhigh)
+			worldtopfixed < worldhighfixed)
 		{
 			ds_p->silhouette |= SIL_TOP;
 #ifdef ESLOPE
@@ -2165,9 +2178,9 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		}
 
 #ifdef ESLOPE
-		if (worldhigh <= worldbottom && worldhighslope <= worldbottomslope)
+		if (worldhighfixed <= worldbottomfixed && worldhighslopefixed <= worldbottomslopefixed)
 #else
-		if (worldhigh <= worldbottom)
+		if (worldhighfixed <= worldbottomfixed)
 #endif
 		{
 			ds_p->sprbottomclip = negonearray;
@@ -2176,9 +2189,9 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		}
 
 #ifdef ESLOPE
-		if (worldlow >= worldtop && worldlowslope >= worldtopslope)
+		if (worldlowfixed >= worldtopfixed && worldlowslopefixed >= worldtopslopefixed)
 #else
-		if (worldlow >= worldtop)
+		if (worldlowfixed >= worldtopfixed)
 #endif
 		{
 			ds_p->sprtopclip = screenheightarray;
@@ -2191,7 +2204,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		// Without the following code, sprites get displayed behind closed doors.
 		{
 #ifdef ESLOPE
-			if (doorclosed || (worldhigh <= worldbottom && worldhighslope <= worldbottomslope))
+			if (doorclosed || (worldhighfixed <= worldbottomfixed && worldhighslopefixed <= worldbottomslopefixed))
 #else
 			if (doorclosed || backsector->ceilingheight <= frontsector->floorheight)
 #endif
@@ -2201,7 +2214,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 				ds_p->silhouette |= SIL_BOTTOM;
 			}
 #ifdef ESLOPE
-			if (doorclosed || (worldlow >= worldtop && worldlowslope >= worldtopslope))
+			if (doorclosed || (worldlowfixed >= worldtopfixed && worldlowslopefixed >= worldtopslopefixed))
 #else
 			if (doorclosed || backsector->floorheight >= frontsector->ceilingheight)
 #endif
@@ -2212,9 +2225,9 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			}
 		}
 
-		if (worldlow != worldbottom
+		if (worldlowfixed != worldbottomfixed
 #ifdef ESLOPE
-			|| worldlowslope != worldbottomslope
+			|| worldlowslopefixed != worldbottomslopefixed
 			|| backsector->f_slope != frontsector->f_slope
 #endif
 		    || backsector->floorpic != frontsector->floorpic
@@ -2238,9 +2251,9 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			markfloor = false;
 		}
 
-		if (worldhigh != worldtop
+		if (worldhighfixed != worldtopfixed
 #ifdef ESLOPE
-			|| worldhighslope != worldtopslope
+			|| worldhighslopefixed != worldtopslopefixed
 			|| backsector->c_slope != frontsector->c_slope
 #endif
 		    || backsector->ceilingpic != frontsector->ceilingpic
@@ -2272,9 +2285,9 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		}
 
 		// check TOP TEXTURE
-		if (worldhigh < worldtop
+		if (worldhighfixed < worldtopfixed
 #ifdef ESLOPE
-				|| worldhighslope < worldtopslope
+				|| worldhighslopefixed < worldtopslopefixed
 #endif
 			)
 		{
@@ -2325,9 +2338,9 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			}
 		}
 		// check BOTTOM TEXTURE
-		if (worldlow > worldbottom
+		if (worldlowfixed > worldbottomfixed
 #ifdef ESLOPE
-				|| worldlowslope > worldbottomslope
+				|| worldlowslopefixed > worldbottomslopefixed
 #endif
 			)     //seulement si VISIBLE!!!
 		{
@@ -2381,11 +2394,11 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			ds_p->thicksidecol = maskedtexturecol = lastopening - rw_x;
 			lastopening += rw_stopx - rw_x;
 
-			lowcut = max(FLOAT_TO_FIXED(worldbottom), FLOAT_TO_FIXED(worldlow)) + viewz;
-			highcut = min(FLOAT_TO_FIXED(worldtop), FLOAT_TO_FIXED(worldhigh)) + viewz;
+			lowcut = max(worldbottomfixed, worldlowfixed) + viewz;
+			highcut = min(worldtopfixed, worldhighfixed) + viewz;
 #ifdef ESLOPE
-			lowcutslope = max(FLOAT_TO_FIXED(worldbottomslope), FLOAT_TO_FIXED(worldlowslope)) + viewz;
-			highcutslope = min(FLOAT_TO_FIXED(worldtopslope), FLOAT_TO_FIXED(worldhighslope)) + viewz;
+			lowcutslope = max(worldbottomslopefixed, worldlowslopefixed) + viewz;
+			highcutslope = min(worldtopslopefixed, worldhighslopefixed) + viewz;
 #endif
 
 			if (frontsector->ffloors && backsector->ffloors)
@@ -2568,10 +2581,10 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 
 #ifdef ESLOPE
 					// Oy vey.
-					if ((	   (*rover->t_slope ? P_GetZAt(*rover->t_slope, segleft.x, segleft.y) : *rover->topheight) <= FLOAT_TO_FIXED(worldbottom)+viewz
-							&& (*rover->t_slope ? P_GetZAt(*rover->t_slope, segright.x, segright.y) : *rover->topheight) <= FLOAT_TO_FIXED(worldbottomslope)+viewz)
-							||((*rover->b_slope ? P_GetZAt(*rover->b_slope, segleft.x, segleft.y) : *rover->bottomheight) >= FLOAT_TO_FIXED(worldtop)+viewz
-							&& (*rover->b_slope ? P_GetZAt(*rover->b_slope, segright.x, segright.y) : *rover->bottomheight) >= FLOAT_TO_FIXED(worldtopslope)+viewz))
+					if ((	   (*rover->t_slope ? P_GetZAt(*rover->t_slope, segleft.x, segleft.y) : *rover->topheight) <= worldbottomfixed+viewz
+							&& (*rover->t_slope ? P_GetZAt(*rover->t_slope, segright.x, segright.y) : *rover->topheight) <= worldbottomslopefixed+viewz)
+							||((*rover->b_slope ? P_GetZAt(*rover->b_slope, segleft.x, segleft.y) : *rover->bottomheight) >= worldtopfixed+viewz
+							&& (*rover->b_slope ? P_GetZAt(*rover->b_slope, segright.x, segright.y) : *rover->bottomheight) >= worldtopslopefixed+viewz))
 						continue;
 #else
 					if (*rover->topheight <= frontsector->floorheight || *rover->bottomheight >= frontsector->ceilingheight)
@@ -2592,16 +2605,16 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 						continue;
 #ifdef ESLOPE
 					// Oy vey.
-					if ((	   (*rover->t_slope ? P_GetZAt(*rover->t_slope, segleft.x, segleft.y) : *rover->topheight) <= FLOAT_TO_FIXED(worldbottom)+viewz
-							&& (*rover->t_slope ? P_GetZAt(*rover->t_slope, segright.x, segright.y) : *rover->topheight) <= FLOAT_TO_FIXED(worldbottomslope)+viewz)
-							||((*rover->b_slope ? P_GetZAt(*rover->b_slope, segleft.x, segleft.y) : *rover->bottomheight) >= FLOAT_TO_FIXED(worldtop)+viewz
-							&& (*rover->b_slope ? P_GetZAt(*rover->b_slope, segright.x, segright.y) : *rover->bottomheight) >= FLOAT_TO_FIXED(worldtopslope)+viewz))
+					if ((	   (*rover->t_slope ? P_GetZAt(*rover->t_slope, segleft.x, segleft.y) : *rover->topheight) <= worldbottomfixed+viewz
+							&& (*rover->t_slope ? P_GetZAt(*rover->t_slope, segright.x, segright.y) : *rover->topheight) <= worldbottomslopefixed+viewz)
+							||((*rover->b_slope ? P_GetZAt(*rover->b_slope, segleft.x, segleft.y) : *rover->bottomheight) >= worldtopfixed+viewz
+							&& (*rover->b_slope ? P_GetZAt(*rover->b_slope, segright.x, segright.y) : *rover->bottomheight) >= worldtopslopefixed+viewz))
 						continue;
 
-					if ((	   (*rover->t_slope ? P_GetZAt(*rover->t_slope, segleft.x, segleft.y) : *rover->topheight) <= FLOAT_TO_FIXED(worldlow)+viewz
-							&& (*rover->t_slope ? P_GetZAt(*rover->t_slope, segright.x, segright.y) : *rover->topheight) <= FLOAT_TO_FIXED(worldlowslope)+viewz)
-							||((*rover->b_slope ? P_GetZAt(*rover->b_slope, segleft.x, segleft.y) : *rover->bottomheight) >= FLOAT_TO_FIXED(worldhigh)+viewz
-							&& (*rover->b_slope ? P_GetZAt(*rover->b_slope, segright.x, segright.y) : *rover->bottomheight) >= FLOAT_TO_FIXED(worldhighslope)+viewz))
+					if ((	   (*rover->t_slope ? P_GetZAt(*rover->t_slope, segleft.x, segleft.y) : *rover->topheight) <= worldlowfixed+viewz
+							&& (*rover->t_slope ? P_GetZAt(*rover->t_slope, segright.x, segright.y) : *rover->topheight) <= worldlowslopefixed+viewz)
+							||((*rover->b_slope ? P_GetZAt(*rover->b_slope, segleft.x, segleft.y) : *rover->bottomheight) >= worldhighfixed+viewz
+							&& (*rover->b_slope ? P_GetZAt(*rover->b_slope, segright.x, segright.y) : *rover->bottomheight) >= worldhighslopefixed+viewz))
 						continue;
 #else
 					if (*rover->topheight <= frontsector->floorheight || *rover->bottomheight >= frontsector->ceilingheight)
