@@ -27,6 +27,7 @@ extern INT32 centerx, centery;
 extern fixed_t centerxfrac, centeryfrac;
 extern float centerxfloat, centeryfloat;
 extern fixed_t projection, projectiony;
+extern float lightingaspectratio;
 
 extern size_t validcount, linecount, loopcount, framecount;
 

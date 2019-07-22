@@ -57,6 +57,7 @@ fixed_t centerxfrac, centeryfrac;
 float centerxfloat, centeryfloat;
 fixed_t projection;
 fixed_t projectiony; // aspect ratio
+float lightingaspectratio;
 
 // just for profiling purposes
 size_t framecount;
@@ -621,6 +622,7 @@ void R_ExecuteSetViewSize(void)
 	centeryfrac = centery<<FRACBITS;
 	centerxfloat = FIXED_TO_FLOAT(centerxfrac);
 	centeryfloat = FIXED_TO_FLOAT(centeryfrac);
+	lightingaspectratio = 640.0f / (float)vid.width;
 
 	projection = centerxfrac;
 	//projectiony = (((vid.height*centerx*BASEVIDWIDTH)/BASEVIDHEIGHT)/vid.width)<<FRACBITS;
