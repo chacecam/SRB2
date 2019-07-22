@@ -454,8 +454,10 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 			rlight = &dc_lightlist[i];
 #ifdef ESLOPE
 			if (light->slope) {
-				leftheight = FIXED_TO_FLOAT(P_GetZAt(light->slope, ds->leftpos.x, ds->leftpos.y));
-				rightheight = FIXED_TO_FLOAT(P_GetZAt(light->slope, ds->rightpos.x, ds->rightpos.y));
+				fixed_t left = P_GetZAt(light->slope, ds->leftpos.x, ds->leftpos.y);
+				fixed_t right = P_GetZAt(light->slope, ds->rightpos.x, ds->rightpos.y);
+				leftheight = FIXED_TO_FLOAT(left);
+				rightheight = FIXED_TO_FLOAT(right);
 			} else
 				leftheight = rightheight = FIXED_TO_FLOAT(light->height);
 
@@ -2792,8 +2794,10 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 
 #ifdef ESLOPE
 			if (light->slope) {
-				leftheight = FIXED_TO_FLOAT(P_GetZAt(light->slope, segleft.x, segleft.y));
-				rightheight = FIXED_TO_FLOAT(P_GetZAt(light->slope, segright.x, segright.y));
+				fixed_t left = P_GetZAt(light->slope, segleft.x, segleft.y);
+				fixed_t right = P_GetZAt(light->slope, segright.x, segright.y);
+				leftheight = FIXED_TO_FLOAT(left);
+				rightheight = FIXED_TO_FLOAT(right);
 
 				// Flag sector as having slopes
 				frontsector->hasslope = true;
@@ -2838,8 +2842,10 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			{
 #ifdef ESLOPE
 				if (*light->caster->b_slope) {
-					leftheight = FIXED_TO_FLOAT(P_GetZAt(*light->caster->b_slope, segleft.x, segleft.y));
-					rightheight = FIXED_TO_FLOAT(P_GetZAt(*light->caster->b_slope, segright.x, segright.y));
+					fixed_t left = P_GetZAt(*light->caster->b_slope, segleft.x, segleft.y);
+					fixed_t right = P_GetZAt(*light->caster->b_slope, segright.x, segright.y);
+					leftheight = FIXED_TO_FLOAT(left);
+					rightheight = FIXED_TO_FLOAT(right);
 
 					// Flag sector as having slopes
 					frontsector->hasslope = true;
@@ -2950,8 +2956,8 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 					roverleft = FIXED_TO_FLOAT(roverleftfixed);
 					roverright = FIXED_TO_FLOAT(roverrightfixed);
 
-					if ((roverleftfixed <= FLOAT_TO_FIXED(worldhigh) || roverrightfixed <= FLOAT_TO_FIXED(worldhighslope)) &&
-					    (roverleftfixed >= FLOAT_TO_FIXED(worldlow) || roverrightfixed >= FLOAT_TO_FIXED(worldlowslope)) &&
+					if ((roverleft <= worldhigh || roverright <= worldhighslope) &&
+					    (roverleft >= worldlow || roverright >= worldlowslope) &&
 					    ((viewz < planevistest && !(rover->flags & FF_INVERTPLANES)) ||
 					     (viewz > planevistest && (rover->flags & FF_BOTHPLANES))))
 					{
@@ -2976,8 +2982,8 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 					roverleft = FIXED_TO_FLOAT(roverleftfixed);
 					roverright = FIXED_TO_FLOAT(roverrightfixed);
 
-					if ((roverleftfixed <= FLOAT_TO_FIXED(worldhigh) || roverrightfixed <= FLOAT_TO_FIXED(worldhighslope)) &&
-					    (roverleftfixed >= FLOAT_TO_FIXED(worldlow) || roverrightfixed >= (worldlowslope)) &&
+					if ((roverleft <= worldhigh || roverright <= worldhighslope) &&
+					    (roverleft >= worldlow || roverright >= worldlowslope) &&
 					    ((viewz > planevistest && !(rover->flags & FF_INVERTPLANES)) ||
 					     (viewz < planevistest && (rover->flags & FF_BOTHPLANES))))
 					{
@@ -3043,8 +3049,8 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 					roverleft = FIXED_TO_FLOAT(roverleftfixed);
 					roverright = FIXED_TO_FLOAT(roverrightfixed);
 
-					if ((roverleftfixed <= FLOAT_TO_FIXED(worldhigh) || roverrightfixed <= FLOAT_TO_FIXED(worldhighslope)) &&
-					    (roverleftfixed >= FLOAT_TO_FIXED(worldlow) || roverrightfixed >= FLOAT_TO_FIXED(worldlowslope)) &&
+					if ((roverleft <= worldhigh || roverright <= worldhighslope) &&
+					    (roverleft >= worldlow || roverright >= worldlowslope) &&
 					    ((viewz < planevistest && !(rover->flags & FF_INVERTPLANES)) ||
 					     (viewz > planevistest && (rover->flags & FF_BOTHPLANES))))
 					{
@@ -3069,8 +3075,8 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 					roverleft = FIXED_TO_FLOAT(roverleftfixed);
 					roverright = FIXED_TO_FLOAT(roverrightfixed);
 
-					if ((roverleftfixed <= FLOAT_TO_FIXED(worldhigh) || roverrightfixed <= FLOAT_TO_FIXED(worldhighslope)) &&
-					    (roverleftfixed >= FLOAT_TO_FIXED(worldlow) || roverrightfixed >= FLOAT_TO_FIXED(worldlowslope)) &&
+					if ((roverleft <= worldhigh || roverright <= worldhighslope) &&
+					    (roverleft >= worldlow || roverright>= worldlowslope) &&
 					    ((viewz > planevistest && !(rover->flags & FF_INVERTPLANES)) ||
 					     (viewz < planevistest && (rover->flags & FF_BOTHPLANES))))
 					{

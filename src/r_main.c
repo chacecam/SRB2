@@ -414,7 +414,8 @@ float R_ScaleFromGlobalAngleFloat(angle_t visangle)
 	angle_t angleb = ANGLE_90 + (visangle-rw_normalangle);
 	float den = rw_distance * FIXED_TO_FLOAT(FINESINE(anglea>>ANGLETOFINESHIFT));
 	// proff 11/06/98: Changed for high-res
-	float num = FIXED_TO_FLOAT(FixedMul(projectiony, FINESINE(angleb>>ANGLETOFINESHIFT)));
+	fixed_t fnum = FixedMul(projectiony, FINESINE(angleb>>ANGLETOFINESHIFT));
+	float num = FIXED_TO_FLOAT(fnum);
 	if (den >= 0.01f)
 	{
 		num = (num / den);
