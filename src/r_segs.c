@@ -40,7 +40,6 @@ angle_t rw_normalangle;
 // angle to line origin
 angle_t rw_angle1;
 float rw_distance;
-fixed_t rw_distancefixed;
 
 //
 // regular wall
@@ -1769,7 +1768,7 @@ static float R_CalcSegDistFloat(seg_t *seg, float x2, float y2, boolean overflow
 	// Linguica's fix converted to floating-point math
 	else
 	{
-		fixed_t x, y;
+		fixed_t x, y, distance;
 		float a, c, ac;
 
 		v1x -= FIXED_TO_FLOAT(viewx);
@@ -1786,8 +1785,8 @@ static float R_CalcSegDistFloat(seg_t *seg, float x2, float y2, boolean overflow
 		x = FLOAT_TO_FIXED(ac*(-dy));
 		y = FLOAT_TO_FIXED(ac*dx);
 
-		rw_distancefixed = R_PointToDist(viewx + x, viewy + y);
-		rw_distance = FIXED_TO_FLOAT(rw_distancefixed);
+		distance = R_PointToDist(viewx + x, viewy + y);
+		rw_distance = FIXED_TO_FLOAT(distance);
 	}
 
 	return rw_distance;
@@ -1856,26 +1855,23 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 	// The seg is vertical.
 	if (curline->v1->y == curline->v2->y)
 	{
-		rw_distancefixed = abs(viewy - curline->v1->y);
-		rw_distance = FIXED_TO_FLOAT(rw_distancefixed);
+		// Does the compiler complain if I use abs() inside a macro?
+		fixed_t distance = abs(viewy - curline->v1->y);
+		rw_distance = FIXED_TO_FLOAT(distance);
 	}
 	// The seg is horizontal.
 	else if (curline->v1->x == curline->v2->x)
 	{
-		rw_distancefixed = abs(viewx - curline->v1->x);
-		rw_distance = FIXED_TO_FLOAT(rw_distancefixed);
+		// Like this:
+		// rw_distance = FIXED_TO_FLOAT(abs(viewx - curline->v1->x));
+		fixed_t distance = abs(viewx - curline->v1->x);
+		rw_distance = FIXED_TO_FLOAT(distance);
 	}
 	// big room fix
 	else if ((curline->length >= 1024<<FRACBITS) || overflow)
-	{
 		rw_distance = R_CalcSegDistFloat(curline, FIXED_TO_FLOAT(viewx), FIXED_TO_FLOAT(viewy), overflow);
-		rw_distancefixed = FLOAT_TO_FIXED(rw_distance);
-	}
 	else
-	{
 		rw_distance = FIXED_TO_FLOAT(hyp) * FIXED_TO_FLOAT(sineval);
-		rw_distancefixed = FLOAT_TO_FIXED(rw_distance);
-	}
 
 	ds_p->x1 = rw_x = start;
 	ds_p->x2 = stop;
@@ -1925,7 +1921,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 	{
 		// UNUSED: try to fix the stretched line bug
 #if 0
-		if (rw_distancefixed < FRACUNIT/2)
+		if (rw_distance < 0.5f)
 		{
 			fixed_t         tr_x,tr_y;
 			fixed_t         gxt,gyt;
@@ -1943,8 +1939,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		range = 1.0f;
 	}
 
-	rw_scalestep = (ds_p->scale2 - ds_p->scale1) / range;
-	ds_p->scalestep = rw_scalestep;
+	ds_p->scalestep = rw_scalestep = (ds_p->scale2 - ds_p->scale1) / range;
 
 	// calculate texture boundaries
 	//  and decide if floor / ceiling marks are needed
@@ -2750,7 +2745,11 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			offsetangle = ANGLE_90;
 
 		sineval = FINESINE(offsetangle>>ANGLETOFINESHIFT);
-		rw_offset = FIXED_TO_FLOAT(hyp) * FIXED_TO_FLOAT(sineval);
+		// big room fix
+		if (overflow)
+			rw_offset = R_CalcSegDistFloat(curline, FIXED_TO_FLOAT(viewx), FIXED_TO_FLOAT(viewy), true);
+		else
+			rw_offset = FIXED_TO_FLOAT(hyp) * FIXED_TO_FLOAT(sineval);
 
 		if (rw_normalangle-rw_angle1 < ANGLE_180)
 			rw_offset = -rw_offset;
