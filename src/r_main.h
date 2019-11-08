@@ -35,6 +35,7 @@ extern float focallengthf;
 
 #ifdef SOFTPOLY
 extern boolean modelinview;
+extern boolean frustumclipping;
 #endif
 
 //

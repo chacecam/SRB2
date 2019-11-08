@@ -1113,14 +1113,17 @@ static void R_ProjectSprite(mobj_t *thing)
 	fixed_t gxt, gyt;
 	fixed_t tx, tz;
 	fixed_t xscale, yscale; //added : 02-02-98 : aaargll..if I were a math-guy!!!
+
 #ifdef SOFTPOLY
 	boolean model;
-	boolean dontcullmodel;
 	skin_t *skin;
 	rsp_md2_t *md2;
 #endif
 
 	INT32 x1, x2;
+	boolean checkvisible = true;
+	boolean checkzvisible = true;
+	boolean checksides = true;
 
 	spritedef_t *sprdef;
 	spriteframe_t *sprframe;
@@ -1150,11 +1153,21 @@ static void R_ProjectSprite(mobj_t *thing)
 	md2 = RSP_ModelAvailable(thing->sprite, skin);
 
 	model = ((cv_models.value || R_GetModelDefFlag(thing->sprite, MDF_REPLACESPRITES)) && md2);
-	dontcullmodel = R_GetModelDefFlag(thing->sprite, MDF_DONOTCULL);
+	frustumclipping = false;
 
 	// skin model render flag
 	if ((skin != NULL) && (skin->flags & SF_RENDERMODEL))
 		model = true;
+
+	if (model)
+	{
+		checkvisible = false;
+		if (R_GetModelDefFlag(thing->sprite, MDF_DONOTCULL))
+		{
+			frustumclipping = true;
+			checkzvisible = checksides = false;
+		}
+	}
 
 	if (md2)
 	{
@@ -1177,15 +1190,10 @@ static void R_ProjectSprite(mobj_t *thing)
 	// thing is behind view plane?
 	if (tz < FixedMul(MINZ, this_scale))
 	{
-#ifdef SOFTPOLY
-		if (model) //Yellow: Only MD2's dont disappear
-		{
-			if (!dontcullmodel)
-				return;
-		}
-		else
-#endif
+		if (checkzvisible)
 			return;
+		else
+			tz = FixedMul(MINZ, this_scale);
 	}
 
 	gxt = -FixedMul(tr_x, viewsin);
@@ -1193,7 +1201,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	tx = -(gyt + gxt);
 
 	// too far off the side?
-	if (abs(tx) > tz<<2)
+	if (checksides && (abs(tx) > tz<<2))
 		return;
 
 	// aspect ratio stuff
@@ -1270,25 +1278,15 @@ static void R_ProjectSprite(mobj_t *thing)
 	x1 = (centerxfrac + FixedMul (tx,xscale))>>FRACBITS;
 
 	// off the right side?
-	if (x1 > viewwidth)
-	{
-#ifdef SOFTPOLY
-		if (!model)
-#endif
-			return;
-	}
+	if (checkvisible && (x1 > viewwidth))
+		return;
 
 	tx += FixedMul(spritecachedinfo[lump].width, this_scale);
 	x2 = ((centerxfrac + FixedMul (tx,xscale)) >>FRACBITS) - 1;
 
 	// off the left side
-	if (x2 < 0)
-	{
-#ifdef SOFTPOLY
-		if (!model)
-#endif
-			return;
-	}
+	if (checkvisible && (x2 < 0))
+		return;
 
 	// PORTAL SPRITE CLIPPING
 	if (portalrender)
@@ -1425,7 +1423,7 @@ static void R_ProjectSprite(mobj_t *thing)
 		vis->xiscale = iscale;
 	}
 
-	if (vis->x1 > x1)
+	if (checksides && (vis->x1 > x1))
 		vis->startfrac += FixedDiv(vis->xiscale, this_scale)*(vis->x1-x1);
 
 	//Fab: lumppat is the lump number of the patch to use, this is different
@@ -1937,7 +1935,10 @@ static void R_CreateDrawNodes(void)
 	for (rover = vsprsortedhead.prev; rover != &vsprsortedhead; rover = rover->prev)
 	{
 		if (rover->szt > vid.height || rover->sz < 0)
-			continue;
+#ifdef SOFTPOLY
+			if (!rover->model)
+#endif
+				continue;
 
 		sintersect = (rover->x1 + rover->x2) / 2;
 

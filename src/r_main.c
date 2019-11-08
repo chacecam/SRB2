@@ -86,6 +86,7 @@ player_t *viewplayer;
 
 #ifdef SOFTPOLY
 boolean modelinview = false;
+boolean frustumclipping = false;
 #endif
 
 // PORTALS!
@@ -1289,6 +1290,7 @@ void R_RenderPlayerView(player_t *player)
 
 #ifdef SOFTPOLY
 	modelinview = false;
+	frustumclipping = false;
 	RSP_OnFrame();
 #endif
 

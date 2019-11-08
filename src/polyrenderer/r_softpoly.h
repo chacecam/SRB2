@@ -27,7 +27,7 @@
 #include "../z_zone.h"
 #include "../w_wad.h"
 
-//#define RSP_CLIPTRIANGLES
+#define RSP_CLIPTRIANGLES
 
 #define FixedLerp(start, end, r) ( FixedMul(start, (FRACUNIT - (r))) + FixedMul(end, r) )
 #define FloatLerp(start, end, r) ( (start) * (1.0 - (r)) + (end) * (r) )

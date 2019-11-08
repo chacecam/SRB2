@@ -48,6 +48,23 @@ static boolean is_behind_view_frustum(rsp_vertex_t v0, rsp_vertex_t v1, rsp_vert
 	return false;
 }
 
+// determine if either coordinate of all vertices is offscreen
+static boolean tri_x_clipped(fpvector4_t *p0, fpvector4_t *p1, fpvector4_t *p2)
+{
+	return ((p0->x < -p0->w && p1->x < -p1->w && p2->x < -p2->w) || (p0->x > p0->w && p1->x > p1->w && p2->x > p2->w));
+}
+
+static boolean tri_y_clipped(fpvector4_t *p0, fpvector4_t *p1, fpvector4_t *p2)
+{
+	return ((p0->y < -p0->w && p1->y < -p1->w && p2->y < -p2->w) || (p0->y > p0->w && p1->y > p1->w && p2->y > p2->w));
+}
+
+static boolean is_triangle_offscreen(rsp_vertex_t *v0, rsp_vertex_t *v1, rsp_vertex_t *v2)
+{
+	return (tri_x_clipped(&v0->position, &v1->position, &v2->position)
+			|| tri_y_clipped(&v0->position, &v1->position, &v2->position));
+}
+
 #ifdef RSP_CLIPTRIANGLES
 typedef struct tpoint_s
 {
@@ -296,6 +313,9 @@ void RSP_TransformTriangle(rsp_triangle_t *tri)
 	tri->vertices[1].position = RSP_MatrixMultiplyVector(rsp_projectionmatrix, &tri->vertices[1].position);
 	tri->vertices[2].position = RSP_MatrixMultiplyVector(rsp_projectionmatrix, &tri->vertices[2].position);
 
+	if (is_triangle_offscreen(&tri->vertices[0], &tri->vertices[1], &tri->vertices[2]))
+		return;
+
 	// cull triangle by "normal" direction
 	if (rsp_target.cullmode != TRICULL_NONE)
 	{
@@ -315,10 +335,9 @@ void RSP_TransformTriangle(rsp_triangle_t *tri)
 	}
 
 #ifdef RSP_CLIPTRIANGLES
-	// clip transformed triangle
-	RSP_ClipTriangle(tri);
-#else
-	// draw triangle
-	RSP_DrawTriangle(tri);
-#endif // RSP_CLIPTRIANGLES
+	if (frustumclipping)
+		RSP_ClipTriangle(tri); // clip transformed triangle
+	else
+#endif
+		RSP_DrawTriangle(tri); // draw triangle
 }
