@@ -54,15 +54,16 @@ static boolean tri_x_clipped(fpvector4_t *p0, fpvector4_t *p1, fpvector4_t *p2)
 	return ((p0->x < -p0->w && p1->x < -p1->w && p2->x < -p2->w) || (p0->x > p0->w && p1->x > p1->w && p2->x > p2->w));
 }
 
+#if 0
 static boolean tri_y_clipped(fpvector4_t *p0, fpvector4_t *p1, fpvector4_t *p2)
 {
 	return ((p0->y < -p0->w && p1->y < -p1->w && p2->y < -p2->w) || (p0->y > p0->w && p1->y > p1->w && p2->y > p2->w));
 }
+#endif
 
 static boolean is_triangle_offscreen(rsp_vertex_t *v0, rsp_vertex_t *v1, rsp_vertex_t *v2)
 {
-	return (tri_x_clipped(&v0->position, &v1->position, &v2->position)
-			|| tri_y_clipped(&v0->position, &v1->position, &v2->position));
+	return (tri_x_clipped(&v0->position, &v1->position, &v2->position));
 }
 
 #ifdef RSP_CLIPTRIANGLES
