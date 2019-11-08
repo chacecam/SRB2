@@ -1227,6 +1227,14 @@ boolean RSP_RenderModel(vissprite_t *spr)
 		else if (mobj->sprite == SPR_PLAY) // Looks like a player, but doesn't have a color? Get rid of green sonic syndrome.
 			skincolor = (skincolors_t)skins[0].prefcolor;
 
+		// load normal texture
+		if (!md2->texture)
+		{
+			if (mobj->skin && mobj->sprite == SPR_PLAY)
+				skinnum = (skin_t*)mobj->skin-skins;
+			RSP_LoadModelTexture(md2, skinnum);
+		}
+
 		// set translation
 		if ((mobj->flags & MF_BOSS) && (mobj->flags2 & MF2_FRET) && (leveltime & 1)) // Bosses "flash"
 		{
@@ -1238,14 +1246,6 @@ boolean RSP_RenderModel(vissprite_t *spr)
 				skinnum = TC_BOSS;
 			translation = R_GetTranslationColormap(skinnum, 0, GTC_CACHE);
 			skincolor = -skinnum;
-		}
-
-		// load normal texture
-		if (!md2->texture)
-		{
-			if (mobj->skin && mobj->sprite == SPR_PLAY)
-				skinnum = (skin_t*)mobj->skin-skins;
-			RSP_LoadModelTexture(md2, skinnum);
 		}
 
 		// load blend texture
