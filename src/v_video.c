@@ -56,7 +56,7 @@ static void CV_Models_OnChange(void);
 consvar_t cv_models = {"models", "On", CV_SAVE|CV_CALL, CV_OnOff, CV_Models_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 static CV_PossibleValue_t CV_ModelInterpolation[] = {{0, "Off"}, {1, "Sometimes"}, {2, "Always"}, {0, NULL}};
-consvar_t cv_modelinterpolation = {"modelinterpolation", "Sometimes", CV_SAVE, CV_ModelInterpolation, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_modelinterpolation = {"modelinterpolation", "Always", CV_SAVE, CV_ModelInterpolation, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 #ifdef SOFTPOLY
 static CV_PossibleValue_t CV_ModelBillboarding[] = {
