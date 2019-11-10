@@ -1342,7 +1342,9 @@ static void HWR_GetBlendedTexture(GLPatch_t *gpatch, GLPatch_t *blendgpatch, INT
 
 static boolean HWR_CanInterpolateModel(mobj_t *mobj, model_t *model)
 {
-	if (cv_modelinterpolation.value == 2)
+	if (!cv_modelinterpolation.value)
+		return false;
+	else if (cv_modelinterpolation.value == 2)
 		return true;
 	return model->interpolate[(mobj->frame & FF_FRAMEMASK)];
 }
