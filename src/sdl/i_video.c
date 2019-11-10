@@ -1309,6 +1309,7 @@ void VID_CheckRenderer(void)
 	}
 
 	SDLSetMode(vid.width, vid.height, USE_FULLSCREEN);
+	Impl_VideoSetupBuffer();
 
 	R_FreeModelTextures();
 
@@ -1319,7 +1320,6 @@ void VID_CheckRenderer(void)
 			SDL_FreeSurface(bufSurface);
 			bufSurface = NULL;
 		}
-		Impl_VideoSetupBuffer();
 #ifdef HWRENDER
 		HWR_FreeTextureCache();
 #endif
@@ -1440,7 +1440,7 @@ static void Impl_VideoSetupSDLBuffer(void)
 static void Impl_VideoSetupBuffer(void)
 {
 	// Set up game's software render buffer
-	if (rendermode == render_soft)
+	//if (rendermode == render_soft)
 	{
 		vid.rowbytes = vid.width * vid.bpp;
 		vid.direct = NULL;
