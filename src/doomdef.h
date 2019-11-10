@@ -543,4 +543,7 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 /// Hardware renderer: OpenGL
 #define GL_SHADERS
 
+/// Cache patches in Lua in a way that renderer switching will work flawlessly.
+//#define LUA_PATCH_SAFETY
+
 #endif // __DOOMDEF__

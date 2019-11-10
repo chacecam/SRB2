@@ -1860,8 +1860,12 @@ void I_StartupGraphics(void)
 		if (strncasecmp(vd, "gcvideo", 8) == 0 || strncasecmp(vd, "fbcon", 6) == 0 || strncasecmp(vd, "wii", 4) == 0 || strncasecmp(vd, "psl1ght", 8) == 0)
 			framebuffer = SDL_TRUE;
 	}
-	if (M_CheckParm("-software"))
+#ifdef HWRENDER
+	if (M_CheckParm("-opengl"))
+		rendermode = render_opengl;
+	else if (M_CheckParm("-software"))
 		rendermode = render_soft;
+#endif
 	SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY>>1,SDL_DEFAULT_REPEAT_INTERVAL<<2);
 	SDLESSet();
 	VID_Command_ModeList_f();
@@ -1894,6 +1898,11 @@ void I_StartupGraphics(void)
 	//DisableAero(); //also disable Aero on Vista
 #endif
 
+#ifdef HWRENDER
+	I_StartupHardwareGraphics();
+	if (rendermode == render_opengl)
+		I_StartupHardwareGraphics();
+#else
 	rendermode = render_soft; //force software mode when there no HWRENDER code
 #if defined(_WII)
 	vid.width = 640;
@@ -1941,6 +1950,75 @@ void I_StartupGraphics(void)
 	SDLWMSet();
 
 	graphics_started = true;
+}
+
+void I_StartupHardwareGraphics(void)
+{
+#ifdef HWRENDER
+	static boolean glstartup = false;
+	if (!glstartup)
+	{
+		HWD.pfnInit             = hwSym("Init",NULL);
+		HWD.pfnFinishUpdate     = NULL;
+		HWD.pfnDraw2DLine       = hwSym("Draw2DLine",NULL);
+		HWD.pfnDrawPolygon      = hwSym("DrawPolygon",NULL);
+		HWD.pfnSetBlend         = hwSym("SetBlend",NULL);
+		HWD.pfnClearBuffer      = hwSym("ClearBuffer",NULL);
+		HWD.pfnSetTexture       = hwSym("SetTexture",NULL);
+		HWD.pfnReadRect         = hwSym("ReadRect",NULL);
+		HWD.pfnGClipRect        = hwSym("GClipRect",NULL);
+		HWD.pfnClearMipMapCache = hwSym("ClearMipMapCache",NULL);
+		HWD.pfnSetSpecialState  = hwSym("SetSpecialState",NULL);
+		HWD.pfnSetPalette       = hwSym("SetPalette",NULL);
+		HWD.pfnGetTextureUsed   = hwSym("GetTextureUsed",NULL);
+		HWD.pfnDrawModel        = hwSym("DrawModel",NULL);
+		HWD.pfnCreateModelVBOs  = hwSym("CreateModelVBOs",NULL);
+		HWD.pfnSetTransform     = hwSym("SetTransform",NULL);
+		HWD.pfnPostImgRedraw    = hwSym("PostImgRedraw",NULL);
+		HWD.pfnFlushScreenTextures=hwSym("FlushScreenTextures",NULL);
+		HWD.pfnStartScreenWipe  = hwSym("StartScreenWipe",NULL);
+		HWD.pfnEndScreenWipe    = hwSym("EndScreenWipe",NULL);
+		HWD.pfnDoScreenWipe     = hwSym("DoScreenWipe",NULL);
+		HWD.pfnDrawIntermissionBG=hwSym("DrawIntermissionBG",NULL);
+		HWD.pfnMakeScreenTexture= hwSym("MakeScreenTexture",NULL);
+		HWD.pfnMakeScreenFinalTexture=hwSym("MakeScreenFinalTexture",NULL);
+		HWD.pfnDrawScreenFinalTexture=hwSym("DrawScreenFinalTexture",NULL);
+
+		HWD.pfnLoadShaders = hwSym("LoadShaders",NULL);
+		HWD.pfnKillShaders = hwSym("KillShaders",NULL);
+		HWD.pfnSetShader = hwSym("SetShader",NULL);
+		HWD.pfnUnSetShader = hwSym("UnSetShader",NULL);
+
+		HWD.pfnLoadCustomShader = hwSym("LoadCustomShader",NULL);
+		HWD.pfnInitCustomShaders = hwSym("InitCustomShaders",NULL);
+
+		if (HWD.pfnInit(I_Error)) // let load the OpenGL library
+		{
+			/*
+			* We want at least 1 bit R, G, and B,
+			* and at least 16 bpp. Why 1 bit? May be more?
+			*/
+			SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 1);
+			SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 1);
+			SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 1);
+			SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+			if (!OglSdlSurface(vid.width, vid.height, (USE_FULLSCREEN)))
+				if (!OglSdlSurface(vid.width, vid.height, !(USE_FULLSCREEN)))
+					rendermode = render_soft;
+				else
+					glstartup = true;
+		}
+		else
+			rendermode = render_soft;
+#if 1 //#ifdef  _WIN32_WCE
+		vid.width = BASEVIDWIDTH;
+		vid.height = BASEVIDHEIGHT;
+#else
+		vid.width = 640; // hack to make voodoo cards work in 640x480
+		vid.height = 480;
+#endif
+	}
+#endif
 }
 
 void I_ShutdownGraphics(void)

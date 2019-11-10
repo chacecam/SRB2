@@ -749,6 +749,10 @@ static INT32 SolveTProblem(void)
 		return 0;
 
 	CONS_Debug(DBG_RENDER, "Solving T-joins. This may take a while. Please wait...\n");
+#ifdef HWR_LOADING_SCREEN
+	CON_Drawer(); //let the user know what we are doing
+	I_FinishUpdate(); // page flip or blit buffer
+#endif
 
 	numsplitpoly = 0;
 

@@ -32,6 +32,7 @@ extern size_t addsubsector;
 // --------
 void HWR_InitTextureCache(void);
 void HWR_FreeTextureCache(void);
+void HWR_FreeColormaps(void);
 void HWR_FreeExtraSubsectors(void);
 
 void HWR_GetFlat(lumpnum_t flatlumpnum);
