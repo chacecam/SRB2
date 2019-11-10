@@ -589,7 +589,7 @@ static gl_shaderprogram_t gl_shaderprograms[MAXSHADERPROGRAMS];
 // https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_gpu_shader_fp64.txt
 #define GLSL_INTERNAL_FOG_MIX \
 	"float fog_distance = gl_FragCoord.z / gl_FragCoord.w;\n" \
-	"float fog_attenuation = floor(fog(fog_distance, 0.0001 * ((256.0-lighting)/24.0), fog_density)*10.0)/10.0;\n" \
+	"float fog_attenuation = floor(fog(fog_distance, 0.0001 * ((256.0-lighting)/32.0), fog_density)*10.0)/10.0;\n" \
 	"vec4 fog_color = vec4(fade_color[0], fade_color[1], fade_color[2], 1.0);\n" \
 	"vec4 mixed_color = texel * mix_color;\n" \
 	"vec4 fog_mix = mix(mixed_color, fog_color, fog_attenuation);\n" \

@@ -139,6 +139,8 @@ void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, UINT32 mixcolor, UIN
 	mix_color.rgba = mixcolor;
 	fog_color.rgba = fadecolor;
 
+	light_level = HWR_GetLight(light_level);
+
 	mix = mix_color.s.alpha*10/4;
 	if (mix > 25) mix = 25;
 	mix *= 255;
@@ -190,7 +192,8 @@ void HWR_NoColormapLighting(FSurfaceInfo *Surface, INT32 light_level, UINT32 mix
 	float fog_alpha;
 
 	// You see the problem is that darker light isn't actually as dark as it SHOULD be.
-	lightmix = 255 - ((255 - light_level)*100/96);
+	//lightmix = 255 - ((255 - light_level)*100/96);
+	lightmix = HWR_GetLight(light_level);
 
 	// Don't go out of bounds
 	if (lightmix < 0)
@@ -245,7 +248,7 @@ void HWR_NoColormapLighting(FSurfaceInfo *Surface, INT32 light_level, UINT32 mix
 
 	Surface->PolyColor.rgba = final_color.rgba;
 	Surface->FadeColor.rgba = fog_color.rgba;
-	Surface->LightInfo.light_level = light_level;
+	Surface->LightInfo.light_level = lightmix;
 }
 
 UINT8 HWR_FogBlockAlpha(INT32 light, UINT32 color) // Let's see if this can work
@@ -254,7 +257,8 @@ UINT8 HWR_FogBlockAlpha(INT32 light, UINT32 color) // Let's see if this can work
 	INT32 alpha;
 
 	// You see the problem is that darker light isn't actually as dark as it SHOULD be.
-	light = light - ((255 - light)*24/22);
+	//light = light - ((255 - light)*24/22);
+	light = HWR_GetLight(light);
 
 	// Don't go out of bounds
 	if (light < 0)
@@ -270,6 +274,43 @@ UINT8 HWR_FogBlockAlpha(INT32 light, UINT32 color) // Let's see if this can work
 	surfcolor.s.alpha = (alpha*light)/(2*256)+255-light;
 
 	return surfcolor.s.alpha;
+}
+
+static UINT8 seclighttable[2][256];
+INT32 HWR_GetLight(INT32 lightlevel)
+{
+	static boolean init = false;
+	if (!init)
+	{
+		int i;
+		float l;
+		const float f = 0.75f;
+		const float max = 255.0f / (expf(powf(1, f)) - 1);
+		const INT32 alit = 28;
+
+		for (i = 0; i < 256; i++)
+		{
+			l = (expf(powf(i / 255.0f, f)) - 1) * max;
+
+			if (l < 0)
+				l = 0;
+			if (l > 255)
+				l = 255;
+
+			seclighttable[0][i] = (UINT8)(llrintf(l));
+			seclighttable[1][i] = (UINT8)((llrintf(l) / alit) * alit);
+		}
+
+		init = true;
+	}
+
+	// Don't go out of bounds
+	if (lightlevel < 0)
+		lightlevel = 0;
+	else if (lightlevel > 255)
+		lightlevel = 255;
+
+	return seclighttable[cv_grsoftwarelight.value][lightlevel];
 }
 
 // ==========================================================================

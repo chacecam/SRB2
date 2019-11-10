@@ -65,6 +65,7 @@ void HWR_AddCommands(void);
 void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, UINT32 mixcolor, UINT32 fadecolor);
 void HWR_NoColormapLighting(FSurfaceInfo *Surface, INT32 light_level, UINT32 mixcolor, UINT32 fadecolor);
 UINT8 HWR_FogBlockAlpha(INT32 light, UINT32 color); // Let's see if this can work
+INT32 HWR_GetLight(INT32 lightlevel);
 
 void HWR_FoggingOn(void);
 
@@ -133,6 +134,7 @@ extern consvar_t cv_grfov;
 extern consvar_t cv_grmd2;
 extern consvar_t cv_grfog;
 extern consvar_t cv_grfogdensity;
+extern consvar_t cv_grsoftwarelight;
 extern consvar_t cv_grgammared;
 extern consvar_t cv_grgammagreen;
 extern consvar_t cv_grgammablue;
