@@ -4797,7 +4797,6 @@ void HWR_AddCommands(void)
 	{
 		CV_RegisterVar(&cv_grrounddown);
 		CV_RegisterVar(&cv_grfov);
-		CV_RegisterVar(&cv_grfogdensity);
 		CV_RegisterVar(&cv_grfiltermode);
 		CV_RegisterVar(&cv_granisotropicmode);
 		CV_RegisterVar(&cv_grcorrecttricks);
