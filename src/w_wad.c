@@ -512,7 +512,7 @@ static lumpinfo_t* ResGetLumpsWad (FILE* handle, UINT16* nlmp, const char* filen
 	// read the header
 	if (fread(&header, 1, sizeof header, handle) < sizeof header)
 	{
-		CONS_Alert(CONS_ERROR, M_GetText("Can't read wad header because %s\n"), strerror(ferror(handle)));
+		CONS_Alert(CONS_ERROR, M_GetText("Can't read wad header because %s\n"), M_FileError(handle));
 		return NULL;
 	}
 
@@ -535,7 +535,7 @@ static lumpinfo_t* ResGetLumpsWad (FILE* handle, UINT16* nlmp, const char* filen
 	if (fseek(handle, header.infotableofs, SEEK_SET) == -1
 		|| fread(fileinfo, 1, i, handle) < i)
 	{
-		CONS_Alert(CONS_ERROR, M_GetText("Corrupt wadfile directory (%s)\n"), strerror(ferror(handle)));
+		CONS_Alert(CONS_ERROR, M_GetText("Corrupt wadfile directory (%s)\n"), M_FileError(handle));
 		free(fileinfov);
 		return NULL;
 	}
@@ -556,7 +556,7 @@ static lumpinfo_t* ResGetLumpsWad (FILE* handle, UINT16* nlmp, const char* filen
 				handle) < sizeof realsize)
 			{
 				I_Error("corrupt compressed file: %s; maybe %s", /// \todo Avoid the bailout?
-					filename, strerror(ferror(handle)));
+					filename, M_FileError(handle));
 			}
 			realsize = LONG(realsize);
 			if (realsize != 0)
@@ -694,7 +694,7 @@ static lumpinfo_t* ResGetLumpsZip (FILE* handle, UINT16* nlmp)
 	fseek(handle, -4, SEEK_CUR);
 	if (fread(&zend, 1, sizeof zend, handle) < sizeof zend)
 	{
-		CONS_Alert(CONS_ERROR, "Corrupt central directory (%s)\n", strerror(ferror(handle)));
+		CONS_Alert(CONS_ERROR, "Corrupt central directory (%s)\n", M_FileError(handle));
 		return NULL;
 	}
 	numlumps = zend.entries;
@@ -711,7 +711,7 @@ static lumpinfo_t* ResGetLumpsZip (FILE* handle, UINT16* nlmp)
 
 		if (fread(zentry, 1, sizeof(zentry_t), handle) < sizeof(zentry_t))
 		{
-			CONS_Alert(CONS_ERROR, "Failed to read central directory (%s)\n", strerror(ferror(handle)));
+			CONS_Alert(CONS_ERROR, "Failed to read central directory (%s)\n", M_FileError(handle));
 			Z_Free(lumpinfo);
 			free(zentries);
 			return NULL;
@@ -731,7 +731,7 @@ static lumpinfo_t* ResGetLumpsZip (FILE* handle, UINT16* nlmp)
 		fullname = malloc(zentry->namelen + 1);
 		if (fgets(fullname, zentry->namelen + 1, handle) != fullname)
 		{
-			CONS_Alert(CONS_ERROR, "Unable to read lumpname (%s)\n", strerror(ferror(handle)));
+			CONS_Alert(CONS_ERROR, "Unable to read lumpname (%s)\n", M_FileError(handle));
 			Z_Free(lumpinfo);
 			free(zentries);
 			free(fullname);
