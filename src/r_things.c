@@ -468,10 +468,7 @@ void R_AddSpriteDefs(UINT16 wadnum)
 
 		if (R_AddSingleSpriteDef(spritename, &sprites[i], wadnum, start, end))
 		{
-#ifdef HWRENDER
-			if (rendermode == render_opengl)
-				HWR_AddSpriteModel(i);
-#endif
+			R_AddSpriteModel(i);
 			// if a new sprite was added (not just replaced)
 			addsprites++;
 #ifndef ZDEBUG
@@ -3327,10 +3324,7 @@ next_token:
 		skin_cons_t[numskins].strvalue = skin->name;
 #endif
 
-#ifdef HWRENDER
-		if (rendermode == render_opengl)
-			HWR_AddPlayerModel(numskins);
-#endif
+		R_AddPlayerModel(numskins);
 
 		numskins++;
 	}
