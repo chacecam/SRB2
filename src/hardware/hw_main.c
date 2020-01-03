@@ -31,6 +31,7 @@
 #include "../p_setup.h"
 #include "../r_local.h"
 #include "../r_patch.h"
+#include "../r_model.h"
 #include "../r_bsp.h"
 #include "../d_clisrv.h"
 #include "../w_wad.h"
@@ -5365,7 +5366,7 @@ static void HWR_DrawSprites(void)
 #endif
 				if (spr->mobj && spr->mobj->skin && spr->mobj->sprite == SPR_PLAY)
 				{
-					if (!cv_grmodels.value || md2_playermodels[(skin_t*)spr->mobj->skin-skins].notfound || md2_playermodels[(skin_t*)spr->mobj->skin-skins].scale < 0.0f)
+					if (!cv_models.value || md2_playermodels[(skin_t*)spr->mobj->skin-skins].notfound || md2_playermodels[(skin_t*)spr->mobj->skin-skins].scale < 0.0f)
 						HWR_DrawSprite(spr);
 					else
 					{
@@ -5375,7 +5376,7 @@ static void HWR_DrawSprites(void)
 				}
 				else
 				{
-					if (!cv_grmodels.value || md2_models[spr->mobj->sprite].notfound || md2_models[spr->mobj->sprite].scale < 0.0f)
+					if (!cv_models.value || md2_models[spr->mobj->sprite].notfound || md2_models[spr->mobj->sprite].scale < 0.0f)
 						HWR_DrawSprite(spr);
 					else
 					{
@@ -5522,7 +5523,7 @@ static void HWR_ProjectSprite(mobj_t *thing)
 	tz = (tr_x * gr_viewcos) + (tr_y * gr_viewsin);
 
 	// thing is behind view plane?
-	if (tz < ZCLIP_PLANE && !papersprite && (!cv_grmodels.value || md2_models[thing->sprite].notfound == true)) //Yellow: Only MD2's dont disappear
+	if (tz < ZCLIP_PLANE && !papersprite && (!cv_models.value || md2_models[thing->sprite].notfound == true)) //Yellow: Only MD2's dont disappear
 		return;
 
 	// The above can stay as it works for cutting sprites that are too close
@@ -6543,7 +6544,6 @@ static void HWR_FoggingOn(void)
 // ==========================================================================
 
 static CV_PossibleValue_t grsoftwarefog_cons_t[] = {{0, "Off"}, {1, "On"}, {2, "LightPlanes"}, {0, NULL}};
-static CV_PossibleValue_t grmodelinterpolation_cons_t[] = {{0, "Off"}, {1, "Sometimes"}, {2, "Always"}, {0, NULL}};
 
 static void CV_grmodellighting_OnChange(void);
 static void CV_grfiltermode_OnChange(void);
@@ -6572,8 +6572,6 @@ consvar_t cv_grcoronas = {"gr_coronas", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, 
 consvar_t cv_grcoronasize = {"gr_coronasize", "1", CV_SAVE|CV_FLOAT, 0, NULL, 0, NULL, NULL, 0, 0, NULL};
 #endif
 
-consvar_t cv_grmodels = {"gr_models", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-consvar_t cv_grmodelinterpolation = {"gr_modelinterpolation", "Sometimes", CV_SAVE, grmodelinterpolation_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_grmodellighting = {"gr_modellighting", "Off", CV_SAVE|CV_CALL, CV_OnOff, CV_grmodellighting_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_grspritebillboarding = {"gr_spritebillboarding", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -6641,8 +6639,6 @@ void HWR_AddCommands(void)
 #endif
 
 	CV_RegisterVar(&cv_grmodellighting);
-	CV_RegisterVar(&cv_grmodelinterpolation);
-	CV_RegisterVar(&cv_grmodels);
 
 	CV_RegisterVar(&cv_grskydome);
 	CV_RegisterVar(&cv_grspritebillboarding);
