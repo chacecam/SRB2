@@ -35,6 +35,10 @@
 #include "m_random.h" // quake camera shake
 #include "r_portal.h"
 
+#ifdef POLYRENDERER
+#include "polyrenderer/r_softpoly.h"
+#endif
+
 #ifdef HWRENDER
 #include "hardware/hw_main.h"
 #endif
@@ -71,6 +75,11 @@ angle_t viewangle, aimingangle;
 fixed_t viewcos, viewsin;
 sector_t *viewsector;
 player_t *viewplayer;
+
+#ifdef POLYRENDERER
+boolean modelinview = false;
+boolean frustumclipping = false;
+#endif
 
 //
 // precalculated math tables
@@ -646,6 +655,9 @@ void R_ExecuteSetViewSize(void)
 #endif
 
 	am_recalc = true;
+#ifdef POLYRENDERER
+	RSP_Viewport(viewwidth, viewheight);
+#endif
 }
 
 //
@@ -673,6 +685,10 @@ void R_Init(void)
 	R_InitTranslationTables();
 
 	R_InitDrawNodes();
+
+#ifdef POLYRENDERER
+	RSP_Init();
+#endif
 
 	framecount = 0;
 }
@@ -856,6 +872,9 @@ void R_SetupFrame(player_t *player)
 	viewcos = FINECOSINE(viewangle>>ANGLETOFINESHIFT);
 
 	R_SetupFreelook();
+#ifdef POLYRENDERER
+	RSP_ModelView();
+#endif
 }
 
 void R_SkyboxFrame(player_t *player)
@@ -1065,6 +1084,12 @@ void R_RenderPlayerView(player_t *player)
 	framecount++;
 	validcount++;
 
+#ifdef POLYRENDERER
+	modelinview = false;
+	frustumclipping = false;
+	RSP_OnFrame();
+#endif
+
 	// Clear buffers.
 	R_ClearClipSegs();
 	R_ClearDrawSegs();
@@ -1108,6 +1133,10 @@ void R_RenderPlayerView(player_t *player)
 	if (portal_base)
 	{
 		portal_t *portal;
+#ifdef POLYRENDERER
+		if (modelinview)
+			RSP_StoreViewpoint();
+#endif
 
 		for(portal = portal_base; portal; portal = portal_base)
 		{
@@ -1117,6 +1146,13 @@ void R_RenderPlayerView(player_t *player)
 
 			// Apply the viewpoint stored for the portal.
 			R_PortalFrame(portal);
+#ifdef POLYRENDERER
+			if (modelinview)
+			{
+				RSP_ModelView();
+				rsp_portalrender = portalrender;
+			}
+#endif
 
 			// Hack in the clipsegs to delimit the starting
 			// clipping for sprites and possibly other similar
@@ -1144,6 +1180,10 @@ void R_RenderPlayerView(player_t *player)
 			Portal_Remove(portal);
 		}
 	}
+#ifdef POLYRENDERER
+	if (rsp_portalrender)
+		RSP_RestoreViewpoint();
+#endif
 
 	R_DrawPlanes();
 #ifdef FLOORSPLATS
