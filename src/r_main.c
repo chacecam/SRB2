@@ -872,9 +872,6 @@ void R_SetupFrame(player_t *player)
 	viewcos = FINECOSINE(viewangle>>ANGLETOFINESHIFT);
 
 	R_SetupFreelook();
-#ifdef POLYRENDERER
-	RSP_ModelView();
-#endif
 }
 
 void R_SkyboxFrame(player_t *player)
@@ -1048,6 +1045,8 @@ static void Mask_Pre (maskcount_t* m)
 	m->viewx = viewx;
 	m->viewy = viewy;
 	m->viewz = viewz;
+	m->viewangle = viewangle;
+	m->aimingangle = aimingangle;
 	m->viewsector = viewsector;
 }
 
@@ -1084,12 +1083,6 @@ void R_RenderPlayerView(player_t *player)
 	framecount++;
 	validcount++;
 
-#ifdef POLYRENDERER
-	modelinview = false;
-	frustumclipping = false;
-	RSP_OnFrame();
-#endif
-
 	// Clear buffers.
 	R_ClearClipSegs();
 	R_ClearDrawSegs();
@@ -1104,9 +1097,15 @@ void R_RenderPlayerView(player_t *player)
 	NetUpdate();
 
 	// The head node is the last node output.
-
 	Mask_Pre(&masks[nummasks - 1]);
 	curdrawsegs = ds_p;
+
+#ifdef POLYRENDERER
+	modelinview = false;
+	frustumclipping = false;
+	RSP_OnFrame();
+#endif
+
 //profile stuff ---------------------------------------------------------
 #ifdef TIMING
 	mytotal = 0;
@@ -1124,6 +1123,10 @@ void R_RenderPlayerView(player_t *player)
 
 	R_ClipSprites(drawsegs, NULL);
 
+#ifdef POLYRENDERER
+	if (modelinview)
+		RSP_StoreViewpoint();
+#endif
 
 	// Add skybox portals caused by sky visplanes.
 	if (cv_skybox.value && skyboxmo[0])
@@ -1133,12 +1136,8 @@ void R_RenderPlayerView(player_t *player)
 	if (portal_base)
 	{
 		portal_t *portal;
-#ifdef POLYRENDERER
-		if (modelinview)
-			RSP_StoreViewpoint();
-#endif
 
-		for(portal = portal_base; portal; portal = portal_base)
+		for (portal = portal_base; portal; portal = portal_base)
 		{
 			portalrender = portal->pass; // Recursiveness depth.
 
@@ -1146,11 +1145,12 @@ void R_RenderPlayerView(player_t *player)
 
 			// Apply the viewpoint stored for the portal.
 			R_PortalFrame(portal);
+
 #ifdef POLYRENDERER
 			if (modelinview)
 			{
 				RSP_ModelView();
-				rsp_portalrender = portalrender;
+				rsp_maskdraw = (RSP_MASKDRAWBIT | portalrender);
 			}
 #endif
 
@@ -1180,8 +1180,9 @@ void R_RenderPlayerView(player_t *player)
 			Portal_Remove(portal);
 		}
 	}
+
 #ifdef POLYRENDERER
-	if (rsp_portalrender)
+	if (modelinview)
 		RSP_RestoreViewpoint();
 #endif
 

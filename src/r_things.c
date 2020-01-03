@@ -58,13 +58,6 @@ static void R_InitSkins(void);
 #define MINZ (FRACUNIT*4)
 #define BASEYCENTER (BASEVIDHEIGHT/2)
 
-typedef struct
-{
-	INT32 x1, x2;
-	INT32 column;
-	INT32 topclip, bottomclip;
-} maskdraw_t;
-
 //
 // Sprite rotation 0 is facing the viewer,
 //  rotation 1 is one angle turn CLOCKWISE around the axis.
@@ -643,6 +636,7 @@ INT16 *mceilingclip;
 #ifdef POLYRENDERER
 INT16 *rsp_mfloorclip;
 INT16 *rsp_mceilingclip;
+INT32 rsp_portalclip[2];
 #endif
 
 fixed_t spryscale = 0, sprtopscreen = 0, sprbotscreen = 0;
@@ -1478,6 +1472,15 @@ static void R_ProjectSprite(mobj_t *thing)
 #endif
 	}
 
+#ifdef POLYRENDERER
+	// Lactozilla: Just project a big ass sprite
+	if (model)
+	{
+		x1 = 0;
+		x2 = viewwidth;
+	}
+#endif
+
 	if ((thing->flags2 & MF2_LINKDRAW) && thing->tracer) // toast 16/09/16 (SYMMETRY)
 	{
 		fixed_t linkscale;
@@ -1614,6 +1617,8 @@ static void R_ProjectSprite(mobj_t *thing)
 
 	vis->x1 = x1 < 0 ? 0 : x1;
 	vis->x2 = x2 >= viewwidth ? viewwidth-1 : x2;
+	vis->clipleft = 0;
+	vis->clipright = viewwidth-1;
 
 	// PORTAL SEMI-CLIPPING
 	if (portalrender)
@@ -1622,6 +1627,8 @@ static void R_ProjectSprite(mobj_t *thing)
 			vis->x1 = portalclipstart;
 		if (vis->x2 >= portalclipend)
 			vis->x2 = portalclipend-1;
+		vis->clipleft = portalclipstart;
+		vis->clipright = portalclipend-1;
 	}
 
 	vis->xscale = xscale; //SoM: 4/17/2000
@@ -1702,7 +1709,8 @@ static void R_ProjectSprite(mobj_t *thing)
 		R_SplitSprite(vis);
 
 #ifdef POLYRENDERER
-	RSP_StoreSpriteViewpoint(vis);
+	if (rsp_maskdraw & RSP_MASKDRAWBIT)
+		RSP_StoreSpriteViewpoint(vis);
 #endif
 
 	// Debug
@@ -1804,7 +1812,6 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 			return;
 	}
 
-
 	//SoM: 3/17/2000: Disregard sprites that are out of view..
 	gzt = thing->z + spritecachedinfo[lump].topoffset;
 	gz = gzt - spritecachedinfo[lump].height;
@@ -1831,6 +1838,8 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 
 	vis->x1 = x1 < 0 ? 0 : x1;
 	vis->x2 = x2 >= viewwidth ? viewwidth-1 : x2;
+	vis->clipleft = 0;
+	vis->clipright = viewwidth-1;
 
 	// PORTAL SEMI-CLIPPING
 	if (portalrender)
@@ -1839,6 +1848,8 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 			vis->x1 = portalclipstart;
 		if (vis->x2 >= portalclipend)
 			vis->x2 = portalclipend-1;
+		vis->clipleft = portalclipstart;
+		vis->clipright = portalclipend-1;
 	}
 
 	vis->xscale = xscale; //SoM: 4/17/2000
@@ -2366,18 +2377,11 @@ static void R_CreateDrawNodes(maskcount_t* mask, drawnode_t* head, boolean temps
 			}
 			else if (r2->sprite)
 			{
-#ifdef POLYRENDERER
-				if (r2->sprite->model || rover->model)
-					goto skip;
-#endif
 				if (r2->sprite->x1 > rover->x2 || r2->sprite->x2 < rover->x1)
 					continue;
 				if (r2->sprite->szt > rover->sz || r2->sprite->sz < rover->szt)
 					continue;
 
-#ifdef POLYRENDERER
-				skip:
-#endif
 				if (r2->sprite->sortscale > rover->sortscale
 				 || (r2->sprite->sortscale == rover->sortscale && r2->sprite->dispoffset > rover->dispoffset))
 				{
@@ -2466,6 +2470,8 @@ static void R_DrawSprite(vissprite_t *spr)
 #ifdef POLYRENDERER
 	rsp_mfloorclip = mfloorclip;
 	rsp_mceilingclip = mceilingclip;
+	rsp_portalclip[0] = spr->clipleft;
+	rsp_portalclip[1] = spr->clipright;
 	if (!spr->model)
 		R_DrawVisSprite(spr);
 	else if (!RSP_RenderModel(spr))
@@ -2499,24 +2505,8 @@ void R_ClipSprites(drawseg_t* dsstart, portal_t* portal)
 		fixed_t		scale;
 		fixed_t		lowscale;
 		INT32		silhouette;
-#ifdef POLYRENDERER
-		boolean model = false;
-		INT32 ox1 = 0, ox2 = 0;
-#endif
 
 		spr = R_GetVisSprite(clippedvissprites);
-
-#ifdef POLYRENDERER
-		// Arkus: Yes, clip against the ENTIRE viewport.
-		// You don't know how big the model is!
-		// Lactozilla: Arkus is gay
-		if (spr->model)
-		{
-			model = true;
-			ox1 = spr->x1, ox2 = spr->x2;
-			spr->x1 = 0, spr->x2 = viewwidth;
-		}
-#endif
 
 		for (x = spr->x1; x <= spr->x2; x++)
 			spr->clipbot[x] = spr->cliptop[x] = -2;
@@ -2691,13 +2681,6 @@ void R_ClipSprites(drawseg_t* dsstart, portal_t* portal)
 
 		if (portal)
 		{
-#ifdef POLYRENDERER
-			if (model)
-			{
-				spr->x1 = portal->start;
-				spr->x2 = portal->end;
-			}
-#endif
 			for (x = spr->x1; x <= spr->x2; x++)
 			{
 				if (spr->clipbot[x] > portal->floorclip[x - portal->start])
@@ -2706,12 +2689,6 @@ void R_ClipSprites(drawseg_t* dsstart, portal_t* portal)
 					spr->cliptop[x] = portal->ceilingclip[x - portal->start];
 			}
 		}
-
-#ifdef POLYRENDERER
-		// Arkus: Restore column positions.
-		if (model)
-			spr->x1 = ox1, spr->x2 = ox2;
-#endif
 	}
 }
 
@@ -2801,10 +2778,22 @@ void R_DrawMasked(maskcount_t* masks, UINT8 nummasks)
 
 	for (; nummasks > 0; nummasks--)
 	{
-		viewx = masks[nummasks - 1].viewx;
-		viewy = masks[nummasks - 1].viewy;
-		viewz = masks[nummasks - 1].viewz;
-		viewsector = masks[nummasks - 1].viewsector;
+		maskcount_t *mask = &masks[nummasks - 1];
+		viewx = mask->viewx;
+		viewy = mask->viewy;
+		viewz = mask->viewz;
+		viewangle = mask->viewangle;
+		aimingangle = mask->aimingangle;
+		viewsector = mask->viewsector;
+
+#ifdef POLYRENDERER
+		if (modelinview)
+		{
+			if (mask->vissprites[1] - mask->vissprites[0] > 0)
+				RSP_ModelView();
+			rsp_maskdraw = (nummasks - 1);
+		}
+#endif
 
 		R_DrawMaskedList(&heads[nummasks - 1]);
 		R_ClearDrawNodes(&heads[nummasks - 1]);
