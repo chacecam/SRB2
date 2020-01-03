@@ -1136,6 +1136,7 @@ static void R_ProjectSprite(mobj_t *thing)
 #endif
 
 	INT32 x1, x2;
+	INT32 projx1, projx2;
 	boolean checkvisible = true;
 	boolean checkzvisible = true;
 	boolean checksides = true;
@@ -1192,10 +1193,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	frustumclipping = false;
 
 	if (model)
-	{
 		checkvisible = false;
-		papersprite = false;
-	}
 #endif
 
 	// transform the origin point
@@ -1404,7 +1402,7 @@ static void R_ProjectSprite(mobj_t *thing)
 		x1 = (centerxfrac + FixedMul(tx,xscale))>>FRACBITS;
 
 		// off the right side?
-		if (x1 > viewwidth)
+		if (checkvisible && (x1 > viewwidth))
 			return;
 #endif
 
@@ -1424,7 +1422,7 @@ static void R_ProjectSprite(mobj_t *thing)
 		x2 = (centerxfrac + FixedMul(tx,xscale2))>>FRACBITS; x2--;
 
 		// off the left side
-		if (x2 < 0)
+		if (checkvisible && (x2 < 0))
 			return;
 #endif
 
@@ -1474,6 +1472,8 @@ static void R_ProjectSprite(mobj_t *thing)
 
 #ifdef POLYRENDERER
 	// Lactozilla: Just project a big ass sprite
+	projx1 = x1;
+	projx2 = x2;
 	if (model)
 	{
 		x1 = 0;
@@ -1617,6 +1617,8 @@ static void R_ProjectSprite(mobj_t *thing)
 
 	vis->x1 = x1 < 0 ? 0 : x1;
 	vis->x2 = x2 >= viewwidth ? viewwidth-1 : x2;
+	vis->projx1 = projx1 < 0 ? 0 : projx1;
+	vis->projx2 = projx2 >= viewwidth ? viewwidth-1 : projx2;
 	vis->clipleft = 0;
 	vis->clipright = viewwidth-1;
 
@@ -1627,6 +1629,10 @@ static void R_ProjectSprite(mobj_t *thing)
 			vis->x1 = portalclipstart;
 		if (vis->x2 >= portalclipend)
 			vis->x2 = portalclipend-1;
+		if (vis->projx1 < portalclipstart)
+			vis->projx1 = portalclipstart;
+		if (vis->projx2 >= portalclipend)
+			vis->projx2 = portalclipend-1;
 		vis->clipleft = portalclipstart;
 		vis->clipright = portalclipend-1;
 	}
@@ -1654,7 +1660,7 @@ static void R_ProjectSprite(mobj_t *thing)
 		vis->xiscale = iscale;
 	}
 
-	if (vis->x1 > x1)
+	if (vis->projx1 > x1)
 	{
 		vis->startfrac += FixedDiv(vis->xiscale, this_scale)*(vis->x1-x1);
 		vis->scale += scalestep*(vis->x1 - x1);
@@ -2475,9 +2481,13 @@ static void R_DrawSprite(vissprite_t *spr)
 	if (!spr->model)
 		R_DrawVisSprite(spr);
 	else if (!RSP_RenderModel(spr))
+	{
+		spr->x1 = spr->projx1;
+		spr->x2 = spr->projx2;
 #endif
-	R_DrawVisSprite(spr);
+		R_DrawVisSprite(spr);
 #ifdef POLYRENDERER
+	}
 	rsp_mfloorclip = NULL;
 	rsp_mceilingclip = NULL;
 #endif
