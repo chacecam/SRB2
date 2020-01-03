@@ -85,7 +85,8 @@ typedef struct
 typedef struct
 {
 	lumpcache_t *lumps;
-	lumpcache_t *rspcache;
+	lumpcache_t *software;
+	lumpcache_t *hardware;
 } patchcache_t;
 
 #ifdef HWRENDER
@@ -109,9 +110,6 @@ typedef struct wadfile_s
 	lumpinfo_t *lumpinfo;
 	lumpcache_t *lumpcache;
 	patchcache_t *patchcache;
-#ifdef HWRENDER
-	aatree_t *hwrcache; // patches are cached in renderer's native format
-#endif
 	UINT16 numlumps; // this wad's number of resources
 	FILE *handle;
 	UINT32 filesize; // for network
