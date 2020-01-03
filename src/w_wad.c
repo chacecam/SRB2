@@ -811,16 +811,17 @@ UINT16 W_InitFile(const char *filename, boolean mainfile)
 // Initialize lump cache.
 void W_InitFileCache(wadfile_t *wadfile, UINT16 numlumps)
 {
-	Z_Calloc(numlumps * sizeof (*wadfile->lumpcache), PU_STATIC, &wadfile->lumpcache);
+	size_t size = numlumps * sizeof(lumpcache_t);
+	Z_Calloc(size, PU_STATIC, &wadfile->lumpcache);
 
 	// Init patch cache
 	wadfile->patchcache = Z_Calloc(sizeof(patchcache_t), PU_STATIC, NULL);
-	Z_Calloc(numlumps * sizeof (*wadfile->patchcache->lumps), PU_STATIC, &wadfile->patchcache->lumps);
+	Z_Calloc(size, PU_STATIC, &wadfile->patchcache->lumps);
 #ifdef POLYRENDERER
-	Z_Calloc(numlumps * sizeof (*wadfile->patchcache->software), PU_SOFTPOLY, &wadfile->patchcache->software);
+	Z_Calloc(size, PU_SOFTPOLY, &wadfile->patchcache->software);
 #endif
 #ifdef HWRENDER
-	Z_Calloc(numlumps * sizeof (*wadfile->patchcache->hardware), PU_STATIC, &wadfile->patchcache->hardware);
+	Z_Calloc(size, PU_STATIC, &wadfile->patchcache->hardware);
 #endif
 }
 
@@ -1457,6 +1458,8 @@ static inline boolean W_IsPatchCachedPWAD(UINT16 wad, UINT16 lump, void *ptr)
 	if (!TestValidLump(wad, lump))
 		return false;
 
+	if (!wadfiles[wad]->patchcache)
+		return false;
 	lcache = wadfiles[wad]->patchcache->lumps[lump];
 
 	if (ptr)
@@ -1531,7 +1534,10 @@ void *W_CachePatchNumPwad(UINT16 wad, UINT16 lump, INT32 tag)
 	if (rendermode == render_soft || rendermode == render_none)
 #endif
 	{
-		lumpcache_t *lumpcache = wadfiles[wad]->patchcache->lumps;
+		lumpcache_t *lumpcache;
+		if (!wadfiles[wad]->patchcache)
+			return NULL;
+		lumpcache = wadfiles[wad]->patchcache->lumps;
 		if (!lumpcache[lump])
 		{
 			size_t len = W_LumpLengthPwad(wad, lump);
