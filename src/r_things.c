@@ -101,7 +101,7 @@ static const char *spritename;
 // ==========================================================================
 
 //
-//
+// R_InstallSpriteLump
 //
 static void R_InstallSpriteLump(UINT16 wad,            // graphics patch
                                 UINT16 lump,
@@ -127,8 +127,14 @@ static void R_InstallSpriteLump(UINT16 wad,            // graphics patch
 	{
 		UINT8 rot = (rotation != 0) ? (rotation-1) : 0;
 		patch_t *patch;
-		rsp_spritetexture_t *tex = &sprtemp[frame].rsp_texture[rot];
+		rsp_spritetexture_t *tex;
 		INT32 blockwidth, blockheight;
+
+		lumpcache_t *lumpcache = wadfiles[wad]->patchcache->rspcache;
+		if (!lumpcache[lump])
+			Z_Malloc(sizeof(rsp_spritetexture_t) * 8, PU_SOFTPOLY, &lumpcache[lump]);
+		tex = lumpcache[lump];
+		tex += rot;
 
 		if (R_CheckIfPatch(lumppat))
 		{
@@ -184,10 +190,6 @@ static void R_InstallSpriteLump(UINT16 wad,            // graphics patch
 		{
 			sprtemp[frame].lumppat[r] = lumppat;
 			sprtemp[frame].lumpid[r] = lumpid;
-#ifdef POLYRENDERER
-			if (r > 0)
-				sprtemp[frame].rsp_texture[r] = sprtemp[frame].rsp_texture[0];
-#endif
 		}
 		sprtemp[frame].flip = flipped ? 0xFF : 0; // 11111111 in binary
 		return;

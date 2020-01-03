@@ -82,6 +82,12 @@ typedef struct
 
 #define lumpcache_t void *
 
+typedef struct
+{
+	lumpcache_t *lumps;
+	lumpcache_t *rspcache;
+} patchcache_t;
+
 #ifdef HWRENDER
 #include "m_aatree.h"
 #endif
@@ -102,7 +108,7 @@ typedef struct wadfile_s
 	restype_t type;
 	lumpinfo_t *lumpinfo;
 	lumpcache_t *lumpcache;
-	lumpcache_t *patchcache;
+	patchcache_t *patchcache;
 #ifdef HWRENDER
 	aatree_t *hwrcache; // patches are cached in renderer's native format
 #endif
@@ -128,6 +134,7 @@ void W_Shutdown(void);
 FILE *W_OpenWadFile(const char **filename, boolean useerrors);
 // Load and add a wadfile to the active wad files, returns numbers of lumps, INT16_MAX on error
 UINT16 W_InitFile(const char *filename, boolean mainfile);
+void W_InitFileCache(wadfile_t *wadfile, UINT16 numlumps);
 
 // W_InitMultipleFiles returns 1 if all is okay, 0 otherwise,
 // so that it stops with a message if a file was not found, but not if all is okay.
