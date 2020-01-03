@@ -21,6 +21,6 @@
 #pragma pack()
 #endif
 
-boolean HWR_DrawModel(gr_vissprite_t *spr);
+boolean HWR_DrawModel(md2_t *md2, gr_vissprite_t *spr);
 
 #endif // _HW_MD2_H_
