@@ -605,8 +605,6 @@ static void D_Display(void)
 void D_CheckRendererState(void)
 {
 	// flush all patches from memory
-	// (also frees memory tagged with PU_CACHE)
-	// (which are not necessarily patches but I don't care)
 	if (needpatchflush)
 		Z_FlushCachedPatches();
 
@@ -657,7 +655,7 @@ void D_SRB2Loop(void)
 	// hack to start on a nice clear console screen.
 	COM_ImmedExecute("cls;version");
 
-	V_DrawScaledPatch(0, 0, 0, W_CachePatchNum(W_GetNumForName("CONSBACK"), PU_CACHE));
+	V_DrawScaledPatch(0, 0, 0, W_CachePatchNum(W_GetNumForName("CONSBACK"), PU_PATCH));
 	I_FinishUpdate(); // page flip or blit buffer
 
 	for (;;)

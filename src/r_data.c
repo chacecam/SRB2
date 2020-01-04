@@ -923,8 +923,6 @@ countflats:
 			patch->lump = texstart + j;
 			patch->flip = 0;
 
-			Z_Unlock(patchlump);
-
 			texturewidth[i] = texture->width;
 			textureheight[i] = texture->height << FRACBITS;
 			i++;
@@ -1022,8 +1020,6 @@ checkflats:
 			patch->wad = (UINT16)w;
 			patch->lump = texstart + j;
 			patch->flip = 0;
-
-			Z_Unlock(flatlump);
 
 			texturewidth[i] = texture->width;
 			textureheight[i] = texture->height << FRACBITS;

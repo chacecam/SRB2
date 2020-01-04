@@ -573,7 +573,7 @@ boolean HWR_DrawModel(modelinfo_t *md2, gr_vissprite_t *spr)
 		else
 		{
 			// Sprite
-			gpatch = spr->gpatch; //W_CachePatchNum(spr->patchlumpnum, PU_CACHE);
+			gpatch = spr->gpatch;
 			HWR_GetMappedPatch(gpatch, spr->colormap);
 		}
 

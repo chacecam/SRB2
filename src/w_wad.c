@@ -1500,31 +1500,11 @@ void *W_CacheLumpName(const char *name, INT32 tag)
 //
 // Cache a patch into heap memory, convert the patch format as necessary
 //
-
-void W_FlushCachedPatches(void)
-{
-	if (needpatchflush)
-	{
-		Z_FreeTag(PU_CACHE);
-		Z_FreeTag(PU_PATCH);
-		Z_FreeTag(PU_HUDGFX);
-		Z_FreeTag(PU_HWRPATCHINFO);
-		Z_FreeTag(PU_HWRMODELTEXTURE);
-		Z_FreeTag(PU_HWRCACHE);
-		Z_FreeTags(PU_HWRCACHE_UNLOCKED, PU_HWRPATCHINFO_UNLOCKED);
-	}
-	needpatchflush = false;
-}
-
-// Software-only compile cache the data without conversion
 void *W_CachePatchNumPwad(UINT16 wad, UINT16 lump, INT32 tag)
 {
 #ifdef HWRENDER
 	GLPatch_t *grPatch;
 #endif
-
-	if (needpatchflush)
-		W_FlushCachedPatches();
 
 	if (!TestValidLump(wad, lump))
 		return NULL;
@@ -1577,7 +1557,7 @@ void *W_CachePatchNumPwad(UINT16 wad, UINT16 lump, INT32 tag)
 
 	if (grPatch->mipmap->grInfo.data)
 	{
-		if (tag == PU_CACHE)
+		if (tag == PU_PATCH)
 			tag = PU_HWRCACHE;
 		Z_ChangeTag(grPatch->mipmap->grInfo.data, tag);
 	}
@@ -1609,11 +1589,9 @@ void W_UnlockCachedPatch(void *patch)
 	// The hardware code does its own memory management, as its patches
 	// have different lifetimes from software's.
 #ifdef HWRENDER
-	if (rendermode != render_soft && rendermode != render_none)
+	if (rendermode == render_opengl)
 		HWR_UnlockCachedPatch((GLPatch_t*)patch);
-	else
 #endif
-		Z_Unlock(patch);
 }
 
 void *W_CachePatchName(const char *name, INT32 tag)
