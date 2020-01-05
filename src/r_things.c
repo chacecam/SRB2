@@ -1124,7 +1124,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	fixed_t tx, tz;
 	fixed_t xscale, yscale, sortscale; //added : 02-02-98 : aaargll..if I were a math-guy!!!
 
-	boolean model;
+	boolean model = false;
 	skin_t *skin;
 	modelinfo_t *md2;
 
@@ -1186,7 +1186,6 @@ static void R_ProjectSprite(mobj_t *thing)
 #ifdef POLYRENDERER
 	model = (polyrenderer && cv_models.value && md2);
 	frustumclipping = false; // DONOTCULL turns this on.
-#endif
 
 	if (model)
 	{
@@ -1194,6 +1193,7 @@ static void R_ProjectSprite(mobj_t *thing)
 		// MODELDEF stuff should be in here,
 		// but I didn't port it yet.
 	}
+#endif
 
 	// transform the origin point
 	tr_x = thing->x - viewx;
@@ -1522,10 +1522,11 @@ static void R_ProjectSprite(mobj_t *thing)
 #endif
 	}
 
-#ifdef POLYRENDERER
-	// Lactozilla: Just project a big ass sprite
 	projx1 = x1;
 	projx2 = x2;
+
+#ifdef POLYRENDERER
+	// Lactozilla: Just project a big ass sprite
 	if (model)
 	{
 		x1 = 0;
