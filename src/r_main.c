@@ -77,6 +77,8 @@ sector_t *viewsector;
 player_t *viewplayer;
 
 #ifdef POLYRENDERER
+boolean polyrenderer = true;
+boolean nopolyrenderer = false;
 boolean modelinview = false;
 boolean frustumclipping = false;
 #endif
@@ -656,7 +658,8 @@ void R_ExecuteSetViewSize(void)
 
 	am_recalc = true;
 #ifdef POLYRENDERER
-	RSP_Viewport(viewwidth, viewheight);
+	if (polyrenderer)
+		RSP_Viewport(viewwidth, viewheight);
 #endif
 }
 
@@ -687,7 +690,8 @@ void R_Init(void)
 	R_InitDrawNodes();
 
 #ifdef POLYRENDERER
-	RSP_Init();
+	if (polyrenderer)
+		RSP_Init();
 #endif
 
 	framecount = 0;
@@ -1101,9 +1105,11 @@ void R_RenderPlayerView(player_t *player)
 	curdrawsegs = ds_p;
 
 #ifdef POLYRENDERER
+	polyrenderer = ((!nopolyrenderer) && cv_models.value);
 	modelinview = false;
 	frustumclipping = false;
-	RSP_OnFrame();
+	if (polyrenderer)
+		RSP_OnFrame();
 #endif
 
 //profile stuff ---------------------------------------------------------
