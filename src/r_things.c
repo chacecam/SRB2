@@ -1903,6 +1903,8 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	vis->pzt = vis->pz + vis->thingheight;
 	vis->texturemid = vis->gzt - viewz;
 	vis->scalestep = 0;
+	vis->model = false;
+	vis->dontdrawsprite = false;
 
 	vis->x1 = x1 < 0 ? 0 : x1;
 	vis->x2 = x2 >= viewwidth ? viewwidth-1 : x2;
@@ -1919,6 +1921,9 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 		vis->clipleft = portalclipstart;
 		vis->clipright = portalclipend-1;
 	}
+
+	vis->projx1 = vis->x1;
+	vis->projx2 = vis->x2;
 
 	vis->xscale = xscale; //SoM: 4/17/2000
 	vis->sector = thing->subsector->sector;
@@ -2314,20 +2319,20 @@ static void R_CreateDrawNodes(maskcount_t* mask, drawnode_t* head, boolean temps
 
 	for (rover = vsprsortedhead.prev; rover != &vsprsortedhead; rover = rover->prev)
 	{
-		if (rover->szt > vid.height || rover->sz < 0)
-#ifdef POLYRENDERER
-			if (!rover->model)
-#endif
+		if (!rover->model)
+		{
+			if (rover->szt > vid.height || rover->sz < 0)
 				continue;
+		}
 
-		sintersect = (rover->x1 + rover->x2) / 2;
+		sintersect = (rover->projx1 + rover->projx2) / 2;
 
 		for (r2 = head->next; r2 != head; r2 = r2->next)
 		{
 			if (r2->plane)
 			{
 				fixed_t planeobjectz, planecameraz;
-				if (r2->plane->minx > rover->x2 || r2->plane->maxx < rover->x1)
+				if (r2->plane->minx > rover->projx2 || r2->plane->maxx < rover->projx1)
 					continue;
 				if (rover->szt > r2->plane->low || rover->sz < r2->plane->high)
 					continue;
@@ -2361,11 +2366,18 @@ static void R_CreateDrawNodes(maskcount_t* mask, drawnode_t* head, boolean temps
 				// bound to any single linedef, a simple poll of it's frontscale is
 				// not adequate. We must check the entire frontscale array for any
 				// part that is in front of the sprite.
-
-				x1 = rover->x1;
-				x2 = rover->x2;
-				if (x1 < r2->plane->minx) x1 = r2->plane->minx;
-				if (x2 > r2->plane->maxx) x2 = r2->plane->maxx;
+				if (rover->model)
+				{
+					x1 = r2->plane->minx;
+					x2 = r2->plane->maxx;
+				}
+				else
+				{
+					x1 = rover->x1;
+					x2 = rover->x2;
+					if (x1 < r2->plane->minx) x1 = r2->plane->minx;
+					if (x2 > r2->plane->maxx) x2 = r2->plane->maxx;
+				}
 
 				if (r2->seg) // if no seg set, assume the whole thing is in front or something stupid
 				{
@@ -2387,7 +2399,7 @@ static void R_CreateDrawNodes(maskcount_t* mask, drawnode_t* head, boolean temps
 			else if (r2->thickseg)
 			{
 				fixed_t topplaneobjectz, topplanecameraz, botplaneobjectz, botplanecameraz;
-				if (rover->x1 > r2->thickseg->x2 || rover->x2 < r2->thickseg->x1)
+				if (rover->projx1 > r2->thickseg->x2 || rover->projx2 < r2->thickseg->x1)
 					continue;
 
 				scale = r2->thickseg->scale1 > r2->thickseg->scale2 ? r2->thickseg->scale1 : r2->thickseg->scale2;
@@ -2426,7 +2438,7 @@ static void R_CreateDrawNodes(maskcount_t* mask, drawnode_t* head, boolean temps
 			}
 			else if (r2->seg)
 			{
-				if (rover->x1 > r2->seg->x2 || rover->x2 < r2->seg->x1)
+				if (rover->projx1 > r2->seg->x2 || rover->projx2 < r2->seg->x1)
 					continue;
 
 				scale = r2->seg->scale1 > r2->seg->scale2 ? r2->seg->scale1 : r2->seg->scale2;
@@ -2445,7 +2457,7 @@ static void R_CreateDrawNodes(maskcount_t* mask, drawnode_t* head, boolean temps
 			}
 			else if (r2->sprite)
 			{
-				if (r2->sprite->x1 > rover->x2 || r2->sprite->x2 < rover->x1)
+				if (r2->sprite->projx1 > rover->projx2 || r2->sprite->projx2 < rover->projx1)
 					continue;
 				if (r2->sprite->szt > rover->sz || r2->sprite->sz < rover->szt)
 					continue;
