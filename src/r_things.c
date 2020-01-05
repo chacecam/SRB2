@@ -1124,7 +1124,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	fixed_t tx, tz;
 	fixed_t xscale, yscale, sortscale; //added : 02-02-98 : aaargll..if I were a math-guy!!!
 
-	boolean model = false;
+	boolean model;
 	skin_t *skin;
 #ifdef POLYRENDERER
 	modelinfo_t *md2;
@@ -1181,9 +1181,11 @@ static void R_ProjectSprite(mobj_t *thing)
 	fixed_t ang_scale = FRACUNIT;
 #endif
 
-	// Lactozilla: Polygon renderer
-	skin = (skin_t *)thing->skin;
+	model = false;
+	skin = thing->skin;
+
 #ifdef POLYRENDERER
+	// Lactozilla: Polygon renderer
 	md2 = Model_IsAvailable(thing->sprite, skin);
 	model = (polyrenderer && cv_models.value && md2);
 	frustumclipping = false; // DONOTCULL turns this on.
@@ -1665,7 +1667,7 @@ static void R_ProjectSprite(mobj_t *thing)
 
 	// Lactozilla: Polygon renderer
 	vis->spritenum = thing->sprite;
-	vis->skin = thing->skin;
+	vis->skin = skin;
 	vis->model = model;
 
 #ifdef POLYRENDERER
