@@ -1530,14 +1530,18 @@ static void R_ProjectSprite(mobj_t *thing)
 	}
 #endif
 
-	if ((!model) && (thing->flags2 & MF2_LINKDRAW) && thing->tracer) // toast 16/09/16 (SYMMETRY)
+	if ((thing->flags2 & MF2_LINKDRAW) && thing->tracer) // toast 16/09/16 (SYMMETRY)
 	{
+		mobj_t *tracer = thing->tracer;
+#ifndef POLYRENDERER
 		fixed_t linkscale;
+#endif
 
-		thing = thing->tracer;
-
-		if (thing->sprite == SPR_NULL || thing->flags2 & MF2_DONTDRAW)
+		if (tracer->sprite == SPR_NULL || tracer->flags2 & MF2_DONTDRAW)
 			return;
+
+#ifndef POLYRENDERER
+		thing = tracer;
 
 		tr_x = thing->x - viewx;
 		tr_y = thing->y - viewy;
@@ -1548,19 +1552,14 @@ static void R_ProjectSprite(mobj_t *thing)
 
 		// thing is behind view plane?
 		if (tz < FixedMul(MINZ, this_scale))
-		{
-			dontdrawsprite = true;
-			if (checkzvisible)
-				return;
-			else
-				tz = FixedMul(MINZ, this_scale);
-		}
+			return;
 
 		if (sortscale < linkscale)
 			dispoffset *= -1; // if it's physically behind, make sure it's ordered behind (if dispoffset > 0)
 
 		sortscale = linkscale; // now make sure it's linked
 		cut = SC_LINKDRAW;
+#endif
 	}
 
 	// PORTAL SPRITE CLIPPING
