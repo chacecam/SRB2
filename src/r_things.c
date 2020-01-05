@@ -1126,7 +1126,9 @@ static void R_ProjectSprite(mobj_t *thing)
 
 	boolean model = false;
 	skin_t *skin;
+#ifdef POLYRENDERER
 	modelinfo_t *md2;
+#endif
 
 	INT32 x1, x2;
 	INT32 projx1, projx2;
@@ -1181,9 +1183,8 @@ static void R_ProjectSprite(mobj_t *thing)
 
 	// Lactozilla: Polygon renderer
 	skin = (skin_t *)thing->skin;
-	md2 = Model_IsAvailable(thing->sprite, skin);
-
 #ifdef POLYRENDERER
+	md2 = Model_IsAvailable(thing->sprite, skin);
 	model = (polyrenderer && cv_models.value && md2);
 	frustumclipping = false; // DONOTCULL turns this on.
 
@@ -1666,6 +1667,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	vis->spritenum = thing->sprite;
 	vis->skin = thing->skin;
 	vis->model = model;
+
 #ifdef POLYRENDERER
 	if (model)
 		modelinview = true;
@@ -1904,6 +1906,7 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	vis->scalestep = 0;
 	vis->model = false;
 	vis->dontdrawsprite = false;
+	vis->skin = NULL;
 
 	vis->x1 = x1 < 0 ? 0 : x1;
 	vis->x2 = x2 >= viewwidth ? viewwidth-1 : x2;
