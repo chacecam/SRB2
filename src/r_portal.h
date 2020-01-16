@@ -31,6 +31,7 @@ typedef struct portal_s
 
 	UINT8 pass;			/**< Keeps track of the portal's recursion depth. */
 	INT32 clipline;		/**< Optional clipline for line-based portals. */
+	INT32 drawcount;	/**< For OpenGL. */
 
 	// Clipping information.
 	INT32 start;		/**< First horizontal pixel coordinate to draw at. */

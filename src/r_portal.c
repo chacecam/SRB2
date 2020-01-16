@@ -19,6 +19,7 @@
 #include "z_zone.h"
 #include "r_things.h"
 #include "r_sky.h"
+#include "i_video.h"
 
 UINT8 portalrender;			/**< When rendering a portal, it establishes the depth of the current BSP traversal. */
 
@@ -130,12 +131,50 @@ static portal_t* Portal_Add (const INT16 x1, const INT16 x2)
 	return portal;
 }
 
+#ifdef HWRENDER
+static portal_t* GLPortal_Add (void)
+{
+	portal_t *portal = Z_Malloc(sizeof(portal_t), PU_LEVEL, NULL);
+
+	// Linked list.
+	if (!portal_base)
+	{
+		portal_base	= portal;
+		portal_cap	= portal;
+	}
+	else
+	{
+		portal_cap->next = portal;
+		portal_cap = portal;
+	}
+	portal->next = NULL;
+
+	portal->ceilingclip	= NULL;
+	portal->floorclip	= NULL;
+	portal->frontscale	= NULL;
+	portal->start	= -1;
+	portal->end		= -1;
+
+	// Increase recursion level.
+	portal->pass = portalrender+1;
+
+	return portal;
+}
+#endif
+
 void Portal_Remove (portal_t* portal)
 {
 	portal_base = portal->next;
-	Z_Free(portal->ceilingclip);
-	Z_Free(portal->floorclip);
-	Z_Free(portal->frontscale);
+
+#ifdef HWRENDER
+	if (rendermode == render_soft)
+#endif
+	{
+		Z_Free(portal->ceilingclip);
+		Z_Free(portal->floorclip);
+		Z_Free(portal->frontscale);
+	}
+
 	Z_Free(portal);
 }
 
@@ -151,7 +190,14 @@ void Portal_Remove (portal_t* portal)
  */
 void Portal_Add2Lines (const INT32 line1, const INT32 line2, const INT32 x1, const INT32 x2)
 {
-	portal_t* portal = Portal_Add(x1, x2);
+	portal_t* portal = NULL;
+
+#ifdef HWRENDER
+	if (rendermode == render_opengl)
+		portal = GLPortal_Add();
+	else
+#endif
+		portal = Portal_Add(x1, x2);
 
 	// Offset the portal view by the linedef centers
 	line_t* start	= &lines[line1];
@@ -183,7 +229,10 @@ void Portal_Add2Lines (const INT32 line1, const INT32 line2, const INT32 x1, con
 
 	portal->clipline = line2;
 
-	Portal_ClipRange(portal);
+#ifdef HWRENDER
+	if (rendermode == render_soft)
+#endif
+		Portal_ClipRange(portal);
 
 	portalline = true; // this tells R_StoreWallRange that curline is a portal seg
 }

@@ -81,6 +81,8 @@ void *hwSym(const char *funcName,void *handle)
 	GETFUNC(DrawPolygon);
 	GETFUNC(RenderSkyDome);
 	GETFUNC(SetBlend);
+	GETFUNC(PortalStart);
+	GETFUNC(PortalFrame);
 	GETFUNC(ClearBuffer);
 	GETFUNC(SetTexture);
 	GETFUNC(ReadRect);

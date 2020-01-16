@@ -87,6 +87,54 @@ static UINT32 atohex(const char *s);
 
 boolean drawsky = true;
 
+#ifdef SORTING
+static INT32 drawcount = 0; // moved up here for portal bullshit
+#endif
+
+//
+// PORTALS
+//
+
+#define MAX_GRPORTALS 13
+#define PORTALSORTING
+
+enum
+{
+	GRPORTAL_OFF = 0,
+	GRPORTAL_PROCESS,
+	GRPORTAL_FOUND,
+	GRPORTAL_MASKING,
+	// https://www.youtube.com/watch?v=6MXofKuMAmM
+	GRPORTAL_INSIDE, GRPORTAL_INSIDEMASK,
+	GRPORTAL_OUTSIDE,
+};
+
+static void HWR_RenderSinglePortal(portal_t *portal, size_t portalnum, float fpov, INT32 viewnumber, postimg_t *ptype);
+
+#ifdef PORTALSORTING
+static portal_t gr_portals[MAX_GRPORTALS];
+static size_t gr_numportals = 0;
+
+static void HWR_AddPortal(portal_t *portal);
+static void HWR_SortPortals(player_t *player, float fpov, INT32 viewnumber, postimg_t *ptype);
+#endif
+
+static int gr_portal = GRPORTAL_OFF;
+
+// Culling
+typedef struct
+{
+	seg_t *seg;
+	sector_t *frontsector;
+	sector_t *backsector;
+} gr_portalcullinfo_t;
+
+static gr_portalcullinfo_t gr_portalsegs[MAX_GRPORTALS];
+static size_t gr_numportalsegs = 0;
+
+static sector_t *gr_portalcullsectors[MAX_GRPORTALS];
+static size_t gr_numportalcullsectors = 0;
+
 /*
  * lookuptable for lightvalues
  * calculated as follow:
@@ -912,6 +960,7 @@ FBITFIELD HWR_TranstableToAlpha(INT32 transtablenum, FSurfaceInfo *pSurf)
 // floorheight, ceilingheight : depend on wall upper/lower/middle, comes from the sectors.
 
 static void HWR_AddTransparentWall(wallVert3D *wallVerts, FSurfaceInfo * pSurf, INT32 texnum, FBITFIELD blend, boolean fogwall, INT32 lightlevel, extracolormap_t *wallcolormap);
+static void HWR_AddSkyWall(wallVert3D *wallVerts, FSurfaceInfo * pSurf);
 
 // -----------------+
 // HWR_ProjectWall  :
@@ -1291,6 +1340,68 @@ static void HWR_DrawSkyWall(wallVert3D *wallVerts, FSurfaceInfo *Surf)
 	// PF_Occlude is set in HWR_ProjectWall to draw into the depth buffer
 }
 
+// HWR_DrawPortalClipWall
+// Draws an invisible wall that extends to nowhere,
+// so that portals can be clipped correctly.
+static void HWR_DrawPortalClipWall(line_t *line)
+{
+	wallVert3D wallVerts[4];
+	FSurfaceInfo Surf;
+	v2d_t vs, ve;
+	fixed_t length = 1000*FRACUNIT;
+	fixed_t temp = 0;
+
+	angle_t angle = R_PointToAngle2(line->v1->x, line->v1->y, line->v2->x, line->v2->y);
+	angle_t lineangle = 0;
+
+	// no texture
+	HWD.pfnSetTexture(NULL);
+	wallVerts[3].t = wallVerts[2].t = 0;
+	wallVerts[0].t = wallVerts[1].t = 0;
+	wallVerts[0].s = wallVerts[3].s = 0;
+	wallVerts[2].s = wallVerts[1].s = 0;
+
+	wallVerts[0].w = wallVerts[1].w = wallVerts[2].w = wallVerts[3].w = 1.0f;
+	wallVerts[0].y = wallVerts[1].y = FIXED_TO_FLOAT(INT32_MIN);
+	wallVerts[2].y = wallVerts[3].y = FIXED_TO_FLOAT(INT32_MAX);
+
+	// first
+	vs.x = FIXED_TO_FLOAT(line->v1->x);
+	vs.y = FIXED_TO_FLOAT(line->v1->y);
+
+	angle -= ANGLE_180;
+	lineangle = (angle >> ANGLETOFINESHIFT);
+	temp = FixedMul(length, FINECOSINE(lineangle));
+	ve.x = vs.x + FIXED_TO_FLOAT(temp);
+	temp = FixedMul(length, FINESINE(lineangle));
+	ve.y = vs.y + FIXED_TO_FLOAT(temp);
+
+	wallVerts[0].x = wallVerts[3].x = ve.x;
+	wallVerts[0].z = wallVerts[3].z = ve.y;
+	wallVerts[2].x = wallVerts[1].x = vs.x;
+	wallVerts[2].z = wallVerts[1].z = vs.y;
+
+	HWR_ProjectWall(wallVerts, &Surf, PF_Clip|PF_NoTexture, 255, NULL);
+
+	// second
+	vs.x = FIXED_TO_FLOAT(line->v2->x);
+	vs.y = FIXED_TO_FLOAT(line->v2->y);
+
+	angle += ANGLE_180;
+	lineangle = (angle >> ANGLETOFINESHIFT);
+	temp = FixedMul(length, FINECOSINE(lineangle));
+	ve.x = vs.x + FIXED_TO_FLOAT(temp);
+	temp = FixedMul(length, FINESINE(lineangle));
+	ve.y = vs.y + FIXED_TO_FLOAT(temp);
+
+	wallVerts[0].x = wallVerts[3].x = ve.x;
+	wallVerts[0].z = wallVerts[3].z = ve.y;
+	wallVerts[2].x = wallVerts[1].x = vs.x;
+	wallVerts[2].z = wallVerts[1].z = vs.y;
+
+	HWR_ProjectWall(wallVerts, &Surf, PF_Clip|PF_NoTexture, 255, NULL);
+}
+
 //
 // HWR_StoreWallRange
 // A portion or all of a wall segment will be drawn, from startfrac to endfrac,
@@ -1315,6 +1426,7 @@ static void HWR_StoreWallRange(double startfrac, double endfrac)
 	fixed_t v1x, v1y, v2x, v2y;
 #endif
 
+	boolean masksky = (gr_portal == GRPORTAL_MASKING);
 	GLTexture_t *grTex = NULL;
 	float cliplow = 0.0f, cliphigh = 0.0f;
 	INT32 gr_midtexture;
@@ -1374,6 +1486,14 @@ static void HWR_StoreWallRange(double startfrac, double endfrac)
 	wallVerts[2].x = wallVerts[1].x = ve.x;
 	wallVerts[2].z = wallVerts[1].z = ve.y;
 	wallVerts[0].w = wallVerts[1].w = wallVerts[2].w = wallVerts[3].w = 1.0f;
+
+	if (gr_portal == GRPORTAL_INSIDEMASK)
+	{
+		wallVerts[2].y = wallVerts[3].y = FIXED_TO_FLOAT(INT32_MAX); // draw to top of map space
+		wallVerts[0].y = wallVerts[1].y = FIXED_TO_FLOAT(INT32_MIN); // draw to bottom of map space
+		HWR_DrawSkyWall(wallVerts, &Surf);
+		return;
+	}
 
 	{
 		// x offset the texture
@@ -1512,12 +1632,15 @@ static void HWR_StoreWallRange(double startfrac, double endfrac)
 			wallVerts[0].y = wallVerts[1].y = FIXED_TO_FLOAT(worldhigh);
 #endif
 
-			if (gr_frontsector->numlights)
-				HWR_SplitWall(gr_frontsector, wallVerts, gr_toptexture, &Surf, FF_CUTLEVEL, NULL);
-			else if (grTex->mipmap.flags & TF_TRANSPARENT)
-				HWR_AddTransparentWall(wallVerts, &Surf, gr_toptexture, PF_Environment, false, lightnum, colormap);
-			else
-				HWR_ProjectWall(wallVerts, &Surf, PF_Masked, lightnum, colormap);
+			if (!masksky)
+			{
+				if (gr_frontsector->numlights)
+					HWR_SplitWall(gr_frontsector, wallVerts, gr_toptexture, &Surf, FF_CUTLEVEL, NULL);
+				else if (grTex->mipmap.flags & TF_TRANSPARENT)
+					HWR_AddTransparentWall(wallVerts, &Surf, gr_toptexture, PF_Environment, false, lightnum, colormap);
+				else
+					HWR_ProjectWall(wallVerts, &Surf, PF_Masked, lightnum, colormap);
+			}
 		}
 
 		// check BOTTOM TEXTURE
@@ -1594,12 +1717,15 @@ static void HWR_StoreWallRange(double startfrac, double endfrac)
 			wallVerts[0].y = wallVerts[1].y = FIXED_TO_FLOAT(worldbottom);
 #endif
 
-			if (gr_frontsector->numlights)
-				HWR_SplitWall(gr_frontsector, wallVerts, gr_bottomtexture, &Surf, FF_CUTLEVEL, NULL);
-			else if (grTex->mipmap.flags & TF_TRANSPARENT)
-				HWR_AddTransparentWall(wallVerts, &Surf, gr_bottomtexture, PF_Environment, false, lightnum, colormap);
-			else
-				HWR_ProjectWall(wallVerts, &Surf, PF_Masked, lightnum, colormap);
+			if (!masksky)
+			{
+				if (gr_frontsector->numlights)
+					HWR_SplitWall(gr_frontsector, wallVerts, gr_bottomtexture, &Surf, FF_CUTLEVEL, NULL);
+				else if (grTex->mipmap.flags & TF_TRANSPARENT)
+					HWR_AddTransparentWall(wallVerts, &Surf, gr_bottomtexture, PF_Environment, false, lightnum, colormap);
+				else
+					HWR_ProjectWall(wallVerts, &Surf, PF_Masked, lightnum, colormap);
+			}
 		}
 		gr_midtexture = R_GetTextureNum(gr_sidedef->midtexture);
 		if (gr_midtexture)
@@ -1856,19 +1982,22 @@ static void HWR_StoreWallRange(double startfrac, double endfrac)
 			}
 #endif
 
-			if (gr_frontsector->numlights)
+			if (!masksky)
 			{
-				if (!(blendmode & PF_Masked))
-					HWR_SplitWall(gr_frontsector, wallVerts, gr_midtexture, &Surf, FF_TRANSLUCENT, NULL);
-				else
+				if (gr_frontsector->numlights)
 				{
-					HWR_SplitWall(gr_frontsector, wallVerts, gr_midtexture, &Surf, FF_CUTLEVEL, NULL);
+					if (!(blendmode & PF_Masked))
+						HWR_SplitWall(gr_frontsector, wallVerts, gr_midtexture, &Surf, FF_TRANSLUCENT, NULL);
+					else
+					{
+						HWR_SplitWall(gr_frontsector, wallVerts, gr_midtexture, &Surf, FF_CUTLEVEL, NULL);
+					}
 				}
+				else if (!(blendmode & PF_Masked))
+					HWR_AddTransparentWall(wallVerts, &Surf, gr_midtexture, blendmode, false, lightnum, colormap);
+				else
+					HWR_ProjectWall(wallVerts, &Surf, blendmode, lightnum, colormap);
 			}
-			else if (!(blendmode & PF_Masked))
-				HWR_AddTransparentWall(wallVerts, &Surf, gr_midtexture, blendmode, false, lightnum, colormap);
-			else
-				HWR_ProjectWall(wallVerts, &Surf, blendmode, lightnum, colormap);
 
 			// If there is a colormap change, remove it.
 /*			if (!(Surf.FlatColor.s.red + Surf.FlatColor.s.green + Surf.FlatColor.s.blue == Surf.FlatColor.s.red/3)
@@ -1894,7 +2023,10 @@ static void HWR_StoreWallRange(double startfrac, double endfrac)
 #else
 					wallVerts[0].y = wallVerts[1].y = FIXED_TO_FLOAT(worldtop);
 #endif
-					HWR_DrawSkyWall(wallVerts, &Surf);
+					if (masksky)
+						HWR_AddSkyWall(wallVerts, &Surf);
+					else
+						HWR_DrawSkyWall(wallVerts, &Surf);
 				}
 			}
 
@@ -1909,7 +2041,10 @@ static void HWR_StoreWallRange(double startfrac, double endfrac)
 					wallVerts[2].y = wallVerts[3].y = FIXED_TO_FLOAT(worldbottom);
 #endif
 					wallVerts[0].y = wallVerts[1].y = FIXED_TO_FLOAT(INT32_MIN); // draw to bottom of map space
-					HWR_DrawSkyWall(wallVerts, &Surf);
+					if (masksky)
+						HWR_AddSkyWall(wallVerts, &Surf);
+					else
+						HWR_DrawSkyWall(wallVerts, &Surf);
 				}
 			}
 		}
@@ -1970,14 +2105,17 @@ static void HWR_StoreWallRange(double startfrac, double endfrac)
 			wallVerts[0].y = wallVerts[1].y = FIXED_TO_FLOAT(worldbottom);
 #endif
 			// I don't think that solid walls can use translucent linedef types...
-			if (gr_frontsector->numlights)
-				HWR_SplitWall(gr_frontsector, wallVerts, gr_midtexture, &Surf, FF_CUTLEVEL, NULL);
-			else
+			if (!masksky)
 			{
-				if (grTex->mipmap.flags & TF_TRANSPARENT)
-					HWR_AddTransparentWall(wallVerts, &Surf, gr_midtexture, PF_Environment, false, lightnum, colormap);
+				if (gr_frontsector->numlights)
+					HWR_SplitWall(gr_frontsector, wallVerts, gr_midtexture, &Surf, FF_CUTLEVEL, NULL);
 				else
-					HWR_ProjectWall(wallVerts, &Surf, PF_Masked, lightnum, colormap);
+				{
+					if (grTex->mipmap.flags & TF_TRANSPARENT)
+						HWR_AddTransparentWall(wallVerts, &Surf, gr_midtexture, PF_Environment, false, lightnum, colormap);
+					else
+						HWR_ProjectWall(wallVerts, &Surf, PF_Masked, lightnum, colormap);
+				}
 			}
 		}
 
@@ -1992,7 +2130,10 @@ static void HWR_StoreWallRange(double startfrac, double endfrac)
 #else
 				wallVerts[0].y = wallVerts[1].y = FIXED_TO_FLOAT(worldtop);
 #endif
-				HWR_DrawSkyWall(wallVerts, &Surf);
+				if (masksky)
+					HWR_AddSkyWall(wallVerts, &Surf);
+				else
+					HWR_DrawSkyWall(wallVerts, &Surf);
 			}
 			if (gr_frontsector->floorpic == skyflatnum)
 			{
@@ -2003,11 +2144,16 @@ static void HWR_StoreWallRange(double startfrac, double endfrac)
 				wallVerts[2].y = wallVerts[3].y = FIXED_TO_FLOAT(worldbottom);
 #endif
 				wallVerts[0].y = wallVerts[1].y = FIXED_TO_FLOAT(INT32_MIN); // draw to bottom of map space
-				HWR_DrawSkyWall(wallVerts, &Surf);
+				if (masksky)
+					HWR_AddSkyWall(wallVerts, &Surf);
+				else
+					HWR_DrawSkyWall(wallVerts, &Surf);
 			}
 		}
 	}
 
+	if (masksky)
+		return;
 
 	//Hurdler: 3d-floors test
 #ifdef R_FAKEFLOORS
@@ -2731,16 +2877,16 @@ static void HWR_AddLine(seg_t * line)
 	angle2 = R_PointToAngle(v2x, v2y);
 
 #ifdef NEWCLIP
-	 // PrBoom: Back side, i.e. backface culling - read: endAngle >= startAngle!
+	// PrBoom: Back side, i.e. backface culling - read: endAngle >= startAngle!
 	if (angle2 - angle1 < ANGLE_180)
 		return;
 
-	// PrBoom: use REAL clipping math YAYYYYYYY!!!
+	if (gr_portal == GRPORTAL_INSIDEMASK)
+		goto doaddline;
 
+	// PrBoom: use REAL clipping math YAYYYYYYY!!!
 	if (!gld_clipper_SafeCheckRange(angle2, angle1))
-    {
 		return;
-    }
 
 	checkforemptylines = true;
 #else
@@ -2750,6 +2896,9 @@ static void HWR_AddLine(seg_t * line)
 	// backface culling : span is < ANGLE_180 if ang1 > ang2 : the seg is facing
 	if (span >= ANGLE_180)
 		return;
+
+	if (gr_portal == GRPORTAL_INSIDEMASK)
+		goto doaddline;
 
 	// Global angle needed by segcalc.
 	//rw_angle1 = angle1;
@@ -2826,13 +2975,94 @@ static void HWR_AddLine(seg_t * line)
 
 	gr_backsector = line->backsector;
 
+	// Portal line
+	if (cv_grportals.value && line->linedef->special == 40 && line->side == 0)
+	{
+		if (portalrender < cv_maxportals.value)
+		{
+			// Find the other side!
+			INT32 line2 = P_FindSpecialLineFromTag(40, line->linedef->tag, -1);
+			if (line->linedef == &lines[line2])
+				line2 = P_FindSpecialLineFromTag(40, line->linedef->tag, line2);
+			if (line2 >= 0) // found it!
+			{
+				// oh no :DD
+				if (gr_portal == GRPORTAL_PROCESS)
+				{
+					gr_portal = GRPORTAL_FOUND;
+					return;
+				}
+
+				// Portal processing
+				if ((gr_portal == GRPORTAL_MASKING) || (gr_portal == GRPORTAL_INSIDE))
+				{
+					// masking the view 1
+					if (gr_portal == GRPORTAL_MASKING)
+					{
+						size_t numportal = gr_numportalsegs;
+						if (numportal < MAX_GRPORTALS)
+						{
+							gr_portalsegs[numportal].seg = line;
+							gr_portalsegs[numportal].frontsector = gr_frontsector;
+							gr_portalsegs[numportal].backsector = gr_backsector;
+							gr_numportalsegs++;
+						}
+					}
+
+					// Add the portal
+					Portal_Add2Lines(line->linedef-lines, line2, 0, 0);
+
+					// masking the view 2
+					if (gr_portal == GRPORTAL_MASKING)
+					{
+						// portal_cap = last added portal
+						portal_t *lastportal = portal_cap;
+						lastportal->drawcount = drawcount++;
+
+						// extend clipping
+						HWR_DrawPortalClipWall(line->linedef);
+
+						// add cull sector
+						if (gr_numportalcullsectors < MAX_GRPORTALS)
+						{
+							sector_t *cullsec = NULL;
+							if (lastportal->clipline != -1)
+							{
+								line_t *grclipline = &lines[lastportal->clipline];
+								cullsec = grclipline->frontsector;
+							}
+							gr_portalcullsectors[gr_numportalcullsectors] = cullsec;
+							gr_numportalcullsectors++;
+						}
+					}
+				}
+
+#ifdef NEWCLIP
+				gld_clipper_SafeAddClipRange(angle2, angle1);
+#endif
+
+				if (gr_portal != GRPORTAL_OUTSIDE)
+					return;
+			}
+		}
+		// Recursed TOO FAR (viewing a portal within a portal)
+		// So uhhh, render it as a normal wall instead or something ???
+	}
+#ifndef PORTALSORTING
+	else if (gr_portal == GRPORTAL_MASKING)
+		return;
+#endif
+
+doaddline:
+
 #ifdef NEWCLIP
 	if (!line->backsector)
-    {
-		gld_clipper_SafeAddClipRange(angle2, angle1);
-    }
-    else
-    {
+	{
+		if (gr_portal != GRPORTAL_MASKING)
+			gld_clipper_SafeAddClipRange(angle2, angle1);
+	}
+	else
+	{
 		boolean bothceilingssky = false, bothfloorssky = false;
 
 		gr_backsector = R_FakeFlat(gr_backsector, &tempsec, NULL, NULL, true);
@@ -2859,7 +3089,8 @@ static void HWR_AddLine(seg_t * line)
 
 		if (CheckClip(line, gr_frontsector, gr_backsector))
 		{
-			gld_clipper_SafeAddClipRange(angle2, angle1);
+			if (gr_portal != GRPORTAL_MASKING)
+				gld_clipper_SafeAddClipRange(angle2, angle1);
 			checkforemptylines = false;
 		}
 		// Reject empty lines used for triggers and special events.
@@ -3388,6 +3619,38 @@ static void HWR_AddPolyObjectPlanes(void)
 #endif
 #endif
 
+static void HWR_SubsectorSegs(subsector_t *sub, seg_t *line, size_t count, boolean addsprites)
+{
+	// Hurder ici se passe les choses INT32�essantes!
+	// on vient de tracer le sol et le plafond
+	// on trace �pr�ent d'abord les sprites et ensuite les murs
+	// hurdler: faux: on ajoute seulement les sprites, le murs sont trac� d'abord
+	if (line)
+	{
+		// draw sprites first, coz they are clipped to the solidsegs of
+		// subsectors more 'in front'
+		if (addsprites)
+			HWR_AddSprites(gr_frontsector);
+
+		//Hurdler: at this point validcount must be the same, but is not because
+		//         gr_frontsector doesn't point anymore to sub->sector due to
+		//         the call gr_frontsector = R_FakeFlat(...)
+		//         if it's not done, the sprite is drawn more than once,
+		//         what looks really bad with translucency or dynamic light,
+		//         without talking about the overdraw of course.
+		sub->sector->validcount = validcount;/// \todo fix that in a better way
+
+		while (count--)
+		{
+#ifdef POLYOBJECTS
+			if (!line->polyseg) // ignore segs that belong to polyobjects
+#endif
+			HWR_AddLine(line);
+			line++;
+		}
+	}
+}
+
 // -----------------+
 // HWR_Subsector    : Determine floor/ceiling planes.
 //                  : Add sprites of things in sector.
@@ -3443,6 +3706,12 @@ static void HWR_Subsector(size_t num)
 	gr_frontsector = R_FakeFlat(gr_frontsector, &tempsec, &floorlightlevel,
 								&ceilinglightlevel, false);
 	//FIXME: Use floorlightlevel and ceilinglightlevel insted of lightlevel.
+
+	if (gr_portal == GRPORTAL_PROCESS || gr_portal == GRPORTAL_MASKING || gr_portal == GRPORTAL_INSIDEMASK)
+	{
+		HWR_SubsectorSegs(sub, line, count, false);
+		return;
+	}
 
 	floorcolormap = ceilingcolormap = gr_frontsector->extra_colormap;
 
@@ -3751,34 +4020,7 @@ static void HWR_Subsector(size_t num)
 	}
 #endif
 
-// Hurder ici se passe les choses INT32�essantes!
-// on vient de tracer le sol et le plafond
-// on trace �pr�ent d'abord les sprites et ensuite les murs
-// hurdler: faux: on ajoute seulement les sprites, le murs sont trac� d'abord
-	if (line)
-	{
-		// draw sprites first, coz they are clipped to the solidsegs of
-		// subsectors more 'in front'
-		HWR_AddSprites(gr_frontsector);
-
-		//Hurdler: at this point validcount must be the same, but is not because
-		//         gr_frontsector doesn't point anymore to sub->sector due to
-		//         the call gr_frontsector = R_FakeFlat(...)
-		//         if it's not done, the sprite is drawn more than once,
-		//         what looks really bad with translucency or dynamic light,
-		//         without talking about the overdraw of course.
-		sub->sector->validcount = validcount;/// \todo fix that in a better way
-
-		while (count--)
-		{
-#ifdef POLYOBJECTS
-				if (!line->polyseg) // ignore segs that belong to polyobjects
-#endif
-				HWR_AddLine(line);
-				line++;
-		}
-	}
-
+	HWR_SubsectorSegs(sub, line, count, true);
 	sub->validcount = validcount;
 }
 
@@ -3848,6 +4090,17 @@ static void HWR_RenderBSPNode(INT32 bspnum)
 	// Found a subsector?
 	if (bspnum & NF_SUBSECTOR)
 	{
+		// PORTAL CULLING
+		if (gr_portal != GRPORTAL_OUTSIDE)
+		{
+			sector_t *sect = subsectors[bspnum & ~NF_SUBSECTOR].sector;
+			if (portalcullsector)
+			{
+				if (sect != portalcullsector)
+					return;
+				portalcullsector = NULL;
+			}
+		}
 		if (bspnum == -1)
 		{
 			//*(gr_drawsubsector_p++) = 0;
@@ -3861,6 +4114,9 @@ static void HWR_RenderBSPNode(INT32 bspnum)
 		return;
 	}
 
+	if (gr_portal == GRPORTAL_FOUND)
+		return;
+
 	// Decide which side the view point is on.
 	side = R_PointOnSide(dup_viewx, dup_viewy, bsp);
 
@@ -3869,6 +4125,9 @@ static void HWR_RenderBSPNode(INT32 bspnum)
 
 	// Recursively divide front space.
 	HWR_RenderBSPNode(bsp->children[side]);
+
+	if (gr_portal == GRPORTAL_FOUND)
+		return;
 
 	// Possibly divide back space.
 	if (HWR_CheckBBox(bsp->bbox[side^1]))
@@ -5030,12 +5289,16 @@ typedef struct
 	fixed_t       fixedheight;
 #endif
 	boolean fogwall;
+	boolean skywall;
 	INT32 lightlevel;
 	extracolormap_t *wallcolormap; // Doing the lighting in HWR_RenderWall now for correct fog after sorting
 } wallinfo_t;
 
 static wallinfo_t *wallinfo = NULL;
 static size_t numwalls = 0; // a list of transparent walls to be drawn
+
+static wallinfo_t *skywallinfo = NULL;
+static size_t numskywalls = 0; // a list of sky walls to be drawn
 
 static void HWR_RenderWall(wallVert3D   *wallVerts, FSurfaceInfo *pSurf, FBITFIELD blend, boolean fogwall, INT32 lightlevel, extracolormap_t *wallcolormap);
 
@@ -5085,13 +5348,12 @@ typedef struct gr_drawnode_s
 	planeinfo_t *plane;
 	polyplaneinfo_t *polyplane;
 	wallinfo_t *wall;
+	portal_t *portal;
 	gr_vissprite_t *sprite;
 
 //	struct gr_drawnode_s *next;
 //	struct gr_drawnode_s *prev;
 } gr_drawnode_t;
-
-static INT32 drawcount = 0;
 
 #define MAX_TRANSPARENTFLOOR 512
 
@@ -6083,33 +6345,8 @@ void HWR_SetViewSize(void)
 	HWD.pfnFlushScreenTextures();
 }
 
-// ==========================================================================
-// Same as rendering the player view, but from the skybox object
-// ==========================================================================
-void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
+static void HWR_SetTransform(float fpov, INT32 viewnumber, postimg_t *ptype)
 {
-	const float fpov = FIXED_TO_FLOAT(cv_fov.value+player->fovadd);
-	postimg_t *type;
-
-	if (splitscreen && player == &players[secondarydisplayplayer])
-		type = &postimgtype2;
-	else
-		type = &postimgtype;
-
-	{
-		// do we really need to save player (is it not the same)?
-		player_t *saved_player = stplyr;
-		stplyr = player;
-		ST_doPaletteStuff();
-		stplyr = saved_player;
-#ifdef ALAM_LIGHTING
-		HWR_SetLights(viewnumber);
-#endif
-	}
-
-	// note: sets viewangle, viewx, viewy, viewz
-	R_SkyboxFrame(player);
-
 	// copy view cam position for local use
 	dup_viewx = viewx;
 	dup_viewy = viewy;
@@ -6125,9 +6362,6 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 		gr_viewwindowy += (vid.height/2);
 		gr_windowcentery += (vid.height/2);
 	}
-
-	// check for new console commands.
-	NetUpdate();
 
 	gr_viewx = FIXED_TO_FLOAT(dup_viewx);
 	gr_viewy = FIXED_TO_FLOAT(dup_viewy);
@@ -6145,7 +6379,7 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 	atransform.anglex = (float)(aimingangle>>ANGLETOFINESHIFT)*(360.0f/(float)FINEANGLES);
 	atransform.angley = (float)(viewangle>>ANGLETOFINESHIFT)*(360.0f/(float)FINEANGLES);
 
-	if (*type == postimg_flip)
+	if (*ptype == postimg_flip)
 		atransform.flip = true;
 	else
 		atransform.flip = false;
@@ -6162,23 +6396,13 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 
 	gr_fovlud = (float)(1.0l/tan((double)(fpov*M_PIl/360l)));
 
-	//------------------------------------------------------------------------
-	HWR_ClearView();
-
-if (0)
-{ // I don't think this is ever used.
-	if (cv_grfog.value)
-		HWR_FoggingOn(); // First of all, turn it on, set the default user settings too
-	else
-		HWD.pfnSetSpecialState(HWD_SET_FOG_MODE, 0); // Turn it off
+	//04/01/2000: Hurdler: added for T&L
+	//                     Actually it only works on Walls and Planes
+	HWD.pfnSetTransform(&atransform);
 }
 
-	if (drawsky)
-		HWR_DrawSkyBackground(player);
-
-	//Hurdler: it doesn't work in splitscreen mode
-	drawsky = splitscreen;
-
+static void HWR_ClearAll(void)
+{
 	HWR_ClearSprites();
 
 #ifdef SORTING
@@ -6197,13 +6421,10 @@ if (0)
 #else
 	HWR_ClearClipSegs();
 #endif
+}
 
-	//04/01/2000: Hurdler: added for T&L
-	//                     Actually it only works on Walls and Planes
-	HWD.pfnSetTransform(&atransform);
-
-	validcount++;
-
+static void HWR_RenderAllBSP(void)
+{
 	HWR_RenderBSPNode((INT32)numnodes-1);
 
 #ifndef NEWCLIP
@@ -6237,8 +6458,11 @@ if (0)
 
 	// Check for new console commands.
 	NetUpdate();
+}
 
-#ifdef ALAM_LIGHTING
+static void HWR_RenderSorted(void)
+{
+	#ifdef ALAM_LIGHTING
 	//14/11/99: Hurdler: moved here because it doesn't work with
 	// subsector, see other comments;
 	HWR_ResetLights();
@@ -6272,6 +6496,64 @@ if (0)
 			HWR_RenderTransparentWalls();
 	}
 #endif
+}
+
+// ==========================================================================
+// Same as rendering the player view, but from the skybox object
+// ==========================================================================
+void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
+{
+	const float fpov = FIXED_TO_FLOAT(cv_fov.value+player->fovadd);
+	postimg_t *postprocessor;
+
+	if (splitscreen && player == &players[secondarydisplayplayer])
+		postprocessor = &postimgtype2;
+	else
+		postprocessor = &postimgtype;
+
+	{
+		// do we really need to save player (is it not the same)?
+		player_t *saved_player = stplyr;
+		stplyr = player;
+		ST_doPaletteStuff();
+		stplyr = saved_player;
+#ifdef ALAM_LIGHTING
+		HWR_SetLights(viewnumber);
+#endif
+	}
+
+	// note: sets viewangle, viewx, viewy, viewz
+	R_SkyboxFrame(player);
+
+	HWR_SetTransform(fpov, viewnumber, postprocessor);
+
+	//------------------------------------------------------------------------
+	HWR_ClearView();
+
+if (0)
+{ // I don't think this is ever used.
+	if (cv_grfog.value)
+		HWR_FoggingOn(); // First of all, turn it on, set the default user settings too
+	else
+		HWD.pfnSetSpecialState(HWD_SET_FOG_MODE, 0); // Turn it off
+}
+
+	if (drawsky)
+		HWR_DrawSkyBackground(player);
+
+	//Hurdler: it doesn't work in splitscreen mode
+	drawsky = splitscreen;
+
+	HWR_ClearAll();
+
+	//04/01/2000: Hurdler: added for T&L
+	//                     Actually it only works on Walls and Planes
+	HWD.pfnSetTransform(&atransform);
+
+	validcount++;
+
+	HWR_RenderAllBSP();
+	HWR_RenderSorted();
 
 	HWD.pfnSetTransform(NULL);
 
@@ -6293,16 +6575,16 @@ if (0)
 void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 {
 	const float fpov = FIXED_TO_FLOAT(cv_fov.value+player->fovadd);
-	postimg_t *type;
+	postimg_t *postprocessor;
 
 	const boolean skybox = (skyboxmo[0] && cv_skybox.value); // True if there's a skybox object and skyboxes are on
 
 	FRGBAFloat ClearColor;
 
 	if (splitscreen && player == &players[secondarydisplayplayer])
-		type = &postimgtype2;
+		postprocessor = &postimgtype2;
 	else
-		type = &postimgtype;
+		postprocessor = &postimgtype;
 
 	ClearColor.red = 0.0f;
 	ClearColor.green = 0.0f;
@@ -6330,58 +6612,6 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 	R_SetupFrame(player);
 	framecount++; // timedemo
 
-	// copy view cam position for local use
-	dup_viewx = viewx;
-	dup_viewy = viewy;
-	dup_viewz = viewz;
-	dup_viewangle = viewangle;
-
-	// set window position
-	gr_centery = gr_basecentery;
-	gr_viewwindowy = gr_baseviewwindowy;
-	gr_windowcentery = gr_basewindowcentery;
-	if (splitscreen && viewnumber == 1)
-	{
-		gr_viewwindowy += (vid.height/2);
-		gr_windowcentery += (vid.height/2);
-	}
-
-	// check for new console commands.
-	NetUpdate();
-
-	gr_viewx = FIXED_TO_FLOAT(dup_viewx);
-	gr_viewy = FIXED_TO_FLOAT(dup_viewy);
-	gr_viewz = FIXED_TO_FLOAT(dup_viewz);
-	gr_viewsin = FIXED_TO_FLOAT(viewsin);
-	gr_viewcos = FIXED_TO_FLOAT(viewcos);
-
-	gr_viewludsin = FIXED_TO_FLOAT(FINECOSINE(aimingangle>>ANGLETOFINESHIFT));
-	gr_viewludcos = FIXED_TO_FLOAT(-FINESINE(aimingangle>>ANGLETOFINESHIFT));
-
-	//04/01/2000: Hurdler: added for T&L
-	//                     It should replace all other gr_viewxxx when finished
-	memset(&atransform, 0x00, sizeof(FTransform));
-
-	atransform.anglex = (float)(aimingangle>>ANGLETOFINESHIFT)*(360.0f/(float)FINEANGLES);
-	atransform.angley = (float)(viewangle>>ANGLETOFINESHIFT)*(360.0f/(float)FINEANGLES);
-
-	if (*type == postimg_flip)
-		atransform.flip = true;
-	else
-		atransform.flip = false;
-
-	atransform.x      = gr_viewx;  // FIXED_TO_FLOAT(viewx)
-	atransform.y      = gr_viewy;  // FIXED_TO_FLOAT(viewy)
-	atransform.z      = gr_viewz;  // FIXED_TO_FLOAT(viewz)
-	atransform.scalex = 1;
-	atransform.scaley = (float)vid.width/vid.height;
-	atransform.scalez = 1;
-	atransform.fovxangle = fpov; // Tails
-	atransform.fovyangle = fpov; // Tails
-	atransform.splitscreen = splitscreen;
-
-	gr_fovlud = (float)(1.0l/tan((double)(fpov*M_PIl/360l)));
-
 	//------------------------------------------------------------------------
 	HWR_ClearView(); // Clears the depth buffer and resets the view I believe
 
@@ -6399,101 +6629,109 @@ if (0)
 	//Hurdler: it doesn't work in splitscreen mode
 	drawsky = splitscreen;
 
-	HWR_ClearSprites();
+	HWR_ClearAll();
 
-#ifdef SORTING
-	drawcount = 0;
-#endif
-#ifdef NEWCLIP
-	if (rendermode == render_opengl)
-	{
-		angle_t a1 = gld_FrustumAngle();
-		gld_clipper_Clear();
-		gld_clipper_SafeAddClipRange(viewangle + a1, viewangle - a1);
-#ifdef HAVE_SPHEREFRUSTRUM
-		gld_FrustrumSetup();
-#endif
-	}
-#else
-	HWR_ClearClipSegs();
-#endif
-
-	//04/01/2000: Hurdler: added for T&L
-	//                     Actually it only works on Walls and Planes
-	HWD.pfnSetTransform(&atransform);
+	gr_portal = GRPORTAL_OFF;
+	numskywalls = 0;
 
 	validcount++;
 
-	HWR_RenderBSPNode((INT32)numnodes-1);
-
-#ifndef NEWCLIP
-	// Make a viewangle int so we can render things based on mouselook
-	if (player == &players[consoleplayer])
-		viewangle = localaiming;
-	else if (splitscreen && player == &players[secondarydisplayplayer])
-		viewangle = localaiming2;
-
-	// Handle stuff when you are looking farther up or down.
-	if ((aimingangle || cv_fov.value+player->fovadd > 90*FRACUNIT))
+	// Lactozilla: First, we have to find portal lines.
+	// The entire level needs to be drawn with the color mask off,
+	// but with the depth mask on.
+	if (cv_grportals.value)
 	{
-		dup_viewangle += ANGLE_90;
-		HWR_ClearClipSegs();
-		HWR_RenderBSPNode((INT32)numnodes-1); //left
+		Portal_InitList();
+		portalcullsector = NULL;
 
-		dup_viewangle += ANGLE_90;
-		if (((INT32)aimingangle > ANGLE_45 || (INT32)aimingangle<-ANGLE_45))
+		gr_portal = GRPORTAL_PROCESS;
+		HWR_SetTransform(fpov, viewnumber, postprocessor);
+		HWR_RenderBSPNode((INT32)numnodes-1);
+
+		// Okay, it was found.
+		if (gr_portal == GRPORTAL_FOUND)
 		{
-			HWR_ClearClipSegs();
-			HWR_RenderBSPNode((INT32)numnodes-1); //back
+			HWD.pfnPortalStart();
+			gr_portal = GRPORTAL_MASKING;
+#ifdef PORTALSORTING
+			gr_numportals = 0;
+#endif
+			gr_numportalsegs = 0;
+			gr_numportalcullsectors = 0;
+		}
+		else
+			gr_portal = GRPORTAL_OFF;
+
+		// Run through the BSP again.
+		HWR_ClearAll();
+		validcount++;
+	}
+
+	HWR_SetTransform(fpov, viewnumber, postprocessor);
+	HWR_RenderAllBSP();
+	HWR_RenderSorted();
+
+	// Now, draw every portal.
+	if (portal_base && cv_grportals.value)
+	{
+		portal_t *portal;
+		size_t addportal = 0;
+
+		// Enables the color mask.
+		HWD.pfnPortalFrame(0);
+		gr_portal = GRPORTAL_INSIDE;
+
+		for (portal = portal_base; portal; portal = portal_base)
+		{
+#ifdef PORTALSORTING
+			HWR_AddPortal(portal);
+#else
+			HWR_RenderSinglePortal(portal, addportal, fpov, viewnumber, postprocessor);
+			addportal++;
+#endif
+			Portal_Remove(portal);
 		}
 
-		dup_viewangle += ANGLE_90;
-		HWR_ClearClipSegs();
-		HWR_RenderBSPNode((INT32)numnodes-1); //right
-
-		dup_viewangle += ANGLE_90;
-	}
-#endif
-
-	// Check for new console commands.
-	NetUpdate();
-
-#ifdef ALAM_LIGHTING
-	//14/11/99: Hurdler: moved here because it doesn't work with
-	// subsector, see other comments;
-	HWR_ResetLights();
-#endif
-
-	// Draw MD2 and sprites
-#ifdef SORTING
-	HWR_SortVisSprites();
-#endif
-
-#ifdef SORTING
-	HWR_DrawSprites();
-#endif
-#ifdef NEWCORONAS
-	//Hurdler: they must be drawn before translucent planes, what about gl fog?
-	HWR_DrawCoronas();
-#endif
-
-#ifdef SORTING
-	if (numplanes || numpolyplanes || numwalls) //Hurdler: render 3D water and transparent walls after everything
-	{
-		HWR_CreateDrawNodes();
-	}
+#ifdef PORTALSORTING
+		HWR_SortPortals(player, fpov, viewnumber, postprocessor);
 #else
-	if (numfloors || numpolyplanes || numwalls)
-	{
-		HWD.pfnSetTransform(&atransform);
-		if (numfloors)
-			HWR_Render3DWater();
-		if (numwalls)
-			HWR_RenderTransparentWalls();
-	}
+		addportal = 0;
 #endif
 
+		// Draw every portal wall in the depth buffer.
+		// Disables the color mask.
+		HWD.pfnPortalFrame(2);
+		gr_portal = GRPORTAL_INSIDEMASK;
+
+		R_SetupFrame(player);
+		HWR_SetTransform(fpov, viewnumber, postprocessor);
+		HWR_ClearAll();
+
+		while (addportal < gr_numportalsegs)
+		{
+			gr_portalcullinfo_t *addportal_p = &gr_portalsegs[addportal];
+			gr_frontsector = addportal_p->frontsector;
+			gr_backsector = addportal_p->backsector;
+			if (addportal < (unsigned)cv_maxportals.value)
+				HWR_AddLine(addportal_p->seg); // Depthbufferium
+			addportal++;
+		}
+
+		// Then, draw the normal scene.
+		// Enables the color mask again.
+		HWD.pfnPortalFrame(1);
+		gr_portal = GRPORTAL_OUTSIDE;
+		gr_numportalcullsectors = 0;
+		portalcullsector = NULL;
+
+		validcount++;
+		HWR_RenderAllBSP();
+		HWR_RenderSorted();
+	}
+
+	HWD.pfnPortalFrame(0);
 	HWD.pfnSetTransform(NULL);
+	gr_portal = GRPORTAL_OFF;
 
 	// put it off for menus etc
 	if (cv_grfog.value)
@@ -6508,6 +6746,153 @@ if (0)
 	// moved here by hurdler so it works with the new near clipping plane
 	HWD.pfnGClipRect(0, 0, vid.width, vid.height, NZCLIP_PLANE);
 }
+
+// ==========================================================================
+//                                                                    PORTALS
+// ==========================================================================
+
+static void HWR_RenderSinglePortal(portal_t *portal, size_t portalnum, float fpov, INT32 viewnumber, postimg_t *ptype)
+{
+	portalrender = portal->pass; // Recursiveness depth.
+
+	// Apply the viewpoint stored for the portal.
+	R_PortalFrame(portal);
+	HWR_ClearAll();
+	HWR_SetTransform(fpov, viewnumber, ptype);
+	validcount++;
+
+	// Render the BSP from the new viewpoint.
+	portalcullsector = gr_portalcullsectors[portalnum];
+	HWR_RenderBSPNode((INT32)numnodes - 1);
+	HWR_RenderSorted();
+}
+
+#ifdef PORTALSORTING
+static void HWR_AddPortal(portal_t *portal)
+{
+	if (gr_numportals < MAX_GRPORTALS)
+	{
+		M_Memcpy(&gr_portals[gr_numportals], portal, sizeof(portal_t));
+		gr_numportals++;
+	}
+}
+
+static void HWR_SortPortals(player_t *player, float fpov, INT32 viewnumber, postimg_t *ptype)
+{
+	size_t addportal = 0;
+#ifndef SORTING // Can't sort if there's no sorting.
+	(void)player;
+	while (addportal < gr_numportals)
+	{
+		portal_t *portal = &gr_portals[addportal];
+		HWR_RenderSinglePortal(portal, addportal, fpov, viewnumber, ptype);
+		addportal++;
+	}
+#else
+	UINT32 i = 0, p = 0, prev = 0, loop;
+
+	// Copypasted from HWR_CreateDrawNodes
+	gr_drawnode_t *sortnode = Z_Calloc((sizeof(portal_t)*gr_numportals)
+									+ (sizeof(wallinfo_t)*numskywalls)
+									,PU_STATIC, NULL);
+	size_t *sortindex = Z_Calloc(sizeof(size_t) * (gr_numportals + numskywalls), PU_STATIC, NULL);
+
+	// If true, swap the draw order.
+	boolean shift = false;
+
+	for (i = 0; i < gr_numportals; i++, p++)
+	{
+		sortnode[p].portal = &gr_portals[i];
+		sortindex[p] = p;
+	}
+
+	for (i = 0; i < numskywalls; i++, p++)
+	{
+		sortnode[p].wall = &skywallinfo[i];
+		sortindex[p] = p;
+	}
+
+	// This is a bubble sort! Wahoo!
+	for (loop = 0; loop < p; loop++)
+	{
+		for (i = 1; i < p; i++)
+		{
+			prev = i-1;
+			if (sortnode[sortindex[i]].portal)
+			{
+				// What are we comparing it with?
+				if (sortnode[sortindex[prev]].portal)
+				{
+					// Portal (i) is further away than portal (prev)
+					if (sortnode[sortindex[i]].portal->drawcount < sortnode[sortindex[prev]].portal->drawcount)
+						shift = true;
+				}
+				else if (sortnode[sortindex[prev]].wall)
+				{
+					// Portal (i) is further than wall (prev)
+					if (sortnode[sortindex[i]].portal->drawcount < sortnode[sortindex[prev]].wall->drawcount)
+						shift = true;
+				}
+			}
+			else if (sortnode[sortindex[i]].wall)
+			{
+				// What are we comparing it with?
+				if (sortnode[sortindex[prev]].portal)
+				{
+					// Wall (i) is further than plane(prev)
+					if (sortnode[sortindex[i]].wall->drawcount < sortnode[sortindex[prev]].portal->drawcount)
+						shift = true;
+				}
+				else if (sortnode[sortindex[prev]].wall)
+				{
+					// Wall (i) is further than wall (prev)
+					if (sortnode[sortindex[i]].wall->drawcount < sortnode[sortindex[prev]].wall->drawcount)
+						shift = true;
+				}
+			}
+
+			if (shift)
+			{
+				size_t temp;
+
+				temp = sortindex[prev];
+				sortindex[prev] = sortindex[i];
+				sortindex[i] = temp;
+
+				shift = false;
+			}
+
+		} //i++
+	} // loop++
+
+	// Okay! Let's draw it all! Woo!
+	for (i = 0; i < p; i++)
+	{
+		if (sortnode[sortindex[i]].portal)
+		{
+			portal_t *portal = sortnode[sortindex[i]].portal;
+			HWR_RenderSinglePortal(portal, addportal, fpov, viewnumber, ptype);
+			addportal++;
+			if (addportal >= (unsigned)cv_maxportals.value)
+				break;
+		}
+		else if (sortnode[sortindex[i]].wall)
+		{
+			R_SetupFrame(player);
+			HWR_SetTransform(fpov, viewnumber, ptype);
+			HWR_DrawSkyWall(sortnode[sortindex[i]].wall->wallVerts, &sortnode[sortindex[i]].wall->Surf);
+		}
+	}
+
+	numskywalls = 0;
+
+	// No mem leaks, please.
+	Z_Free(sortnode);
+	Z_Free(sortindex);
+#endif
+	gr_numportals = 0;
+}
+#endif
 
 // ==========================================================================
 //                                                                        FOG
@@ -6590,6 +6975,7 @@ consvar_t cv_grmodellighting = {"gr_modellighting", "Off", CV_SAVE|CV_CALL, CV_O
 
 consvar_t cv_grspritebillboarding = {"gr_spritebillboarding", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_grskydome = {"gr_skydome", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_grportals = {"gr_portals", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 consvar_t cv_grrounddown = {"gr_rounddown", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_grfogdensity = {"gr_fogdensity", "150", CV_CALL|CV_NOINIT, CV_Unsigned,
@@ -6649,6 +7035,7 @@ void HWR_AddCommands(void)
 	CV_RegisterVar(&cv_grmodels);
 
 	CV_RegisterVar(&cv_grskydome);
+	CV_RegisterVar(&cv_grportals);
 	CV_RegisterVar(&cv_grspritebillboarding);
 
 	CV_RegisterVar(&cv_grfiltermode);
@@ -6874,9 +7261,33 @@ static void HWR_AddTransparentWall(wallVert3D *wallVerts, FSurfaceInfo *pSurf, I
 	wallinfo[numwalls].drawcount = drawcount++;
 #endif
 	wallinfo[numwalls].fogwall = fogwall;
+	wallinfo[numwalls].skywall = false;
 	wallinfo[numwalls].lightlevel = lightlevel;
 	wallinfo[numwalls].wallcolormap = wallcolormap;
 	numwalls++;
+}
+
+static void HWR_AddSkyWall(wallVert3D *wallVerts, FSurfaceInfo *pSurf)
+{
+	static size_t allocedwalls = 0;
+
+	// Force realloc if buffer has been freed
+	if (!wallinfo)
+		allocedwalls = 0;
+
+	if (allocedwalls < numwalls + 1)
+	{
+		allocedwalls += MAX_TRANSPARENTWALL;
+		Z_Realloc(skywallinfo, allocedwalls * sizeof (*skywallinfo), PU_LEVEL, &skywallinfo);
+	}
+
+	M_Memcpy(skywallinfo[numskywalls].wallVerts, wallVerts, sizeof (skywallinfo[numskywalls].wallVerts));
+	M_Memcpy(&skywallinfo[numskywalls].Surf, pSurf, sizeof (FSurfaceInfo));
+#ifdef SORTING
+	skywallinfo[numskywalls].drawcount = drawcount++;
+#endif
+	skywallinfo[numskywalls].skywall = true;
+	numskywalls++;
 }
 
 #ifndef SORTING
@@ -6909,6 +7320,7 @@ static void HWR_RenderTransparentWalls(void)
 		HWR_RenderWall(wallinfo[i].wallVerts, &wallinfo[i].Surf, wallinfo[i].blend, wallinfo[i].wall->fogwall, wallinfo[i].wall->lightlevel, wallinfo[i].wall->wallcolormap);
 	}
 	numwalls = 0;
+	numskywalls = 0;
 }
 #endif
 

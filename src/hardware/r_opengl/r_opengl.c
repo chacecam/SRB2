@@ -200,6 +200,11 @@ FUNCPRINTF void DBG_Printf(const char *lpFmt, ...)
 #define pglDepthMask glDepthMask
 #define pglDepthRange glDepthRange
 
+/* Stencil Buffer */
+#define pglStencilFunc glStencilFunc
+#define pglStencilMask glStencilMask
+#define pglStencilOp glStencilOp
+
 /* Transformation */
 #define pglMatrixMode glMatrixMode
 #define pglViewport glViewport
@@ -286,6 +291,13 @@ typedef void (APIENTRY * PFNglDepthMask) (GLboolean flag);
 static PFNglDepthMask pglDepthMask;
 typedef void (APIENTRY * PFNglDepthRange) (GLclampd near_val, GLclampd far_val);
 static PFNglDepthRange pglDepthRange;
+
+typedef void (APIENTRY * PFNglStencilFunc) (GLenum func, GLint ref, GLuint mask);
+static PFNglStencilFunc pglStencilFunc;
+typedef void (APIENTRY * PFNglStencilMask) (GLuint mask);
+static PFNglStencilMask pglStencilMask;
+typedef void (APIENTRY * PFNglStencilOp) (GLenum sfail, GLenum dpfail, GLenum dppass);
+static PFNglStencilOp pglStencilOp;
 
 /* Transformation */
 typedef void (APIENTRY * PFNglMatrixMode) (GLenum mode);
@@ -451,6 +463,10 @@ boolean SetupGLfunc(void)
 	GETOPENGLFUNC(pglDepthFunc , glDepthFunc)
 	GETOPENGLFUNC(pglDepthMask , glDepthMask)
 	GETOPENGLFUNC(pglDepthRange , glDepthRange)
+
+	GETOPENGLFUNC(pglStencilFunc , glStencilFunc)
+	GETOPENGLFUNC(pglStencilMask , glStencilMask)
+	GETOPENGLFUNC(pglStencilOp , glStencilOp)
 
 	GETOPENGLFUNC(pglMatrixMode , glMatrixMode)
 	GETOPENGLFUNC(pglViewport , glViewport)
@@ -961,7 +977,7 @@ static void Clamp2D(GLenum pname)
 
 
 // -----------------+
-// SetBlend         : Set render mode
+// SetBlend         : Set blending modes
 // -----------------+
 // PF_Masked - we could use an ALPHA_TEST of GL_EQUAL, and alpha ref of 0,
 //             is it faster when pixels are discarded ?
@@ -1101,6 +1117,29 @@ EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags)
 		}
 	}
 	CurrentPolyFlags = PolyFlags;
+}
+
+// -----------------+
+// PortalStart      : Setup portal rendering.
+// -----------------+
+EXPORT void HWRAPI(PortalStart) (void)
+{
+	pglClear(GL_DEPTH_BUFFER_BIT);
+	pglColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+}
+
+// -----------------+
+// PortalFrame      : Turns on the color mask. Can also clear the depth buffer.
+// -----------------+
+EXPORT void HWRAPI(PortalFrame) (INT32 clearbuffer)
+{
+	if (clearbuffer == 2)
+	{
+		pglColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+		pglClear(GL_DEPTH_BUFFER_BIT);
+	}
+	else
+		pglColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 }
 
 

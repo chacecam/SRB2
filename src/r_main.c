@@ -1010,7 +1010,7 @@ void R_SkyboxFrame(player_t *player)
 	R_SetupFreelook();
 }
 
-static void R_PortalFrame(portal_t *portal)
+void R_PortalFrame(portal_t *portal)
 {
 	viewx = portal->viewx;
 	viewy = portal->viewy;

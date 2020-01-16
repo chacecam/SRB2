@@ -1733,6 +1733,8 @@ void I_StartupHardwareGraphics(void)
 		HWD.pfnDrawPolygon      = hwSym("DrawPolygon",NULL);
 		HWD.pfnRenderSkyDome    = hwSym("RenderSkyDome",NULL);
 		HWD.pfnSetBlend         = hwSym("SetBlend",NULL);
+		HWD.pfnPortalStart      = hwSym("PortalStart",NULL);
+		HWD.pfnPortalFrame      = hwSym("PortalFrame",NULL);
 		HWD.pfnClearBuffer      = hwSym("ClearBuffer",NULL);
 		HWD.pfnSetTexture       = hwSym("SetTexture",NULL);
 		HWD.pfnReadRect         = hwSym("ReadRect",NULL);

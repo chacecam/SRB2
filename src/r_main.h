@@ -16,6 +16,7 @@
 
 #include "d_player.h"
 #include "r_data.h"
+#include "r_portal.h"
 
 //
 // POV related.
@@ -105,6 +106,8 @@ void R_ExecuteSetViewSize(void);
 void R_SkyboxFrame(player_t *player);
 
 void R_SetupFrame(player_t *player);
+void R_PortalFrame(portal_t *portal);
+
 // Called by G_Drawer.
 void R_RenderPlayerView(player_t *player);
 

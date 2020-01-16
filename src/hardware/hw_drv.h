@@ -45,6 +45,8 @@ EXPORT void HWRAPI(Draw2DLine) (F2DCoord *v1, F2DCoord *v2, RGBA_t Color);
 EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags);
 EXPORT void HWRAPI(RenderSkyDome) (INT32 tex, INT32 texture_width, INT32 texture_height, FTransform transform);
 EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags);
+EXPORT void HWRAPI(PortalStart) (void);
+EXPORT void HWRAPI(PortalFrame) (INT32 clearbuffer);
 EXPORT void HWRAPI(ClearBuffer) (FBOOLEAN ColorMask, FBOOLEAN DepthMask, FRGBAFloat *ClearColor);
 EXPORT void HWRAPI(SetTexture) (FTextureInfo *TexInfo);
 EXPORT void HWRAPI(ReadRect) (INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
@@ -86,6 +88,8 @@ struct hwdriver_s
 	DrawPolygon         pfnDrawPolygon;
 	RenderSkyDome       pfnRenderSkyDome;
 	SetBlend            pfnSetBlend;
+	PortalStart         pfnPortalStart;
+	PortalFrame         pfnPortalFrame;
 	ClearBuffer         pfnClearBuffer;
 	SetTexture          pfnSetTexture;
 	ReadRect            pfnReadRect;
