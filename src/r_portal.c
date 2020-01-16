@@ -190,7 +190,8 @@ void Portal_Remove (portal_t* portal)
  */
 void Portal_Add2Lines (const INT32 line1, const INT32 line2, const INT32 x1, const INT32 x2)
 {
-	portal_t* portal = NULL;
+	portal_t *portal;
+	line_t *start, *dest;
 
 #ifdef HWRENDER
 	if (rendermode == render_opengl)
@@ -200,8 +201,8 @@ void Portal_Add2Lines (const INT32 line1, const INT32 line2, const INT32 x1, con
 		portal = Portal_Add(x1, x2);
 
 	// Offset the portal view by the linedef centers
-	line_t* start	= &lines[line1];
-	line_t* dest	= &lines[line2];
+	start	= &lines[line1];
+	dest	= &lines[line2];
 
 	angle_t dangle = R_PointToAngle2(0,0,dest->dx,dest->dy) - R_PointToAngle2(start->dx,start->dy,0,0);
 
