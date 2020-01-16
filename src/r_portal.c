@@ -193,6 +193,13 @@ void Portal_Add2Lines (const INT32 line1, const INT32 line2, const INT32 x1, con
 	portal_t *portal;
 	line_t *start, *dest;
 
+	angle_t dangle;
+
+	fixed_t disttopoint;
+	angle_t angtopoint;
+
+	vertex_t dest_c, start_c;
+
 #ifdef HWRENDER
 	if (rendermode == render_opengl)
 		portal = GLPortal_Add();
@@ -203,13 +210,7 @@ void Portal_Add2Lines (const INT32 line1, const INT32 line2, const INT32 x1, con
 	// Offset the portal view by the linedef centers
 	start	= &lines[line1];
 	dest	= &lines[line2];
-
-	angle_t dangle = R_PointToAngle2(0,0,dest->dx,dest->dy) - R_PointToAngle2(start->dx,start->dy,0,0);
-
-	fixed_t disttopoint;
-	angle_t angtopoint;
-
-	vertex_t dest_c, start_c;
+	dangle	= R_PointToAngle2(0,0,dest->dx,dest->dy) - R_PointToAngle2(start->dx,start->dy,0,0);
 
 	// looking glass center
 	start_c.x = (start->v1->x + start->v2->x) / 2;
