@@ -96,7 +96,7 @@ static INT32 drawcount = 0; // moved up here for portal bullshit
 //
 
 #define MAX_GRPORTALS 13
-#define PORTALSORTING
+//#define PORTALSORTING // Breaks recursive portals :[
 
 enum
 {
