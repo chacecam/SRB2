@@ -890,7 +890,6 @@ void HWR_WallLighting(FOutVector *wlVerts)
 		Surf.FadeColor.rgba = GL_DEFAULTFOG;
 
 		HWD.pfnDrawPolygon (&Surf, wlVerts, 4, LIGHTMAPFLAGS);
-
 	} // end for (j = 0; j < dynlights->nb; j++)
 }
 
@@ -964,7 +963,6 @@ void HWR_PlaneLighting(FOutVector *clVerts, int nrClipVerts)
 		Surf.FadeColor.rgba = GL_DEFAULTFOG;
 
 		HWD.pfnDrawPolygon (&Surf, clVerts, nrClipVerts, LIGHTMAPFLAGS);
-
 	} // end for (j = 0; j < dynlights->nb; j++)
 }
 #endif

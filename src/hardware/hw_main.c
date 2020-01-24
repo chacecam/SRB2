@@ -4248,10 +4248,6 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 	if (!spr->mobj->subsector)
 		return;
 
-#ifdef ALAM_LIGHTING
-	HWR_AddCorona(spr);
-#endif
-
 	if (spr->mobj->subsector->sector->numlights)
 	{
 		HWR_SplitSprite(spr);
@@ -5341,6 +5337,10 @@ static void HWR_ProjectSprite(mobj_t *thing)
 	vis->vflip = vflip;
 
 	vis->precip = false;
+
+#ifdef ALAM_LIGHTING
+	HWR_AddCorona(vis);
+#endif
 }
 
 #ifdef HWPRECIP
