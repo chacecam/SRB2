@@ -19,7 +19,6 @@
 #define NUMLIGHTFREESLOTS 32 // Free light slots (for SOCs)
 
 #ifdef ALAM_LIGHTING
-#define NEWCORONAS
 
 #define DL_MAX_LIGHT 256 // maximum number of lights (extra lights are ignored)
 
@@ -30,11 +29,7 @@ void HWR_WallLighting(FOutVector *wlVerts);
 void HWR_ResetLights(void);
 void HWR_SetLights(int viewnumber);
 
-#ifdef NEWCORONAS
 void HWR_DrawCoronas(void);
-#else
-void HWR_DoCoronasLighting(FOutVector *outVerts, gr_vissprite_t *spr);
-#endif
 
 typedef struct
 {

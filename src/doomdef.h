@@ -622,6 +622,7 @@ extern const char *compdate, *comptime, *comprevision, *compbranch;
 
 /// OpenGL shaders
 #define GL_SHADERS
+#define ALAM_LIGHTING
 
 /// Handle touching sector specials in P_PlayerAfterThink instead of P_PlayerThink.
 /// \note   Required for proper collision with moving sloped surfaces that have sector specials on them.

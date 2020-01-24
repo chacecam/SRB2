@@ -5815,7 +5815,7 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 	HWR_SortVisSprites();
 	HWR_DrawSprites();
 
-#ifdef NEWCORONAS
+#ifdef ALAM_LIGHTING
 	//Hurdler: they must be drawn before translucent planes, what about gl fog?
 	HWR_DrawCoronas();
 #endif
@@ -6016,7 +6016,7 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 	HWR_SortVisSprites();
 	HWR_DrawSprites();
 
-#ifdef NEWCORONAS
+#ifdef ALAM_LIGHTING
 	//Hurdler: they must be drawn before translucent planes, what about gl fog?
 	HWR_DrawCoronas();
 #endif

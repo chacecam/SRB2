@@ -960,102 +960,7 @@ void HWR_PlaneLighting(FOutVector *clVerts, int nrClipVerts)
 
 
 static lumpnum_t coronalumpnum = LUMPERROR;
-#ifndef NEWCORONAS
-// --------------------------------------------------------------------------
-// coronas lighting
-// --------------------------------------------------------------------------
-void HWR_DoCoronasLighting(FOutVector *outVerts, gr_vissprite_t *spr)
-{
-	light_t   *p_lspr;
 
-	if (coronalumpnum == LUMPERROR)
-		return;
-
-	//CONS_Debug(DBG_RENDER, "sprite (type): %d (%s)\n", spr->type, sprnames[spr->type]);
-	p_lspr = t_lspr[spr->mobj->sprite];
-	if ((spr->mobj->state>=&states[S_EXPLODE1] && spr->mobj->state<=&states[S_EXPLODE3])
-	 || (spr->mobj->state>=&states[S_FATSHOTX1] && spr->mobj->state<=&states[S_FATSHOTX3]))
-	{
-		p_lspr = &lspr[ROCKETEXP_L];
-	}
-
-	if (cv_grcoronas.value && (p_lspr->type & CORONA_SPR))
-	{ // it's an object which emits light
-		FOutVector      light[4];
-		FSurfaceInfo    Surf;
-		float           cx = 0.0f, cy = 0.0f, cz = 0.0f; // gravity center
-		float           size;
-		UINT8           i;
-
-		switch (p_lspr->type)
-		{
-			case LIGHT_SPR:
-				size  = p_lspr->corona_radius  * ((outVerts[0].z+120.0f)/950.0f); // d'ou vienne ces constante ?
-				break;
-			case ROCKET_SPR:
-				p_lspr->corona_color = (((M_RandomByte()>>1)&0xff)<<24)|0x0040ff;
-				// don't need a break
-			case CORONA_SPR:
-				size  = p_lspr->corona_radius  * ((outVerts[0].z+60.0f)/100.0f); // d'ou vienne ces constante ?
-				break;
-			default:
-				I_Error("HWR_DoCoronasLighting: unknow light type %d",p_lspr->type);
-				return;
-		}
-		if (size > p_lspr->corona_radius)
-			size = p_lspr->corona_radius;
-		size *= FIXED_TO_FLOAT(cv_grcoronasize.value<<1);
-
-		// compute position doing average
-		for (i = 0; i < 4; i++)
-		{
-			cx += outVerts[i].x;
-			cy += outVerts[i].y;
-			cz += outVerts[i].z;
-		}
-		cx /= 4.0f;  cy /= 4.0f;  cz /= 4.0f;
-
-		// more realistique corona !
-		if (cz >= 255*8+250)
-			return;
-		Surf.PolyColor.rgba = p_lspr->corona_color;
-		if (cz > 250.0f)
-			Surf.PolyColor.s.alpha = 0xff-((int)cz-250)/8;
-		else
-			Surf.PolyColor.s.alpha = 0xff;
-
-		// do not be hide by sprite of the light itself !
-		cz = cz - 2.0f;
-
-		// Bp; je comprend pas, ou est la rotation haut/bas ?
-		//     tu ajoute un offset a y mais si la tu la reguarde de haut
-		//     sa devrais pas marcher ... comprend pas :(
-		//     (...) bon je croit que j'ai comprit il est tout pourit le code ?
-		//           car comme l'offset est minime sa ce voit pas !
-		light[0].x = cx-size;  light[0].z = cz;
-		light[0].y = cy-size*1.33f+p_lspr->light_yoffset;
-		light[0].s = 0.0f;   light[0].t = 0.0f;
-
-		light[1].x = cx+size;  light[1].z = cz;
-		light[1].y = cy-size*1.33f+p_lspr->light_yoffset;
-		light[1].s = 1.0f;   light[1].t = 0.0f;
-
-		light[2].x = cx+size;  light[2].z = cz;
-		light[2].y = cy+size*1.33f+p_lspr->light_yoffset;
-		light[2].s = 1.0f;   light[2].t = 1.0f;
-
-		light[3].x = cx-size;  light[3].z = cz;
-		light[3].y = cy+size*1.33f+p_lspr->light_yoffset;
-		light[3].s = 0.0f;   light[3].t = 1.0f;
-
-		HWR_GetPic(coronalumpnum);  /// \todo use different coronas
-
-		HWD.pfnDrawPolygon (&Surf, light, 4, PF_Modulated | PF_Additive | PF_Clip | PF_Corona | PF_NoDepthTest);
-	}
-}
-#endif
-
-#ifdef NEWCORONAS
 // use the lightlist of the frame to draw the coronas at the top of everythink
 void HWR_DrawCoronas(void)
 {
@@ -1141,7 +1046,6 @@ void HWR_DrawCoronas(void)
 		HWD.pfnDrawPolygon (&Surf, light, 4, PF_Modulated | PF_Additive | PF_Clip | PF_NoDepthTest | PF_Corona);
 	}
 }
-#endif
 
 // --------------------------------------------------------------------------
 // Remove all the dynamic lights at eatch frame
