@@ -27,7 +27,6 @@ void HWR_DL_AddLight(gr_vissprite_t *spr, GLPatch_t *patch);
 void HWR_PlaneLighting(FOutVector *clVerts, int nrClipVerts);
 void HWR_WallLighting(FOutVector *wlVerts);
 void HWR_ResetLights(void);
-void HWR_SetLights(int viewnumber);
 
 void HWR_DrawCoronas(void);
 

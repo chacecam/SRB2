@@ -5673,9 +5673,6 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 		stplyr = player;
 		ST_doPaletteStuff();
 		stplyr = saved_player;
-#ifdef ALAM_LIGHTING
-		HWR_SetLights(viewnumber);
-#endif
 	}
 
 	// note: sets viewangle, viewx, viewy, viewz
@@ -5873,9 +5870,6 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 		stplyr = player;
 		ST_doPaletteStuff();
 		stplyr = saved_player;
-#ifdef ALAM_LIGHTING
-		HWR_SetLights(viewnumber);
-#endif
 	}
 
 	// note: sets viewangle, viewx, viewy, viewz

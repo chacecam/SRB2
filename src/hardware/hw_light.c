@@ -38,8 +38,8 @@
 #define LIGHTMAPFLAGS (PF_Modulated|PF_Additive|PF_Clip)
 
 #ifdef ALAM_LIGHTING
-static dynlights_t view_dynlights[2]; // 2 players in splitscreen mode
-static dynlights_t *dynlights = &view_dynlights[0];
+static dynlights_t view_dynlight;
+static dynlights_t *dynlights = &view_dynlight;
 #endif
 
 #define UNDEFINED_SPR   0x0 // actually just for testing
@@ -1091,14 +1091,6 @@ void HWR_ResetLights(void)
 {
 	while (dynlights->nb)
 		P_SetTarget(&dynlights->mo[--dynlights->nb], NULL);
-}
-
-// --------------------------------------------------------------------------
-// Change view, thus change lights (splitscreen)
-// --------------------------------------------------------------------------
-void HWR_SetLights(int viewnumber)
-{
-	dynlights = &view_dynlights[viewnumber];
 }
 
 // --------------------------------------------------------------------------
