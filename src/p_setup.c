@@ -1886,9 +1886,6 @@ static void P_InitializeSeg(seg_t *seg)
 
 #ifdef HWRENDER
 	seg->pv1 = seg->pv2 = NULL;
-
-	//Hurdler: 04/12/2000: for now, only used in hardware mode
-	seg->lightmaps = NULL; // list of static lightmap for this seg
 #endif
 
 	seg->numlights = 0;

@@ -1416,7 +1416,6 @@ static menuitem_t OP_OpenGLLightingMenu[] =
 	{IT_STRING|IT_CVAR, NULL, "Coronas",          &cv_grcoronas,          0},
 	{IT_STRING|IT_CVAR, NULL, "Coronas size",     &cv_grcoronasize,      10},
 	{IT_STRING|IT_CVAR, NULL, "Dynamic lighting", &cv_grdynamiclighting, 20},
-	{IT_STRING|IT_CVAR, NULL, "Static lighting",  &cv_grstaticlighting,  30},
 };
 #endif // ALAM_LIGHTING
 
