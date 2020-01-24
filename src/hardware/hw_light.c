@@ -957,7 +957,6 @@ void HWR_PlaneLighting(FOutVector *clVerts, int nrClipVerts)
 	} // end for (j = 0; j < dynlights->nb; j++)
 }
 
-
 static lumpnum_t coronalumpnum = LUMPERROR;
 
 // use the lightlist of the frame to draw the coronas at the top of everythink
@@ -965,10 +964,15 @@ void HWR_DrawCoronas(void)
 {
 	int       j;
 
+	float rightsin = FIXED_TO_FLOAT(FINESINE((viewangle + ANGLE_90)>>ANGLETOFINESHIFT));
+	float rightcos = FIXED_TO_FLOAT(FINECOSINE((viewangle + ANGLE_90)>>ANGLETOFINESHIFT));
+
 	if (!cv_grcoronas.value || dynlights->nb <= 0 || coronalumpnum == LUMPERROR)
 		return;
 
 	HWR_GetPic(coronalumpnum);  /// \todo use different coronas
+	HWD.pfnSetShader(0);
+
 	for (j = 0;j < dynlights->nb;j++)
 	{
 		FOutVector      light[4];
@@ -976,7 +980,12 @@ void HWR_DrawCoronas(void)
 		float           cx = LIGHT_POS(j).x;
 		float           cy = LIGHT_POS(j).y;
 		float           cz = LIGHT_POS(j).z; // gravity center
+		float          tcx = cx;
+		float          tcy = cy;
+		float          tcz = cz;
 		float           size;
+		float           x1, z1;
+		float           x2, z2;
 		light_t         *p_lspr = dynlights->p_lspr[j];
 
 		// it's an object which emits light
@@ -991,16 +1000,19 @@ void HWR_DrawCoronas(void)
 			continue;
 		}
 
-		transform(&cx,&cy,&cz);
+		transform(&tcx,&tcy,&tcz);
 
 		// more realistique corona !
-		if (cz >= 255*8+250)
+		if (tcz >= 255*8+250)
 			continue;
 		Surf.PolyColor.rgba = p_lspr->corona_color;
-		if (cz > 250.0f)
-			Surf.PolyColor.s.alpha = (UINT8)(0xff-(UINT8)(((int)cz-250)/8));
+		if (tcz > 250.0f)
+			Surf.PolyColor.s.alpha = (UINT8)(0xff-(UINT8)(((int)tcz-250)/8));
 		else
 			Surf.PolyColor.s.alpha = 0xff;
+
+		Surf.TintColor.rgba = GL_DEFAULTMIX;
+		Surf.FadeColor.rgba = GL_DEFAULTFOG;
 
 		switch (p_lspr->type)
 		{
@@ -1014,9 +1026,10 @@ void HWR_DrawCoronas(void)
 				size  = p_lspr->corona_radius  * ((cz+60.0f)/100.0f); // d'ou vienne ces constante ?
 				break;
 			default:
-				I_Error("HWR_DoCoronasLighting: unknow light type %d",p_lspr->type);
+				I_Error("HWR_DoCoronasLighting: unknown light type %d",p_lspr->type);
 				continue;
 		}
+
 		if (size > p_lspr->corona_radius)
 			size = p_lspr->corona_radius;
 		size = (float)(FIXED_TO_FLOAT(cv_grcoronasize.value<<1)*size);
@@ -1026,21 +1039,36 @@ void HWR_DrawCoronas(void)
 		// BP: use PF_Decal do not help :(
 		cz = cz - 5.0f;
 
-		light[0].x = cx-size;  light[0].z = cz;
+		z1 = cz - size * rightsin;
+		z2 = cz + size * rightsin;
+		x1 = cx - size * rightcos;
+		x2 = cx + size * rightcos;
+
+		light[0].x = x1;
 		light[0].y = cy-size*1.33f;
-		light[0].s = 0.0f;   light[0].t = 0.0f;
 
-		light[1].x = cx+size;  light[1].z = cz;
+		light[1].x = x2;
 		light[1].y = cy-size*1.33f;
-		light[1].s = 1.0f;   light[1].t = 0.0f;
 
-		light[2].x = cx+size;  light[2].z = cz;
+		light[2].x = x2;
 		light[2].y = cy+size*1.33f;
-		light[2].s = 1.0f;   light[2].t = 1.0f;
 
-		light[3].x = cx-size;  light[3].z = cz;
+		light[3].x = x1;
 		light[3].y = cy+size*1.33f;
-		light[3].s = 0.0f;   light[3].t = 1.0f;
+
+		light[0].z = z1;
+		light[3].z = z1;
+		light[1].z = z2;
+		light[2].z = z2;
+
+		light[0].s = 0.0f;
+		light[0].t = 0.0f;
+		light[1].s = 1.0f;
+		light[1].t = 0.0f;
+		light[2].s = 1.0f;
+		light[2].t = 1.0f;
+		light[3].s = 0.0f;
+		light[3].t = 1.0f;
 
 		HWD.pfnDrawPolygon (&Surf, light, 4, PF_Modulated | PF_Additive | PF_Clip | PF_NoDepthTest | PF_Corona);
 	}
