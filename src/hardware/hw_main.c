@@ -557,7 +557,7 @@ static void HWR_RenderPlane(extrasubsector_t *xsub, boolean isceiling, fixed_t f
 
 	HWD.pfnDrawPolygon(&Surf, planeVerts, nrPlaneVerts, PolyFlags);
 
-#ifdef ALAM_LIGHTING
+#if defined (ALAM_LIGHTING) && defined (DYNLIGHTS)
 	// add here code for dynamic lighting on planes
 	HWR_PlaneLighting(planeVerts, nrPlaneVerts);
 #endif

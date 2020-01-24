@@ -741,6 +741,7 @@ light_t *t_lspr[NUMSPRITES] =
 //                                                                       PROTOS
 //=============================================================================
 
+#ifdef DYNLIGHTS
 static void HWR_SetLight(void);
 
 // --------------------------------------------------------------------------
@@ -966,6 +967,7 @@ void HWR_PlaneLighting(FOutVector *clVerts, int nrClipVerts)
 
 	} // end for (j = 0; j < dynlights->nb; j++)
 }
+#endif
 
 static lumpnum_t coronalumpnum = LUMPERROR;
 
@@ -1132,8 +1134,10 @@ void HWR_DL_AddLight(gr_vissprite_t *spr, GLPatch_t *patch)
 	dynlights->nb++;
 }
 
+#ifdef DYNLIGHTS
 static GLMipmap_t lightmappatchmipmap;
 static GLPatch_t lightmappatch = { .mipmap = &lightmappatchmipmap };
+#endif
 
 void HWR_InitLight(void)
 {
@@ -1143,13 +1147,16 @@ void HWR_InitLight(void)
 	for (i = 0;i < NUMLIGHTS;i++)
 		lspr[i].dynamic_sqrradius = lspr[i].dynamic_radius*lspr[i].dynamic_radius;
 
+#ifdef DYNLIGHTS
 	lightmappatch.mipmap->downloaded = false;
+#endif
 	coronalumpnum = W_CheckNumForName("CORONA");
 }
 
 // -----------------+
 // HWR_SetLight     : Download a disc shaped alpha map for rendering fake lights
 // -----------------+
+#ifdef DYNLIGHTS
 static void HWR_SetLight(void)
 {
 	int    i, j;
@@ -1188,6 +1195,7 @@ static void HWR_SetLight(void)
 	// The system-memory data can be purged now.
 	Z_ChangeTag(lightmappatch.mipmap->grInfo.data, PU_HWRCACHE_UNLOCKED);
 }
+#endif
 
 /**
  \todo
