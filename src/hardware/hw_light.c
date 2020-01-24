@@ -814,6 +814,8 @@ void HWR_WallLighting(FOutVector *wlVerts)
 {
 	int             i, j;
 
+	HWD.pfnSetShader(0);
+
 	// dynlights->nb == 0 if cv_grdynamiclighting.value is not set
 	for (j = 0; j < dynlights->nb; j++)
 	{
@@ -883,6 +885,9 @@ void HWR_WallLighting(FOutVector *wlVerts)
 		if (dynlights->mo[j]->state->nextstate == S_NULL)
 			Surf.PolyColor.s.alpha = (UINT8)(((float)dynlights->mo[j]->tics/(float)dynlights->mo[j]->state->tics)*Surf.PolyColor.s.alpha);
 
+		Surf.TintColor.rgba = GL_DEFAULTMIX;
+		Surf.FadeColor.rgba = GL_DEFAULTFOG;
+
 		HWD.pfnDrawPolygon (&Surf, wlVerts, 4, LIGHTMAPFLAGS);
 
 	} // end for (j = 0; j < dynlights->nb; j++)
@@ -903,6 +908,8 @@ void HWR_PlaneLighting(FOutVector *clVerts, int nrClipVerts)
 	p2.x = FIXED_TO_FLOAT(hwbbox[BOXRIGHT ]);
 	p2.y = clVerts[0].y;
 	p1.y = clVerts[0].y;
+
+	HWD.pfnSetShader(0);
 
 	for (j = 0; j < dynlights->nb; j++)
 	{
@@ -951,6 +958,9 @@ void HWR_PlaneLighting(FOutVector *clVerts, int nrClipVerts)
 		// next state is null so fade out with alpha
 		if ((dynlights->mo[j]->state->nextstate == S_NULL))
 			Surf.PolyColor.s.alpha = (unsigned char)(((float)dynlights->mo[j]->tics/(float)dynlights->mo[j]->state->tics)*Surf.PolyColor.s.alpha);
+
+		Surf.TintColor.rgba = GL_DEFAULTMIX;
+		Surf.FadeColor.rgba = GL_DEFAULTFOG;
 
 		HWD.pfnDrawPolygon (&Surf, clVerts, nrClipVerts, LIGHTMAPFLAGS);
 
