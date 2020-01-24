@@ -4248,6 +4248,10 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 	if (!spr->mobj->subsector)
 		return;
 
+#ifdef ALAM_LIGHTING
+	HWR_AddCorona(spr);
+#endif
+
 	if (spr->mobj->subsector->sector->numlights)
 	{
 		HWR_SplitSprite(spr);
@@ -4261,12 +4265,6 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 	//          in memory and we add the md2 model if it exists for that sprite
 
 	gpatch = spr->gpatch; //W_CachePatchNum(spr->patchlumpnum, PU_CACHE);
-
-#ifdef ALAM_LIGHTING
-	if (!(spr->mobj->flags2 & MF2_DEBRIS) && (spr->mobj->sprite != SPR_PLAY ||
-	 (spr->mobj->player && spr->mobj->player->powers[pw_super])))
-		HWR_DL_AddLight(spr, gpatch);
-#endif
 
 	// create the sprite billboard
 	//

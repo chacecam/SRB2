@@ -23,7 +23,7 @@
 #define DL_MAX_LIGHT 256 // maximum number of lights (extra lights are ignored)
 
 void HWR_InitLight(void);
-void HWR_DL_AddLight(gr_vissprite_t *spr, GLPatch_t *patch);
+void HWR_AddCorona(gr_vissprite_t *spr);
 void HWR_ResetLights(void);
 
 #ifdef DYNLIGHTS
@@ -72,6 +72,7 @@ typedef enum
 	BLUEBALL_L,
 	NIGHTSLIGHT_L,
 	JETLIGHT_L,
+	FLAMELIGHT_L,
 	GOOPLIGHT_L,
 	STREETLIGHT_L,
 

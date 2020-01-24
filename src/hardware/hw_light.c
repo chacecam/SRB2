@@ -47,9 +47,6 @@ static dynlights_t *dynlights = &view_dynlight;
 #define DYNLIGHT_SPR    0x2 // a light source which is only used for dynamic lighting
 #define LIGHT_SPR       (DYNLIGHT_SPR|CORONA_SPR)
 #define ROCKET_SPR      (DYNLIGHT_SPR|CORONA_SPR|0x10)
-//#define MONSTER_SPR     4
-//#define AMMO_SPR        8
-//#define BONUS_SPR      16
 
 //Hurdler: now we can change those values via FS :)
 light_t lspr[NUMLIGHTS] =
@@ -125,6 +122,9 @@ light_t lspr[NUMLIGHTS] =
 	// JETLIGHT_L
 	{ DYNLIGHT_SPR,   0.0f,   6.0f, 0x60ffaaaa,  16.0f, 0x30ffaaaa,  64.0f, 0.0f},
 
+	// FLAMELIGHT_L
+	{    LIGHT_SPR,   0.0f,   0.0f, 0xff0080ff,  64.0f, 0xff0080ff, 256.0f, 0.0f},
+
 	// GOOPLIGHT_L
 	{ DYNLIGHT_SPR,   0.0f,   6.0f, 0x60ff00ff,  16.0f, 0x30ff00ff,  32.0f, 0.0f},
 
@@ -138,7 +138,7 @@ light_t *t_lspr[NUMSPRITES] =
 	&lspr[NOLIGHT],     // SPR_UNKN
 
 	&lspr[NOLIGHT],     // SPR_THOK
-	&lspr[SUPERSONIC_L],// SPR_PLAY
+	&lspr[NOLIGHT],     // SPR_PLAY
 
 	// Enemies
 	&lspr[NOLIGHT],     // SPR_POSS
@@ -332,7 +332,7 @@ light_t *t_lspr[NUMSPRITES] =
 
 	// Castle Eggman Scenery
 	&lspr[NOLIGHT],     // SPR_CHAN
-	&lspr[REDBALL_L],   // SPR_FLAM
+	&lspr[FLAMELIGHT_L],// SPR_FLAM
 	&lspr[NOLIGHT],     // SPR_ESTA
 	&lspr[NOLIGHT],     // SPR_SMCH
 	&lspr[NOLIGHT],     // SPR_BMCH
@@ -1004,6 +1004,7 @@ void HWR_DrawCoronas(void)
 		if (!(p_lspr->type & CORONA_SPR))
 			continue;
 
+#ifdef DYNLIGHTS
 		if (!dynlights->mo[j])
 			continue;
 		if (P_MobjWasRemoved(dynlights->mo[j]))
@@ -1011,6 +1012,7 @@ void HWR_DrawCoronas(void)
 			P_SetTarget(&dynlights->mo[j], NULL);
 			continue;
 		}
+#endif
 
 		transform(&tcx,&tcy,&tcz);
 
@@ -1029,13 +1031,13 @@ void HWR_DrawCoronas(void)
 		switch (p_lspr->type)
 		{
 			case LIGHT_SPR:
-				size  = p_lspr->corona_radius  * ((cz+120.0f)/950.0f); // d'ou vienne ces constante ?
+				size = p_lspr->corona_radius  * ((tcz+120.0f)/950.0f); // d'ou vienne ces constante ?
 				break;
 			case ROCKET_SPR:
 				Surf.PolyColor.s.alpha = (UINT8)((M_RandomByte()>>1)&0xff);
 				// don't need a break
 			case CORONA_SPR:
-				size  = p_lspr->corona_radius  * ((cz+60.0f)/100.0f); // d'ou vienne ces constante ?
+				size = p_lspr->corona_radius  * ((tcz+60.0f)/100.0f); // d'ou vienne ces constante ?
 				break;
 			default:
 				I_Error("HWR_DoCoronasLighting: unknown light type %d",p_lspr->type);
@@ -1091,21 +1093,23 @@ void HWR_DrawCoronas(void)
 // --------------------------------------------------------------------------
 void HWR_ResetLights(void)
 {
+#ifdef DYNLIGHTS
 	while (dynlights->nb)
 		P_SetTarget(&dynlights->mo[--dynlights->nb], NULL);
+#endif
+	dynlights->nb = 0;
 }
 
 // --------------------------------------------------------------------------
 // Add a light for dynamic lighting
 // The light position is already transformed execpt for mlook
 // --------------------------------------------------------------------------
-void HWR_DL_AddLight(gr_vissprite_t *spr, GLPatch_t *patch)
+void HWR_AddCorona(gr_vissprite_t *spr)
 {
 	light_t   *p_lspr;
 
 	//Hurdler: moved here because it's better;-)
-	(void)patch;
-	if (!cv_grdynamiclighting.value)
+	if (!cv_grcoronas.value)
 		return;
 
 	if (!spr->mobj)
@@ -1127,7 +1131,9 @@ void HWR_DL_AddLight(gr_vissprite_t *spr, GLPatch_t *patch)
 	LIGHT_POS(dynlights->nb).y = FIXED_TO_FLOAT(spr->mobj->z)+FIXED_TO_FLOAT(spr->mobj->height>>1)+p_lspr->light_yoffset;
 	LIGHT_POS(dynlights->nb).z = FIXED_TO_FLOAT(spr->mobj->y);
 
+#ifdef DYNLIGHTS
 	P_SetTarget(&dynlights->mo[dynlights->nb], spr->mobj);
+#endif
 
 	dynlights->p_lspr[dynlights->nb] = p_lspr;
 
