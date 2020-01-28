@@ -91,6 +91,10 @@ static GLuint startScreenWipe = 0;
 static GLuint endScreenWipe = 0;
 static GLuint finalScreenTexture = 0;
 
+// Lactozilla: Set shader programs and uniforms
+static void *Shader_Load(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade);
+static void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade);
+
 // shortcut for ((float)1/i)
 static const GLfloat byte2float[256] = {
 	0.000000f, 0.003922f, 0.007843f, 0.011765f, 0.015686f, 0.019608f, 0.023529f, 0.027451f,
@@ -267,6 +271,7 @@ static void GL_MSG_Error(const char *format, ...)
 #define pglTexEnvi glTexEnvi
 #define pglTexParameteri glTexParameteri
 #define pglTexImage2D glTexImage2D
+#define pglTexSubImage2D glTexSubImage2D
 
 /* Fog */
 #define pglFogf glFogf
@@ -381,6 +386,8 @@ typedef void (APIENTRY * PFNglTexParameteri) (GLenum target, GLenum pname, GLint
 static PFNglTexParameteri pglTexParameteri;
 typedef void (APIENTRY * PFNglTexImage2D) (GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
 static PFNglTexImage2D pglTexImage2D;
+typedef void (APIENTRY * PFNglTexSubImage2D) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
+static PFNglTexSubImage2D pglTexSubImage2D;
 
 /* Fog */
 typedef void (APIENTRY * PFNglFogf) (GLenum pname, GLfloat param);
@@ -518,6 +525,7 @@ boolean SetupGLfunc(void)
 	GETOPENGLFUNC(pglTexEnvi, glTexEnvi)
 	GETOPENGLFUNC(pglTexParameteri, glTexParameteri)
 	GETOPENGLFUNC(pglTexImage2D, glTexImage2D)
+	GETOPENGLFUNC(pglTexSubImage2D , glTexSubImage2D)
 
 	GETOPENGLFUNC(pglFogf, glFogf)
 	GETOPENGLFUNC(pglFogfv, glFogfv)
@@ -602,6 +610,13 @@ typedef enum
 
 	// misc. (custom shaders)
 	gluniform_leveltime,
+
+	// for wipes
+	gluniform_fademask,
+	gluniform_wipestartscreen,
+	gluniform_wipeendscreen,
+	gluniform_isfadein,
+	gluniform_istowhite,
 
 	gluniform_max,
 } gluniform_t;
@@ -779,6 +794,46 @@ static const char *fragment_shaders[] = {
 		"gl_FragColor = texture2D(tex, gl_TexCoord[0].st);\n"
 	"}\0",
 
+	// Wipe fragment shader
+	"uniform sampler2D fademask;\n"
+	"uniform sampler2D wipestartscreen;\n"
+	"uniform sampler2D wipeendscreen;\n"
+	"uniform bool isfadein;\n"
+	"uniform bool istowhite;\n"
+	"void main(void) {\n"
+		"vec4 maskcolor = texture2D(fademask, gl_TexCoord[0].st);\n"
+		"vec4 firstcolor = texture2D(wipestartscreen, gl_TexCoord[0].st);"
+		"vec4 secondcolor = texture2D(wipeendscreen, gl_TexCoord[0].st);"
+		"vec4 mixcolor = firstcolor;"
+		"float fadealpha = maskcolor.r;\n"
+		"if (isfadein == true)\n"
+		"{\n"
+			"mixcolor = secondcolor;\n"
+			"if (istowhite == false)\n"
+				"fadealpha = (1.0f - fadealpha);\n"
+		"}\n"
+		"else\n"
+		"{\n"
+			"if (istowhite == true)\n"
+				"fadealpha = (1.0f - fadealpha);\n"
+		"}\n"
+		"float fade_r = clamp((fadealpha * 3.0f), 0.0f, 1.0f);\n"
+		"float fade_g = clamp((fadealpha * 2.0f), 0.0f, 1.0f);\n"
+		"if (istowhite == true)\n"
+		"{\n"
+			"gl_FragColor.r = mixcolor.r + fade_r;\n"
+			"gl_FragColor.g = mixcolor.g + fade_g;\n"
+			"gl_FragColor.b = mixcolor.b + fadealpha;\n"
+		"}\n"
+		"else\n"
+		"{\n"
+			"gl_FragColor.r = mixcolor.r - fade_r;\n"
+			"gl_FragColor.g = mixcolor.g - fade_g;\n"
+			"gl_FragColor.b = mixcolor.b - fadealpha;\n"
+		"}\n"
+		"gl_FragColor.a = 1.0f;\n"
+	"}\0",
+
 	NULL,
 };
 
@@ -822,6 +877,9 @@ static const char *vertex_shaders[] = {
 	GLSL_DEFAULT_VERTEX_SHADER,
 
 	// Sky vertex shader
+	GLSL_DEFAULT_VERTEX_SHADER,
+
+	// Wipe vertex shader
 	GLSL_DEFAULT_VERTEX_SHADER,
 
 	NULL,
@@ -993,6 +1051,12 @@ EXPORT void HWRAPI(LoadShaders) (void)
 
 		// misc. (custom shaders)
 		shader->uniforms[gluniform_leveltime] = GETUNI("leveltime");
+
+		// for wipes
+		shader->uniforms[gluniform_fademask] = GETUNI("fademask");
+		shader->uniforms[gluniform_wipestartscreen] = GETUNI("wipestartscreen");
+		shader->uniforms[gluniform_wipeendscreen] = GETUNI("wipeendscreen");
+		shader->uniforms[gluniform_isfadein] = GETUNI("isfadein");
 
 #undef GETUNI
 	}
@@ -1633,6 +1697,245 @@ EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags)
 	CurrentPolyFlags = PolyFlags;
 }
 
+// -----------------+
+// UpdateTexture    : Updates the texture data.
+// -----------------+
+EXPORT void HWRAPI(UpdateTexture) (FTextureInfo *pTexInfo)
+{
+	// Download a mipmap
+	boolean updatemipmap = true;
+	static RGBA_t   tex[2048*2048];
+	const GLvoid   *ptex = tex;
+	INT32             w, h;
+	GLuint texnum = 0;
+
+	if (!pTexInfo->downloaded)
+	{
+		pglGenTextures(1, &texnum);
+		pTexInfo->downloaded = texnum;
+		updatemipmap = false;
+	}
+	else
+		texnum = pTexInfo->downloaded;
+
+	//GL_DBG_Printf ("DownloadMipmap %d %x\n",(INT32)texnum,pTexInfo->grInfo.data);
+
+	w = pTexInfo->width;
+	h = pTexInfo->height;
+
+	if ((pTexInfo->grInfo.format == GR_TEXFMT_P_8) ||
+		(pTexInfo->grInfo.format == GR_TEXFMT_AP_88))
+	{
+		const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
+		INT32 i, j;
+
+		for (j = 0; j < h; j++)
+		{
+			for (i = 0; i < w; i++)
+			{
+				if ((*pImgData == HWR_PATCHES_CHROMAKEY_COLORINDEX) &&
+					(pTexInfo->flags & TF_CHROMAKEYED))
+				{
+					tex[w*j+i].s.red   = 0;
+					tex[w*j+i].s.green = 0;
+					tex[w*j+i].s.blue  = 0;
+					tex[w*j+i].s.alpha = 0;
+					pTexInfo->flags |= TF_TRANSPARENT; // there is a hole in it
+				}
+				else
+				{
+					tex[w*j+i].s.red   = myPaletteData[*pImgData].s.red;
+					tex[w*j+i].s.green = myPaletteData[*pImgData].s.green;
+					tex[w*j+i].s.blue  = myPaletteData[*pImgData].s.blue;
+					tex[w*j+i].s.alpha = myPaletteData[*pImgData].s.alpha;
+				}
+
+				pImgData++;
+
+				if (pTexInfo->grInfo.format == GR_TEXFMT_AP_88)
+				{
+					if (!(pTexInfo->flags & TF_CHROMAKEYED))
+						tex[w*j+i].s.alpha = *pImgData;
+					pImgData++;
+				}
+
+			}
+		}
+	}
+	else if (pTexInfo->grInfo.format == GR_RGBA)
+	{
+		// corona test : passed as ARGB 8888, which is not in glide formats
+		// Hurdler: not used for coronas anymore, just for dynamic lighting
+		ptex = pTexInfo->grInfo.data;
+	}
+	else if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_INTENSITY_88)
+	{
+		const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
+		INT32 i, j;
+
+		for (j = 0; j < h; j++)
+		{
+			for (i = 0; i < w; i++)
+			{
+				tex[w*j+i].s.red   = *pImgData;
+				tex[w*j+i].s.green = *pImgData;
+				tex[w*j+i].s.blue  = *pImgData;
+				pImgData++;
+				tex[w*j+i].s.alpha = *pImgData;
+				pImgData++;
+			}
+		}
+	}
+	else if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_8) // Used for fade masks
+	{
+		const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
+		INT32 i, j;
+
+		for (j = 0; j < h; j++)
+		{
+			for (i = 0; i < w; i++)
+			{
+				tex[w*j+i].s.red   = 255; // 255 because the fade mask is modulated with the screen texture, so alpha affects it while the colours don't
+				tex[w*j+i].s.green = 255;
+				tex[w*j+i].s.blue  = 255;
+				tex[w*j+i].s.alpha = *pImgData;
+				pImgData++;
+			}
+		}
+	}
+	else if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_888) // Used for shader wipes
+	{
+		const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
+		INT32 i, j;
+
+		for (j = 0; j < h; j++)
+		{
+			for (i = 0; i < w; i++)
+			{
+				tex[w*j+i].s.red   = *pImgData;
+				tex[w*j+i].s.green = *pImgData;
+				tex[w*j+i].s.blue  = *pImgData;
+				tex[w*j+i].s.alpha = 255;
+				pImgData++;
+			}
+		}
+	}
+	else
+		GL_MSG_Warning ("SetTexture(bad format) %ld\n", pTexInfo->grInfo.format);
+
+	// the texture number was already generated by pglGenTextures
+	pglBindTexture(GL_TEXTURE_2D, texnum);
+	tex_downloaded = texnum;
+
+	// disable texture filtering on any texture that has holes so there's no dumb borders or blending issues
+	if (pTexInfo->flags & TF_TRANSPARENT)
+	{
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	}
+	else
+	{
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
+	}
+
+	if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_INTENSITY_88)
+	{
+		//pglTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+		if (MipMap)
+		{
+			pgluBuild2DMipmaps(GL_TEXTURE_2D, GL_LUMINANCE_ALPHA, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0);
+			if (pTexInfo->flags & TF_TRANSPARENT)
+				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0); // No mippmaps on transparent stuff
+			else
+				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 4);
+			//pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_LINEAR_MIPMAP_LINEAR);
+		}
+		else
+		{
+			if (updatemipmap)
+				pglTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+			else
+				pglTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+		}
+	}
+	else if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_8)
+	{
+		//pglTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+		if (MipMap)
+		{
+			pgluBuild2DMipmaps(GL_TEXTURE_2D, GL_ALPHA, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0);
+			if (pTexInfo->flags & TF_TRANSPARENT)
+				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0); // No mippmaps on transparent stuff
+			else
+				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 4);
+			//pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_LINEAR_MIPMAP_LINEAR);
+		}
+		else
+		{
+			if (updatemipmap)
+				pglTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+			else
+				pglTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+		}
+	}
+	else if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_888)
+	{
+		//pglTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+		if (MipMap)
+		{
+			pgluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0);
+			if (pTexInfo->flags & TF_TRANSPARENT)
+				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0); // No mippmaps on transparent stuff
+			else
+				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 4);
+			//pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_LINEAR_MIPMAP_LINEAR);
+		}
+		else
+		{
+			if (updatemipmap)
+				pglTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+			else
+				pglTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+		}
+	}
+	else
+	{
+		if (MipMap)
+		{
+			pgluBuild2DMipmaps(GL_TEXTURE_2D, textureformatGL, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+			// Control the mipmap level of detail
+			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0); // the lower the number, the higer the detail
+			if (pTexInfo->flags & TF_TRANSPARENT)
+				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0); // No mippmaps on transparent stuff
+			else
+				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 5);
+		}
+		else
+		{
+			if (updatemipmap)
+				pglTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+			else
+				pglTexImage2D(GL_TEXTURE_2D, 0, textureformatGL, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+		}
+	}
+
+	if (pTexInfo->flags & TF_WRAPX)
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	else
+		Clamp2D(GL_TEXTURE_WRAP_S);
+
+	if (pTexInfo->flags & TF_WRAPY)
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	else
+		Clamp2D(GL_TEXTURE_WRAP_T);
+
+	if (maximumAnisotropy)
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropic_filter);
+}
 
 // -----------------+
 // SetTexture       : The mipmap becomes the current texture source
@@ -1654,179 +1957,7 @@ EXPORT void HWRAPI(SetTexture) (FTextureInfo *pTexInfo)
 	}
 	else
 	{
-		// Download a mipmap
-		static RGBA_t   tex[2048*2048];
-		const GLvoid   *ptex = tex;
-		INT32             w, h;
-		GLuint texnum = 0;
-
-		pglGenTextures(1, &texnum);
-		//GL_DBG_Printf ("DownloadMipmap %d %x\n",(INT32)texnum,pTexInfo->grInfo.data);
-
-		w = pTexInfo->width;
-		h = pTexInfo->height;
-
-		if ((pTexInfo->grInfo.format == GR_TEXFMT_P_8) ||
-			(pTexInfo->grInfo.format == GR_TEXFMT_AP_88))
-		{
-			const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
-			INT32 i, j;
-
-			for (j = 0; j < h; j++)
-			{
-				for (i = 0; i < w; i++)
-				{
-					if ((*pImgData == HWR_PATCHES_CHROMAKEY_COLORINDEX) &&
-					    (pTexInfo->flags & TF_CHROMAKEYED))
-					{
-						tex[w*j+i].s.red   = 0;
-						tex[w*j+i].s.green = 0;
-						tex[w*j+i].s.blue  = 0;
-						tex[w*j+i].s.alpha = 0;
-						pTexInfo->flags |= TF_TRANSPARENT; // there is a hole in it
-					}
-					else
-					{
-						tex[w*j+i].s.red   = myPaletteData[*pImgData].s.red;
-						tex[w*j+i].s.green = myPaletteData[*pImgData].s.green;
-						tex[w*j+i].s.blue  = myPaletteData[*pImgData].s.blue;
-						tex[w*j+i].s.alpha = myPaletteData[*pImgData].s.alpha;
-					}
-
-					pImgData++;
-
-					if (pTexInfo->grInfo.format == GR_TEXFMT_AP_88)
-					{
-						if (!(pTexInfo->flags & TF_CHROMAKEYED))
-							tex[w*j+i].s.alpha = *pImgData;
-						pImgData++;
-					}
-
-				}
-			}
-		}
-		else if (pTexInfo->grInfo.format == GR_RGBA)
-		{
-			// corona test : passed as ARGB 8888, which is not in glide formats
-			// Hurdler: not used for coronas anymore, just for dynamic lighting
-			ptex = pTexInfo->grInfo.data;
-		}
-		else if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_INTENSITY_88)
-		{
-			const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
-			INT32 i, j;
-
-			for (j = 0; j < h; j++)
-			{
-				for (i = 0; i < w; i++)
-				{
-					tex[w*j+i].s.red   = *pImgData;
-					tex[w*j+i].s.green = *pImgData;
-					tex[w*j+i].s.blue  = *pImgData;
-					pImgData++;
-					tex[w*j+i].s.alpha = *pImgData;
-					pImgData++;
-				}
-			}
-		}
-		else if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_8) // Used for fade masks
-		{
-			const GLubyte *pImgData = (const GLubyte *)pTexInfo->grInfo.data;
-			INT32 i, j;
-
-			for (j = 0; j < h; j++)
-			{
-				for (i = 0; i < w; i++)
-				{
-					tex[w*j+i].s.red   = 255; // 255 because the fade mask is modulated with the screen texture, so alpha affects it while the colours don't
-					tex[w*j+i].s.green = 255;
-					tex[w*j+i].s.blue  = 255;
-					tex[w*j+i].s.alpha = *pImgData;
-					pImgData++;
-				}
-			}
-		}
-		else
-			GL_MSG_Warning ("SetTexture(bad format) %ld\n", pTexInfo->grInfo.format);
-
-		// the texture number was already generated by pglGenTextures
-		pglBindTexture(GL_TEXTURE_2D, texnum);
-		pTexInfo->downloaded = texnum;
-		tex_downloaded = texnum;
-
-		// disable texture filtering on any texture that has holes so there's no dumb borders or blending issues
-		if (pTexInfo->flags & TF_TRANSPARENT)
-		{
-			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		}
-		else
-		{
-			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
-			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
-		}
-
-		if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_INTENSITY_88)
-		{
-			//pglTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
-			if (MipMap)
-			{
-				pgluBuild2DMipmaps(GL_TEXTURE_2D, GL_LUMINANCE_ALPHA, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
-				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0);
-				if (pTexInfo->flags & TF_TRANSPARENT)
-					pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0); // No mippmaps on transparent stuff
-				else
-					pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 4);
-				//pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_LINEAR_MIPMAP_LINEAR);
-			}
-			else
-				pglTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
-		}
-		else if (pTexInfo->grInfo.format == GR_TEXFMT_ALPHA_8)
-		{
-			//pglTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
-			if (MipMap)
-			{
-				pgluBuild2DMipmaps(GL_TEXTURE_2D, GL_ALPHA, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
-				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0);
-				if (pTexInfo->flags & TF_TRANSPARENT)
-					pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0); // No mippmaps on transparent stuff
-				else
-					pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 4);
-				//pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_LINEAR_MIPMAP_LINEAR);
-			}
-			else
-				pglTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
-		}
-		else
-		{
-			if (MipMap)
-			{
-				pgluBuild2DMipmaps(GL_TEXTURE_2D, textureformatGL, w, h, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
-				// Control the mipmap level of detail
-				pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0); // the lower the number, the higer the detail
-				if (pTexInfo->flags & TF_TRANSPARENT)
-					pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0); // No mippmaps on transparent stuff
-				else
-					pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 5);
-			}
-			else
-				pglTexImage2D(GL_TEXTURE_2D, 0, textureformatGL, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
-		}
-
-		if (pTexInfo->flags & TF_WRAPX)
-			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		else
-			Clamp2D(GL_TEXTURE_WRAP_S);
-
-		if (pTexInfo->flags & TF_WRAPY)
-			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		else
-			Clamp2D(GL_TEXTURE_WRAP_T);
-
-		if (maximumAnisotropy)
-			pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropic_filter);
-
+		UpdateTexture(pTexInfo);
 		pTexInfo->nextmipmap = NULL;
 		if (gr_cachetail)
 		{ // insertion at the tail
@@ -1838,7 +1969,7 @@ EXPORT void HWRAPI(SetTexture) (FTextureInfo *pTexInfo)
 	}
 }
 
-static void load_shaders(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade)
+static void *Shader_Load(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade)
 {
 #ifdef GL_SHADERS
 	if (gl_shadersenabled)
@@ -1846,56 +1977,66 @@ static void load_shaders(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *
 		gl_shaderprogram_t *shader = &gl_shaderprograms[gl_currentshaderprogram];
 		if (shader->program)
 		{
-			boolean custom = (gl_shaderprograms[gl_currentshaderprogram].custom);
-			// 13062019
-			// Check for fog
-			//if (changed)
-			{
-				pglUseProgram(gl_shaderprograms[gl_currentshaderprogram].program);
-			}
-
-			// set uniforms
-			{
-				#define UNIFORM_1(uniform, a, function) \
-					if (uniform != -1) \
-						function (uniform, a);
-
-				#define UNIFORM_2(uniform, a, b, function) \
-					if (uniform != -1) \
-						function (uniform, a, b);
-
-				#define UNIFORM_3(uniform, a, b, c, function) \
-					if (uniform != -1) \
-						function (uniform, a, b, c);
-
-				#define UNIFORM_4(uniform, a, b, c, d, function) \
-					if (uniform != -1) \
-						function (uniform, a, b, c, d);
-
-				// polygon
-				UNIFORM_4(shader->uniforms[gluniform_poly_color], poly->red, poly->green, poly->blue, poly->alpha, pglUniform4f);
-				UNIFORM_4(shader->uniforms[gluniform_tint_color], tint->red, tint->green, tint->blue, tint->alpha, pglUniform4f);
-				UNIFORM_4(shader->uniforms[gluniform_fade_color], fade->red, fade->green, fade->blue, fade->alpha, pglUniform4f);
-				UNIFORM_1(shader->uniforms[gluniform_lighting], Surface->LightInfo.light_level, pglUniform1f);
-				UNIFORM_1(shader->uniforms[gluniform_fade_start], Surface->LightInfo.fade_start, pglUniform1f);
-				UNIFORM_1(shader->uniforms[gluniform_fade_end], Surface->LightInfo.fade_end, pglUniform1f);
-				UNIFORM_1(shader->uniforms[gluniform_leveltime], ((float)shader_leveltime) / TICRATE, pglUniform1f);
-
-				// Custom shader uniforms
-				//if (custom) { }
-				(void)custom;
-
-				#undef UNIFORM_1
-				#undef UNIFORM_2
-				#undef UNIFORM_3
-				#undef UNIFORM_4
-			}
+			pglUseProgram(gl_shaderprograms[gl_currentshaderprogram].program);
+			Shader_SetUniforms(Surface, poly, tint, fade);
+			return shader;
 		}
 		else
 			pglUseProgram(0);
 	}
 	else
 		pglUseProgram(0);
+#else
+	(void)Surface;
+	(void)poly;
+	(void)tint;
+	(void)fade;
+#endif
+	return NULL;
+}
+
+static void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade)
+{
+#ifdef GL_SHADERS
+	if (gl_shadersenabled)
+	{
+		gl_shaderprogram_t *shader = &gl_shaderprograms[gl_currentshaderprogram];
+		if (!shader->program)
+			return;
+
+		#define UNIFORM_1(uniform, a, function) \
+			if (uniform != -1) \
+				function (uniform, a);
+
+		#define UNIFORM_2(uniform, a, b, function) \
+			if (uniform != -1) \
+				function (uniform, a, b);
+
+		#define UNIFORM_3(uniform, a, b, c, function) \
+			if (uniform != -1) \
+				function (uniform, a, b, c);
+
+		#define UNIFORM_4(uniform, a, b, c, d, function) \
+			if (uniform != -1) \
+				function (uniform, a, b, c, d);
+
+		// polygon
+		UNIFORM_4(shader->uniforms[gluniform_poly_color], poly->red, poly->green, poly->blue, poly->alpha, pglUniform4f);
+		UNIFORM_4(shader->uniforms[gluniform_tint_color], tint->red, tint->green, tint->blue, tint->alpha, pglUniform4f);
+		UNIFORM_4(shader->uniforms[gluniform_fade_color], fade->red, fade->green, fade->blue, fade->alpha, pglUniform4f);
+		if (Surface != NULL)
+		{
+			UNIFORM_1(shader->uniforms[gluniform_lighting], Surface->LightInfo.light_level, pglUniform1f);
+			UNIFORM_1(shader->uniforms[gluniform_fade_start], Surface->LightInfo.fade_start, pglUniform1f);
+			UNIFORM_1(shader->uniforms[gluniform_fade_end], Surface->LightInfo.fade_end, pglUniform1f);
+		}
+		UNIFORM_1(shader->uniforms[gluniform_leveltime], ((float)shader_leveltime) / TICRATE, pglUniform1f);
+
+		#undef UNIFORM_1
+		#undef UNIFORM_2
+		#undef UNIFORM_3
+		#undef UNIFORM_4
+	}
 #else
 	(void)Surface;
 	(void)poly;
@@ -2009,7 +2150,7 @@ EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUI
 		pglColor4ubv(c);
 	}
 
-	load_shaders(pSurf, &poly, &tint, &fade);
+	Shader_Load(pSurf, &poly, &tint, &fade);
 
 	pglVertexPointer(3, GL_FLOAT, sizeof(FOutVector), &pOutVerts[0].x);
 	pglTexCoordPointer(2, GL_FLOAT, sizeof(FOutVector), &pOutVerts[0].s);
@@ -2644,7 +2785,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	fade.blue  = byte2float[Surface->FadeColor.s.blue];
 	fade.alpha = byte2float[Surface->FadeColor.s.alpha];
 
-	load_shaders(Surface, &poly, &tint, &fade);
+	Shader_Load(Surface, &poly, &tint, &fade);
 
 	pglEnable(GL_CULL_FACE);
 	pglEnable(GL_NORMALIZE);
@@ -3176,8 +3317,6 @@ EXPORT void HWRAPI(DoScreenWipe)(void)
 	xfix = 1/((float)(texsize)/((float)((screen_width))));
 	yfix = 1/((float)(texsize)/((float)((screen_height))));
 
-	// const float screenVerts[12]
-
 	// float fix[8];
 	fix[0] = 0.0f;
 	fix[1] = 0.0f;
@@ -3214,8 +3353,6 @@ EXPORT void HWRAPI(DoScreenWipe)(void)
 
 	pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
-	// const float defaultST[8]
-
 	pglClientActiveTexture(GL_TEXTURE0);
 	pglTexCoordPointer(2, GL_FLOAT, 0, fix);
 	pglVertexPointer(3, GL_FLOAT, 0, screenVerts);
@@ -3230,6 +3367,104 @@ EXPORT void HWRAPI(DoScreenWipe)(void)
 	pglActiveTexture(GL_TEXTURE0);
 	pglClientActiveTexture(GL_TEXTURE0);
 	tex_downloaded = endScreenWipe;
+}
+
+// Do tinted screen fades!
+EXPORT void HWRAPI(DoTintedScreenWipe)(RGBA_t wipecolor, UINT32 wipeflags)
+{
+#ifdef GL_SHADERS
+	gl_shaderprogram_t *shader;
+	INT32 texsize = 2048;
+	float xfix, yfix;
+
+	INT32 fademaskdownloaded = tex_downloaded; // the fade mask that has been set
+
+	const float screenVerts[12] =
+	{
+		-1.0f, -1.0f, 1.0f,
+		-1.0f, 1.0f, 1.0f,
+		1.0f, 1.0f, 1.0f,
+		1.0f, -1.0f, 1.0f
+	};
+
+	float fix[8];
+
+	GLRGBAFloat poly = {0,0,0,0};
+	GLRGBAFloat tint = {0,0,0,0};
+	GLRGBAFloat fade = {0,0,0,0};
+
+	// Use a power of two texture, dammit
+	if(screen_width <= 1024)
+		texsize = 1024;
+	if(screen_width <= 512)
+		texsize = 512;
+
+	xfix = 1/((float)(texsize)/((float)((screen_width))));
+	yfix = 1/((float)(texsize)/((float)((screen_height))));
+
+	// float fix[8];
+	fix[0] = 0.0f;
+	fix[1] = 0.0f;
+	fix[2] = 0.0f;
+	fix[3] = yfix;
+	fix[4] = xfix;
+	fix[5] = yfix;
+	fix[6] = xfix;
+	fix[7] = 0.0f;
+
+	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+	// Set the fade color
+	fade.red = wipecolor.s.red;
+	fade.green = wipecolor.s.green;
+	fade.blue = wipecolor.s.blue;
+	fade.alpha = wipecolor.s.alpha;
+	SetBlend(PF_Modulated|PF_Translucent|PF_NoDepthTest|PF_Clip|PF_NoZClip);
+
+	// Set the shader
+	SetShader(8);
+	shader = (gl_shaderprogram_t *)Shader_Load(NULL, &poly, &tint, &fade);
+
+	// Set texture uniforms
+	if (shader)
+	{
+		#define UNIFORM_1(uniform, a, function) \
+			if (uniform != -1) \
+				function (uniform, a);
+
+		// Wipe screens plus the fademask
+		UNIFORM_1(shader->uniforms[gluniform_fademask], 0, pglUniform1i);
+		UNIFORM_1(shader->uniforms[gluniform_wipestartscreen], 1, pglUniform1i);
+		UNIFORM_1(shader->uniforms[gluniform_wipeendscreen], 2, pglUniform1i);
+		UNIFORM_1(shader->uniforms[gluniform_isfadein], (wipeflags & 1<<1), pglUniform1i);
+		UNIFORM_1(shader->uniforms[gluniform_istowhite], (wipeflags & 1<<2), pglUniform1i);
+
+		#undef UNIFORM_1
+
+		// Set texture units
+		pglActiveTexture(GL_TEXTURE0 + 0); // unit 0
+		pglBindTexture(GL_TEXTURE_2D, fademaskdownloaded);
+
+		pglActiveTexture(GL_TEXTURE0 + 1); // unit 1
+		pglBindTexture(GL_TEXTURE_2D, startScreenWipe);
+
+		pglActiveTexture(GL_TEXTURE0 + 2); // unit 2
+		pglBindTexture(GL_TEXTURE_2D, endScreenWipe);
+
+		// Draw!
+		pglVertexPointer(3, GL_FLOAT, 0, screenVerts);
+		pglTexCoordPointer(2, GL_FLOAT, 0, fix);
+		pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+	}
+
+	// Disable the shader
+	UnSetShader();
+	pglActiveTexture(GL_TEXTURE0);
+	tex_downloaded = fademaskdownloaded;
+#else
+	(void)wipecolor;
+	(void)wipeflags;
+#endif
 }
 
 // Create a texture from the screen.

@@ -32,7 +32,7 @@ static INT32 blocksize, blockwidth, blockheight;
 INT32 patchformat = GR_TEXFMT_AP_88; // use alpha for holes
 INT32 textureformat = GR_TEXFMT_P_8; // use chromakey for hole
 
-static const INT32 format2bpp[16] =
+static const INT32 format2bpp[17] =
 {
 	0, //0
 	0, //1
@@ -49,6 +49,7 @@ static const INT32 format2bpp[16] =
 	2, //12 GR_TEXFMT_ARGB_4444
 	2, //13 GR_TEXFMT_ALPHA_INTENSITY_88
 	2, //14 GR_TEXFMT_AP_88
+	1, //15 GR_TEXFMT_ALPHA_888
 };
 
 // This code was originally placed directly in HWR_DrawPatchInCache.
@@ -1356,13 +1357,18 @@ static void HWR_DrawFadeMaskInCache(GLMipmap_t *mipmap, INT32 pblockwidth, INT32
 	Z_Free(flat);
 }
 
-static void HWR_CacheFadeMask(GLMipmap_t *grMipmap, lumpnum_t fademasklumpnum)
+static void HWR_CacheFadeMask(GLMipmap_t *grMipmap, lumpnum_t fademasklumpnum, boolean update)
 {
 	size_t size;
 	UINT16 fmheight = 0, fmwidth = 0;
 
 	// setup the texture info
 	grMipmap->grInfo.format = GR_TEXFMT_ALPHA_8; // put the correct alpha levels straight in so I don't need to convert it later
+#ifdef GL_SHADERS
+	// Lactozilla: Unfortunate side effect - GL_ALPHA is deprecated or something and doesn't work in my shader.
+	if (cv_grshaders.value)
+		grMipmap->grInfo.format = GR_TEXFMT_ALPHA_888;
+#endif
 	grMipmap->flags = 0;
 
 	size = W_LumpLength(fademasklumpnum);
@@ -1397,7 +1403,8 @@ static void HWR_CacheFadeMask(GLMipmap_t *grMipmap, lumpnum_t fademasklumpnum)
 	grMipmap->width  = blockwidth;
 	grMipmap->height = blockheight;
 
-	MakeBlock(grMipmap);
+	if (!update)
+		MakeBlock(grMipmap);
 
 	HWR_DrawFadeMaskInCache(grMipmap, blockwidth, blockheight, fademasklumpnum, fmwidth, fmheight);
 
@@ -1408,16 +1415,24 @@ static void HWR_CacheFadeMask(GLMipmap_t *grMipmap, lumpnum_t fademasklumpnum)
 void HWR_GetFadeMask(lumpnum_t fademasklumpnum)
 {
 	GLMipmap_t *grmip;
+	static int useshader = -1;
+	boolean downloaded, update;
 
 	if (needpatchflush)
 		W_FlushCachedPatches();
 
 	grmip = HWR_GetCachedGLPatch(fademasklumpnum)->mipmap;
+	downloaded = (grmip->downloaded && grmip->grInfo.data);
+	update = ((useshader != cv_grshaders.value) && downloaded);
 
-	if (!grmip->downloaded && !grmip->grInfo.data)
-		HWR_CacheFadeMask(grmip, fademasklumpnum);
+	if ((!downloaded) || update)
+		HWR_CacheFadeMask(grmip, fademasklumpnum, update);
+	useshader = cv_grshaders.value;
 
-	HWD.pfnSetTexture(grmip);
+	if (update)
+		HWD.pfnUpdateTexture(grmip);
+	else
+		HWD.pfnSetTexture(grmip);
 
 	// The system-memory data can be purged now.
 	Z_ChangeTag(grmip->grInfo.data, PU_HWRCACHE_UNLOCKED);

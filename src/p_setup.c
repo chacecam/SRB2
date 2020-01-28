@@ -3229,13 +3229,7 @@ static void P_RunSpecialStageWipe(void)
 
 	F_WipeStartScreen();
 	wipestyleflags |= (WSF_FADEOUT|WSF_TOWHITE);
-
-#ifdef HWRENDER
-	// uh..........
-	if (rendermode == render_opengl)
-		F_WipeColorFill(0);
-#endif
-
+	F_WipeSetColor(0);
 	F_WipeEndScreen();
 	F_RunWipe(wipedefs[wipe_speclevel_towhite], false);
 
@@ -3262,13 +3256,7 @@ static void P_RunLevelWipe(void)
 {
 	F_WipeStartScreen();
 	wipestyleflags |= WSF_FADEOUT;
-
-#ifdef HWRENDER
-	// uh..........
-	if (rendermode == render_opengl)
-		F_WipeColorFill(31);
-#endif
-
+	F_WipeSetColor(31);
 	F_WipeEndScreen();
 	// for titlemap: run a specific wipe if specified
 	// needed for exiting time attack

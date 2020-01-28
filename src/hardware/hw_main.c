@@ -6392,7 +6392,6 @@ void HWR_DrawIntermissionBG(void)
 //
 static lumpnum_t wipelumpnum;
 
-// puts wipe lumpname in wipename[9]
 static boolean HWR_WipeCheck(UINT8 wipenum, UINT8 scrnnum)
 {
 	static char lumpname[9] = "FADEmmss";
@@ -6402,7 +6401,6 @@ static boolean HWR_WipeCheck(UINT8 wipenum, UINT8 scrnnum)
 	if (wipenum > 99 || scrnnum > 99)
 		return false; // shouldn't end up here really, the loop should've stopped running beforehand
 
-	// puts the numbers into the wipename
 	lumpname[4] = '0'+(wipenum/10);
 	lumpname[5] = '0'+(wipenum%10);
 	lumpname[6] = '0'+(scrnnum/10);
@@ -6432,10 +6430,19 @@ void HWR_DoWipe(UINT8 wipenum, UINT8 scrnnum)
 	HWD.pfnDoScreenWipe();
 }
 
-void HWR_DoTintedWipe(UINT8 wipenum, UINT8 scrnnum)
+void HWR_DoTintedWipe(UINT8 wipenum, UINT8 scrnnum, RGBA_t wipecolor, UINT32 flags)
 {
-	// It does the same thing
-	HWR_DoWipe(wipenum, scrnnum);
+	if (!cv_grshaders.value)
+	{
+		HWR_DoWipe(wipenum, scrnnum);
+		return;
+	}
+
+	if (!HWR_WipeCheck(wipenum, scrnnum))
+		return;
+
+	HWR_GetFadeMask(wipelumpnum);
+	HWD.pfnDoTintedScreenWipe(wipecolor, flags);
 }
 
 void HWR_MakeScreenFinalTexture(void)
@@ -6484,7 +6491,7 @@ void HWR_ReadShaders(UINT16 wadnum, boolean PK3)
 	int shadertype = 0;
 	int i;
 
-	#define SHADER_TYPES 7
+	#define SHADER_TYPES 8
 	shaderxlat_t shaderxlat[SHADER_TYPES] =
 	{
 		{"Flat", 1},
@@ -6494,6 +6501,7 @@ void HWR_ReadShaders(UINT16 wadnum, boolean PK3)
 		{"WaterRipple", 5},
 		{"Fog", 6},
 		{"Sky", 7},
+		{"Wipe", 8},
 	};
 
 	lump = HWR_CheckShader(wadnum);

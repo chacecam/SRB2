@@ -1769,6 +1769,7 @@ void I_StartupHardwareGraphics(void)
 		HWD.pfnSetBlend         = hwSym("SetBlend",NULL);
 		HWD.pfnClearBuffer      = hwSym("ClearBuffer",NULL);
 		HWD.pfnSetTexture       = hwSym("SetTexture",NULL);
+		HWD.pfnUpdateTexture    = hwSym("UpdateTexture",NULL);
 		HWD.pfnReadRect         = hwSym("ReadRect",NULL);
 		HWD.pfnGClipRect        = hwSym("GClipRect",NULL);
 		HWD.pfnClearMipMapCache = hwSym("ClearMipMapCache",NULL);
@@ -1783,6 +1784,7 @@ void I_StartupHardwareGraphics(void)
 		HWD.pfnStartScreenWipe  = hwSym("StartScreenWipe",NULL);
 		HWD.pfnEndScreenWipe    = hwSym("EndScreenWipe",NULL);
 		HWD.pfnDoScreenWipe     = hwSym("DoScreenWipe",NULL);
+		HWD.pfnDoTintedScreenWipe= hwSym("DoTintedScreenWipe",NULL);
 		HWD.pfnDrawIntermissionBG=hwSym("DrawIntermissionBG",NULL);
 		HWD.pfnMakeScreenTexture= hwSym("MakeScreenTexture",NULL);
 		HWD.pfnMakeScreenFinalTexture=hwSym("MakeScreenFinalTexture",NULL);

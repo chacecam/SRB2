@@ -96,6 +96,7 @@ INT32 lastwipetic = 0;
 
 wipestyle_t wipestyle = WIPESTYLE_NORMAL;
 wipestyleflags_t wipestyleflags = WSF_CROSSFADE;
+UINT8 wipefadecolor = 31;
 
 #ifndef NOWIPE
 static UINT8 *wipe_scr_start; //screen 3
@@ -499,16 +500,12 @@ void F_DecideWipeStyle(void)
 /** Attempt to run a colormap fade,
     provided all the conditionals were properly met.
     Returns true if so.
-    I demand you call F_RunWipe after this function.
   */
 boolean F_TryColormapFade(UINT8 wipecolor)
 {
 	if (F_ShouldColormapFade())
 	{
-#ifdef HWRENDER
-		if (rendermode == render_opengl)
-			F_WipeColorFill(wipecolor);
-#endif
+		F_WipeSetColor(wipecolor);
 		return true;
 	}
 	else
@@ -516,6 +513,17 @@ boolean F_TryColormapFade(UINT8 wipecolor)
 		F_WipeColorFill(wipecolor);
 		return false;
 	}
+}
+
+/** Stores the current wipe's color.
+  */
+void F_WipeSetColor(UINT8 wipecolor)
+{
+	wipefadecolor = wipecolor;
+#ifdef HWRENDER
+	if (rendermode == render_opengl)
+		F_WipeColorFill(wipecolor);
+#endif
 }
 
 /** After setting up the screens you want to wipe,
@@ -560,7 +568,7 @@ void F_RunWipe(UINT8 wipetype, boolean drawMenu)
 			if (rendermode == render_opengl)
 			{
 				// send in the wipe type and wipe frame because we need to cache the graphic
-				HWR_DoTintedWipe(wipetype, wipeframe-1);
+				HWR_DoTintedWipe(wipetype, wipeframe-1, V_GetColor(wipefadecolor), (UINT32)wipestyleflags);
 			}
 			else
 #endif

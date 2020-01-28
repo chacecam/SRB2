@@ -48,6 +48,7 @@ typedef FxI32 GrTextureFormat_t;
 #define GR_TEXFMT_ARGB_4444             0xc
 #define GR_TEXFMT_ALPHA_INTENSITY_88    0xd
 #define GR_TEXFMT_AP_88                 0xe /* 8-bit alpha 8-bit palette */
+#define GR_TEXFMT_ALPHA_888             0xf /* 1-bit alpha stored as RGBA */
 #define GR_RGBA                         0x6 // 32 bit RGBA !
 
 typedef struct

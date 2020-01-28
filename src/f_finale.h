@@ -150,6 +150,7 @@ typedef enum
 } wipestyle_t;
 extern wipestyle_t wipestyle;
 
+// Remember to update r_opengl.c too
 typedef enum
 {
 	WSF_FADEOUT   = 1,
@@ -172,6 +173,7 @@ void F_DecideWipeStyle(void);
 #define FADEBLUEFACTOR  10
 
 extern INT32 lastwipetic;
+extern UINT8 wipefadecolor;
 
 // Don't know where else to place this constant
 // But this file seems appropriate
@@ -182,6 +184,7 @@ void F_WipeEndScreen(void);
 void F_RunWipe(UINT8 wipetype, boolean drawMenu);
 void F_WipeStageTitle(void);
 #define F_WipeColorFill(c) V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, c)
+void F_WipeSetColor(UINT8 wipecolor);
 tic_t F_GetWipeLength(UINT8 wipetype);
 boolean F_WipeExists(UINT8 wipetype);
 
