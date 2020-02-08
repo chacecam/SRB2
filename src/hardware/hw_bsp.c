@@ -558,13 +558,10 @@ static inline void HWR_SubsecPoly(INT32 num, poly_t *poly)
 	count = sub->numlines;
 	lseg = &segs[sub->firstline];
 
-	if (poly)
-	{
-		poly = CutOutSubsecPoly (lseg,count,poly);
-		totalsubsecpolys++;
-		//extra data for this subsector
-		extrasubsectors[num].planepoly = poly;
-	}
+	poly = CutOutSubsecPoly (lseg,count,poly);
+	totalsubsecpolys++;
+	//extra data for this subsector
+	extrasubsectors[num].planepoly = poly;
 }
 
 // the bsp divline have not enouth presition
@@ -578,7 +575,7 @@ static inline void SearchDivline(node_t *bsp, fdivline_t *divline)
 }
 
 // poly : the convex polygon that encloses all child subsectors
-static void WalkBSPNode(INT32 bspnum, poly_t *poly, UINT16 *leafnode, fixed_t *bbox)
+static void WalkBSPNode(INT32 bspnum, poly_t *poly, fixed_t *bbox)
 {
 	node_t *bsp;
 	poly_t *backpoly, *frontpoly;
@@ -589,33 +586,7 @@ static void WalkBSPNode(INT32 bspnum, poly_t *poly, UINT16 *leafnode, fixed_t *b
 	// Found a subsector?
 	if (bspnum & NF_SUBSECTOR)
 	{
-		if (bspnum == -1)
-		{
-			// BP: i think this code is useless and wrong because
-			// - bspnum==-1 happens only when numsubsectors == 0
-			// - it can't happens in bsp recursive call since bspnum is a INT32 and children is UINT16
-			// - the BSP is complet !! (there just can have subsector without segs) (i am not sure of this point)
-
-			// do we have a valid polygon ?
-			if (poly && poly->numpts > 2)
-			{
-				CONS_Debug(DBG_RENDER, "Adding a new subsector\n");
-				if (addsubsector == numsubsectors + NEWSUBSECTORS)
-					I_Error("WalkBSPNode: not enough addsubsectors\n");
-				else if (addsubsector > 0x7fff)
-					I_Error("WalkBSPNode: addsubsector > 0x7fff\n");
-				*leafnode = (UINT16)((UINT16)addsubsector | NF_SUBSECTOR);
-				extrasubsectors[addsubsector].planepoly = poly;
-				addsubsector++;
-			}
-
-			//add subsectors without segs here?
-			//HWR_SubsecPoly(0, NULL);
-		}
-		else
-		{
-			HWR_SubsecPoly(bspnum & ~NF_SUBSECTOR, poly);
-		}
+		HWR_SubsecPoly(bspnum & ~NF_SUBSECTOR, poly);
 		M_ClearBox(bbox);
 		poly = extrasubsectors[bspnum & ~NF_SUBSECTOR].planepoly;
 
@@ -637,7 +608,7 @@ static void WalkBSPNode(INT32 bspnum, poly_t *poly, UINT16 *leafnode, fixed_t *b
 	// Recursively divide front space.
 	if (frontpoly)
 	{
-		WalkBSPNode(bsp->children[0], frontpoly, &bsp->children[0],bsp->bbox[0]);
+		WalkBSPNode(bsp->children[0], frontpoly, bsp->bbox[0]);
 
 		// copy child bbox
 		M_Memcpy(bbox, bsp->bbox[0], 4*sizeof (fixed_t));
@@ -649,7 +620,7 @@ static void WalkBSPNode(INT32 bspnum, poly_t *poly, UINT16 *leafnode, fixed_t *b
 	if (backpoly)
 	{
 		// Correct back bbox to include floor/ceiling convex polygon
-		WalkBSPNode(bsp->children[1], backpoly, &bsp->children[1], bsp->bbox[1]);
+		WalkBSPNode(bsp->children[1], backpoly, bsp->bbox[1]);
 
 		// enlarge bbox with second child
 		M_AddToBox(bbox, bsp->bbox[1][BOXLEFT  ],
@@ -964,7 +935,7 @@ void HWR_CreatePlanePolygons(INT32 bspnum)
 	rootpv->y = FIXED_TO_FLOAT(rootbbox[BOXBOTTOM]);  //ll
 	rootpv++;
 
-	WalkBSPNode(bspnum, rootp, NULL,rootbbox);
+	WalkBSPNode(bspnum, rootp, rootbbox);
 
 	i = SolveTProblem();
 	//CONS_Debug(DBG_RENDER, "%d point divides a polygon line\n",i);
