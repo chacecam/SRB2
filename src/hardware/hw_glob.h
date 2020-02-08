@@ -89,9 +89,6 @@ typedef struct gr_vissprite_s
 extern extrasubsector_t *extrasubsectors;
 extern size_t addsubsector;
 
-void HWR_InitPolyPool(void);
-void HWR_FreePolyPool(void);
-
 // --------
 // hw_cache.c
 // --------

@@ -60,77 +60,12 @@ static INT32 totalsubsecpolys = 0;
 // --------------------------------------------------------------------------
 // Polygon fast alloc / free
 // --------------------------------------------------------------------------
-//hurdler: quick fix for those who wants to play with larger wad
-
-#define ZPLANALLOC
-#ifndef ZPLANALLOC
-//#define POLYPOOLSIZE 1024000 // may be much over what is needed
-/// \todo check out how much is used
-static size_t POLYPOOLSIZE = 1024000;
-
-static UINT8 *gr_polypool = NULL;
-static UINT8 *gr_ppcurrent;
-static size_t gr_ppfree;
-#endif
-
-// only between levels, clear poly pool
-static void HWR_ClearPolys(void)
-{
-#ifndef ZPLANALLOC
-	gr_ppcurrent = gr_polypool;
-	gr_ppfree = POLYPOOLSIZE;
-#endif
-}
-
-// allocate  pool for fast alloc of polys
-void HWR_InitPolyPool(void)
-{
-#ifndef ZPLANALLOC
-	INT32 pnum;
-
-	//hurdler: quick fix for those who wants to play with larger wad
-	if ((pnum = M_CheckParm("-polypoolsize")))
-		POLYPOOLSIZE = atoi(myargv[pnum+1])*1024; // (in kb)
-
-	CONS_Debug(DBG_RENDER, "HWR_InitPolyPool(): allocating %d bytes\n", POLYPOOLSIZE);
-	gr_polypool = malloc(POLYPOOLSIZE);
-	if (!gr_polypool)
-		I_Error("HWR_InitPolyPool(): couldn't malloc polypool\n");
-	HWR_ClearPolys();
-#endif
-}
-
-void HWR_FreePolyPool(void)
-{
-#ifndef ZPLANALLOC
-	if (gr_polypool)
-		free(gr_polypool);
-	gr_polypool = NULL;
-#endif
-}
 
 static poly_t *HWR_AllocPoly(INT32 numpts)
 {
 	poly_t *p;
 	size_t size = sizeof (poly_t) + sizeof (polyvertex_t) * numpts;
-#ifdef ZPLANALLOC
 	p = Z_Malloc(size, PU_HWRPLANE, NULL);
-#else
-#ifdef PARANOIA
-	if (!gr_polypool)
-		I_Error("Used gr_polypool without init!\n");
-	if (!gr_ppcurrent)
-		I_Error("gr_ppcurrent == NULL!\n");
-#endif
-
-	if (gr_ppfree < size)
-		I_Error("HWR_AllocPoly(): no more memory %u bytes left, %u bytes needed\n\n%s\n",
-		        gr_ppfree, size, "You can try the param -polypoolsize 2048 (or higher if needed)");
-
-	p = (poly_t *)gr_ppcurrent;
-	gr_ppcurrent += size;
-	gr_ppfree -= size;
-#endif
 	p->numpts = numpts;
 	return p;
 }
@@ -139,17 +74,7 @@ static polyvertex_t *HWR_AllocVertex(void)
 {
 	polyvertex_t *p;
 	size_t size = sizeof (polyvertex_t);
-#ifdef ZPLANALLOC
 	p = Z_Malloc(size, PU_HWRPLANE, NULL);
-#else
-	if (gr_ppfree < size)
-		I_Error("HWR_AllocVertex(): no more memory %u bytes left, %u bytes needed\n\n%s\n",
-		        gr_ppfree, size, "You can try the param -polypoolsize 2048 (or higher if needed)");
-
-	p = (polyvertex_t *)gr_ppcurrent;
-	gr_ppcurrent += size;
-	gr_ppfree -= size;
-#endif
 	return p;
 }
 
@@ -157,15 +82,8 @@ static polyvertex_t *HWR_AllocVertex(void)
 /// for now don't free because it doesn't free in reverse order
 static void HWR_FreePoly(poly_t *poly)
 {
-#ifdef ZPLANALLOC
 	Z_Free(poly);
-#else
-	const size_t size = sizeof (poly_t) + sizeof (polyvertex_t) * poly->numpts;
-	memset(poly, 0x00, size);
-	//mempoly -= polysize;
-#endif
 }
-
 
 // Return interception along bsp line,
 // with the polygon segment
@@ -422,7 +340,7 @@ static void SplitPoly (fdivline_t *bsp,         //splitting parametric line
 		*frontpoly = swappoly;
 	}
 
-	HWR_FreePoly (poly);
+	HWR_FreePoly(poly);
 }
 
 
@@ -892,8 +810,6 @@ void HWR_CreatePlanePolygons(INT32 bspnum)
 	fixed_t rootbbox[4];
 
 	CONS_Debug(DBG_RENDER, "Creating polygons, please wait...\n");
-
-	HWR_ClearPolys();
 
 	// find min/max boundaries of map
 	//CONS_Debug(DBG_RENDER, "Looking for boundaries of map...\n");

@@ -6658,7 +6658,6 @@ void HWR_Startup(void)
 	if (!startupdone)
 	{
 		CONS_Printf("HWR_Startup()...\n");
-		HWR_InitPolyPool();
 		HWR_AddSessionCommands();
 		HWR_InitTextureCache();
 		HWR_InitModels();
@@ -6692,7 +6691,6 @@ void HWR_Shutdown(void)
 {
 	CONS_Printf("HWR_Shutdown()\n");
 	HWR_FreeExtraSubsectors();
-	HWR_FreePolyPool();
 	HWR_FreeMipmapCache();
 	HWR_FreeTextureCache();
 	HWD.pfnFlushScreenTextures();
