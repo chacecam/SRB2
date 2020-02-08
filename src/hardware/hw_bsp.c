@@ -577,36 +577,6 @@ static inline void SearchDivline(node_t *bsp, fdivline_t *divline)
 	divline->dy = FIXED_TO_FLOAT(bsp->dy);
 }
 
-#ifdef HWR_LOADING_SCREEN
-//Hurdler: implement a loading status
-static size_t ls_count = 0;
-static UINT8 ls_percent = 0;
-
-static void loading_status(void)
-{
-	char s[16];
-	int x, y;
-
-	I_OsPolling();
-	CON_Drawer();
-	sprintf(s, "%d%%", (++ls_percent)<<1);
-	x = BASEVIDWIDTH/2;
-	y = BASEVIDHEIGHT/2;
-	V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, 31); // Black background to match fade in effect
-	//V_DrawPatchFill(W_CachePatchName("SRB2BACK",PU_CACHE)); // SRB2 background, ehhh too bright.
-	M_DrawTextBox(x-58, y-8, 13, 1);
-	V_DrawString(x-50, y, V_YELLOWMAP, "Loading...");
-	V_DrawRightAlignedString(x+50, y, V_YELLOWMAP, s);
-
-	// Is this really necessary at this point..?
-	V_DrawCenteredString(BASEVIDWIDTH/2, 40, V_YELLOWMAP, "OPENGL MODE IS INCOMPLETE AND MAY");
-	V_DrawCenteredString(BASEVIDWIDTH/2, 50, V_YELLOWMAP, "NOT DISPLAY SOME SURFACES.");
-	V_DrawCenteredString(BASEVIDWIDTH/2, 70, V_YELLOWMAP, "USE AT SONIC'S RISK.");
-
-	I_UpdateNoVsync();
-}
-#endif
-
 // poly : the convex polygon that encloses all child subsectors
 static void WalkBSPNode(INT32 bspnum, poly_t *poly, UINT16 *leafnode, fixed_t *bbox)
 {
@@ -645,15 +615,6 @@ static void WalkBSPNode(INT32 bspnum, poly_t *poly, UINT16 *leafnode, fixed_t *b
 		else
 		{
 			HWR_SubsecPoly(bspnum & ~NF_SUBSECTOR, poly);
-
-			//Hurdler: implement a loading status
-#ifdef HWR_LOADING_SCREEN
-			if (ls_count-- <= 0)
-			{
-				ls_count = numsubsectors/50;
-				loading_status();
-			}
-#endif
 		}
 		M_ClearBox(bbox);
 		poly = extrasubsectors[bspnum & ~NF_SUBSECTOR].planepoly;
@@ -836,10 +797,6 @@ static INT32 SolveTProblem(void)
 		return 0;
 
 	CONS_Debug(DBG_RENDER, "Solving T-joins. This may take a while. Please wait...\n");
-#ifdef HWR_LOADING_SCREEN
-	CON_Drawer(); //let the user know what we are doing
-	I_FinishUpdate(); // page flip or blit buffer
-#endif
 
 	numsplitpoly = 0;
 
@@ -964,11 +921,6 @@ void HWR_CreatePlanePolygons(INT32 bspnum)
 	fixed_t rootbbox[4];
 
 	CONS_Debug(DBG_RENDER, "Creating polygons, please wait...\n");
-#ifdef HWR_LOADING_SCREEN
-	ls_count = ls_percent = 0; // reset the loading status
-	CON_Drawer(); //let the user know what we are doing
-	I_FinishUpdate(); // page flip or blit buffer
-#endif
 
 	HWR_ClearPolys();
 
