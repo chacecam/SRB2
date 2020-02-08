@@ -87,7 +87,6 @@ typedef struct gr_vissprite_s
 // hw_bsp.c
 // --------
 extern extrasubsector_t *extrasubsectors;
-extern size_t addsubsector;
 
 // --------
 // hw_cache.c

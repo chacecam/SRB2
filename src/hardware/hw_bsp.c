@@ -29,18 +29,12 @@
 #include "../m_argv.h"
 #include "../i_video.h"
 #include "../w_wad.h"
-#include "../p_setup.h" // levelfadecol
 
 // --------------------------------------------------------------------------
 // This is global data for planes rendering
 // --------------------------------------------------------------------------
 
 extrasubsector_t *extrasubsectors = NULL;
-
-// newsubsectors are subsectors without segs, added for the plane polygons
-#define NEWSUBSECTORS 50
-static size_t totsubsectors;
-size_t addsubsector;
 
 typedef struct
 {
@@ -548,11 +542,10 @@ static void WalkBSPNode(INT32 bspnum, poly_t *poly, fixed_t *bbox)
 	}
 }
 
-// FIXME: use Z_Malloc() STATIC ?
 void HWR_FreeExtraSubsectors(void)
 {
 	if (extrasubsectors)
-		free(extrasubsectors);
+		Z_Free(extrasubsectors);
 	extrasubsectors = NULL;
 }
 
@@ -689,7 +682,7 @@ static INT32 SolveTProblem(void)
 
 	numsplitpoly = 0;
 
-	for (l = 0; l < addsubsector; l++)
+	for (l = 0; l < numsubsectors; l++)
 	{
 		p = extrasubsectors[l].planepoly;
 		if (p)
@@ -819,20 +812,9 @@ void HWR_CreatePlanePolygons(INT32 bspnum)
 
 	//CONS_Debug(DBG_RENDER, "Generating subsector polygons... %d subsectors\n", numsubsectors);
 
-	HWR_FreeExtraSubsectors();
 	// allocate extra data for each subsector present in map
-	totsubsectors = numsubsectors + NEWSUBSECTORS;
-	extrasubsectors = calloc(totsubsectors, sizeof (*extrasubsectors));
-	if (extrasubsectors == NULL)
-		I_Error("couldn't malloc extrasubsectors totsubsectors %s\n", sizeu1(totsubsectors));
-
-	// allocate table for back to front drawing of subsectors
-	/*gr_drawsubsectors = (INT16 *)malloc(sizeof (*gr_drawsubsectors) * totsubsectors);
-	if (!gr_drawsubsectors)
-		I_Error("couldn't malloc gr_drawsubsectors\n");*/
-
-	// number of the first new subsector that might be added
-	addsubsector = numsubsectors;
+	HWR_FreeExtraSubsectors();
+	extrasubsectors = Z_Calloc(numsubsectors * sizeof (*extrasubsectors), PU_STATIC, NULL);
 
 	// construct the initial convex poly that encloses the full map
 	rootp = HWR_AllocPoly(4);

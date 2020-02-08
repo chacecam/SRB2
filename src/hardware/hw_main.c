@@ -3408,36 +3408,14 @@ static void HWR_Subsector(size_t num)
 	extracolormap_t *floorcolormap;
 	extracolormap_t *ceilingcolormap;
 
-#ifdef PARANOIA //no risk while developing, enough debugging nights!
-	if (num >= addsubsector)
-		I_Error("HWR_Subsector: ss %s with numss = %s, addss = %s\n",
-			sizeu1(num), sizeu2(numsubsectors), sizeu3(addsubsector));
-
-	/*if (num >= numsubsectors)
-		I_Error("HWR_Subsector: ss %i with numss = %i",
-		        num,
-		        numsubsectors);*/
-#endif
-
-	if (num < numsubsectors)
-	{
-		// subsector
-		sub = &subsectors[num];
-		// sector
-		gr_frontsector = sub->sector;
-		// how many linedefs
-		count = sub->numlines;
-		// first line seg
-		line = &segs[sub->firstline];
-	}
-	else
-	{
-		// there are no segs but only planes
-		sub = &subsectors[0];
-		gr_frontsector = sub->sector;
-		count = 0;
-		line = NULL;
-	}
+	// subsector
+	sub = &subsectors[num];
+	// sector
+	gr_frontsector = sub->sector;
+	// how many linedefs
+	count = sub->numlines;
+	// first line seg
+	line = &segs[sub->firstline];
 
 	//SoM: 4/7/2000: Test to make Boom water work in Hardware mode.
 	gr_frontsector = R_FakeFlat(gr_frontsector, &tempsec, &floorlightlevel,
@@ -3878,28 +3856,6 @@ static void HWR_RenderBSPNode(INT32 bspnum)
 		HWR_RenderBSPNode(bsp->children[side^1]);
 	}
 }
-
-/*
-//
-// Clear 'stack' of subsectors to draw
-//
-static void HWR_ClearDrawSubsectors(void)
-{
-	gr_drawsubsector_p = gr_drawsubsectors;
-}
-
-//
-// Draw subsectors pushed on the drawsubsectors 'stack', back to front
-//
-static void HWR_RenderSubsectors(void)
-{
-	while (gr_drawsubsector_p > gr_drawsubsectors)
-	{
-		HWR_RenderBSPNode(
-		lastsubsec->nextsubsec = bspnum & (~NF_SUBSECTOR);
-	}
-}
-*/
 
 // ==========================================================================
 //                                                              FROM R_MAIN.C
