@@ -28,8 +28,6 @@ enum patchalphastyle {AST_COPY, AST_TRANSLUCENT, AST_ADD, AST_SUBTRACT, AST_REVE
 UINT32 ASTBlendPixel(RGBA_t background, RGBA_t foreground, int style, UINT8 alpha);
 UINT8 ASTBlendPixel_8bpp(UINT8 background, UINT8 foreground, int style, UINT8 alpha);
 
-UINT8 NearestColor(UINT8 r, UINT8 g, UINT8 b);
-
 // moved here for r_sky.c (texpatch_t is used)
 
 // A single patch from a texture definition,
@@ -170,6 +168,9 @@ const char *R_NameForColormap(extracolormap_t *extra_colormap);
 #define R_PutRgbaA(a) (a << 24)
 #define R_PutRgbaRGB(r, g, b) (R_PutRgbaR(r) + R_PutRgbaG(g) + R_PutRgbaB(b))
 #define R_PutRgbaRGBA(r, g, b, a) (R_PutRgbaRGB(r, g, b) + R_PutRgbaA(a))
+
+UINT8 NearestPaletteColor(UINT8 r, UINT8 g, UINT8 b, RGBA_t *palette);
+#define NearestColor(r, g, b) NearestPaletteColor(r, g, b, NULL)
 
 extern INT32 numtextures;
 

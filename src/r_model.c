@@ -166,6 +166,7 @@ void Model_AddSkin(int skin)
 	FILE *f;
 	char name[18], filename[32];
 	float scale, offset;
+	size_t prefixlen;
 
 	// read the models.dat file
 	//Filename checking fixed ~Monster Iestyn and Golden
@@ -173,22 +174,32 @@ void Model_AddSkin(int skin)
 	if (!f)
 		return;
 
+	// length of the player model prefix
+	prefixlen = strlen(PLAYERMODELPREFIX);
+
 	// Check for any models that match the names of player skins!
-	while (fscanf(f, "%19s %31s %f %f", name, filename, &scale, &offset) == 4)
+	while (fscanf(f, "%25s %31s %f %f", name, filename, &scale, &offset) == 4)
 	{
-		if (stricmp(name, skins[skin].name) == 0)
+		char *skinname = name;
+		size_t len = strlen(name);
+
+		// ignore the player model prefix.
+		if (!strnicmp(name, PLAYERMODELPREFIX, prefixlen) && (len > prefixlen))
+			skinname += prefixlen;
+
+		if (stricmp(skinname, skins[skin].name) == 0)
 		{
 			md2_playermodels[skin].skin = skin;
 			md2_playermodels[skin].scale = scale;
 			md2_playermodels[skin].offset = offset;
 			md2_playermodels[skin].notfound = false;
 			strcpy(md2_playermodels[skin].filename, filename);
-			goto playermd2found;
+			goto playermodelfound;
 		}
 	}
 
 	md2_playermodels[skin].notfound = true;
-playermd2found:
+playermodelfound:
 	fclose(f);
 }
 
@@ -199,9 +210,10 @@ playermd2found:
 void Model_AddSprite(size_t spritenum)
 {
 	FILE *f;
-	// name[18] is used to check for names in the models.dat file that match with sprites or player skins
+	// name[24] is used to check for names in the models.dat file that match with sprites or player skins
 	// sprite names are always 4 characters long, and names is for player skins can be up to 19 characters long
-	char name[18], filename[32];
+	// PLAYERMODELPREFIX is 6 characters long
+	char name[24], filename[32];
 	float scale, offset;
 
 	// Read the models.dat file
@@ -211,20 +223,29 @@ void Model_AddSprite(size_t spritenum)
 		return;
 
 	// Check for any models that match the names of sprite names!
-	while (fscanf(f, "%19s %31s %f %f", name, filename, &scale, &offset) == 4)
+	while (fscanf(f, "%25s %31s %f %f", name, filename, &scale, &offset) == 4)
 	{
+		// length of the sprite name
+		size_t len = strlen(name);
+		if (len != 4) // must be 4 characters long exactly. otherwise it's not a sprite name.
+			continue;
+
+		// check for the player model prefix.
+		if (!strnicmp(name, PLAYERMODELPREFIX, strlen(PLAYERMODELPREFIX)))
+			continue; // that's not a sprite...
+
 		if (stricmp(name, sprnames[spritenum]) == 0)
 		{
 			md2_models[spritenum].scale = scale;
 			md2_models[spritenum].offset = offset;
 			md2_models[spritenum].notfound = false;
 			strcpy(md2_models[spritenum].filename, filename);
-			goto spritemd2found;
+			goto spritemodelfound;
 		}
 	}
 
 	md2_models[spritenum].notfound = true;
-spritemd2found:
+spritemodelfound:
 	fclose(f);
 }
 

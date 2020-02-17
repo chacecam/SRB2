@@ -23,4 +23,6 @@
 
 boolean HWR_DrawModel(modelinfo_t *md2, gr_vissprite_t *spr);
 
+#define PLAYERMODELPREFIX "PLAYER"
+
 #endif // _HW_MD2_H_

@@ -2,7 +2,7 @@
 //-----------------------------------------------------------------------------
 // Copyright (C) 1993-1996 by id Software, Inc.
 // Copyright (C) 1998-2000 by DooM Legacy Team.
-// Copyright (C) 2011-2016 by Matthew "Inuyasha" Walsh.
+// Copyright (C) 2011-2016 by Matthew "Kaito Sinclaire" Walsh.
 // Copyright (C) 1999-2019 by Sonic Team Junior.
 //
 // This program is free software distributed under the
@@ -299,11 +299,14 @@ menu_t OP_MPControlsDef, OP_MiscControlsDef;
 menu_t OP_P1ControlsDef, OP_P2ControlsDef, OP_MouseOptionsDef;
 menu_t OP_Mouse2OptionsDef, OP_Joystick1Def, OP_Joystick2Def;
 menu_t OP_CameraOptionsDef, OP_Camera2OptionsDef;
+menu_t OP_PlaystyleDef;
 static void M_VideoModeMenu(INT32 choice);
 static void M_Setup1PControlsMenu(INT32 choice);
 static void M_Setup2PControlsMenu(INT32 choice);
 static void M_Setup1PJoystickMenu(INT32 choice);
 static void M_Setup2PJoystickMenu(INT32 choice);
+static void M_Setup1PPlaystyleMenu(INT32 choice);
+static void M_Setup2PPlaystyleMenu(INT32 choice);
 static void M_AssignJoystick(INT32 choice);
 static void M_ChangeControl(INT32 choice);
 
@@ -321,6 +324,7 @@ menu_t OP_DataOptionsDef, OP_ScreenshotOptionsDef, OP_EraseDataDef;
 menu_t OP_ServerOptionsDef;
 menu_t OP_MonitorToggleDef;
 static void M_ScreenshotOptions(INT32 choice);
+static void M_SetupScreenshotMenu(void);
 static void M_EraseData(INT32 choice);
 
 static void M_Addons(INT32 choice);
@@ -349,6 +353,9 @@ static void M_DrawLevelStats(void);
 static void M_DrawTimeAttackMenu(void);
 static void M_DrawNightsAttackMenu(void);
 static void M_DrawSetupChoosePlayerMenu(void);
+static void M_DrawControlsDefMenu(void);
+static void M_DrawCameraOptionsMenu(void);
+static void M_DrawPlaystyleMenu(void);
 static void M_DrawControl(void);
 static void M_DrawMainVideoMenu(void);
 static void M_DrawVideoMode(void);
@@ -359,7 +366,6 @@ static void M_DrawMonitorToggles(void);
 static void M_OGL_DrawFogMenu(void);
 #endif
 #ifndef NONET
-static void M_DrawScreenshotMenu(void);
 static void M_DrawConnectMenu(void);
 static void M_DrawMPMainMenu(void);
 static void M_DrawRoomMenu(void);
@@ -376,6 +382,7 @@ static void M_HandleSoundTest(INT32 choice);
 static void M_HandleImageDef(INT32 choice);
 static void M_HandleLoadSave(INT32 choice);
 static void M_HandleLevelStats(INT32 choice);
+static void M_HandlePlaystyleMenu(INT32 choice);
 #ifndef NONET
 static boolean M_CancelConnect(void);
 static void M_HandleConnectIP(INT32 choice);
@@ -615,7 +622,7 @@ static menuitem_t MISC_ChangeTeamMenu[] =
 	{IT_WHITESTRING|IT_CALL,         NULL, "Confirm",           M_ConfirmTeamChange,    90},
 };
 
-static const gtdesc_t gametypedesc[] =
+gtdesc_t gametypedesc[NUMGAMETYPES] =
 {
 	{{ 54,  54}, "Play through the single-player campaign with your friends, teaming up to beat Dr Eggman's nefarious challenges!"},
 	{{103, 103}, "Speed your way through the main acts, competing in several different categories to see who's the best."},
@@ -1041,9 +1048,8 @@ static menuitem_t OP_P1ControlsMenu[] =
 
 	{IT_SUBMENU | IT_STRING, NULL, "Camera Options...", &OP_CameraOptionsDef,	50},
 
-	//{IT_STRING  | IT_CVAR, NULL, "Analog Control", &cv_useranalog,  100},
-	{IT_STRING  | IT_CVAR, NULL, "Character angle", &cv_directionchar,  70},
-	{IT_STRING  | IT_CVAR, NULL, "Automatic braking", &cv_autobrake,  80},
+	{IT_STRING  | IT_CVAR, NULL, "Automatic braking", &cv_autobrake,  70},
+	{IT_CALL    | IT_STRING, NULL, "Play Style...", M_Setup1PPlaystyleMenu, 80},
 };
 
 static menuitem_t OP_P2ControlsMenu[] =
@@ -1054,9 +1060,8 @@ static menuitem_t OP_P2ControlsMenu[] =
 
 	{IT_SUBMENU | IT_STRING, NULL, "Camera Options...", &OP_Camera2OptionsDef,	50},
 
-	//{IT_STRING  | IT_CVAR, NULL, "Analog Control", &cv_useranalog2,  100},
-	{IT_STRING  | IT_CVAR, NULL, "Character angle", &cv_directionchar2,  70},
-	{IT_STRING  | IT_CVAR, NULL, "Automatic braking", &cv_autobrake2,  80},
+	{IT_STRING  | IT_CVAR, NULL, "Automatic braking", &cv_autobrake2,  70},
+	{IT_CALL    | IT_STRING, NULL, "Play Style...", M_Setup2PPlaystyleMenu, 80},
 };
 
 static menuitem_t OP_ChangeControlsMenu[] =
@@ -1128,8 +1133,8 @@ static menuitem_t OP_Joystick1Menu[] =
 
 	{IT_STRING | IT_CVAR, NULL, "First-Person Vert-Look", &cv_alwaysfreelook, 120},
 	{IT_STRING | IT_CVAR, NULL, "Third-Person Vert-Look", &cv_chasefreelook,  130},
-	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
-	                      NULL, "Deadzone",               &cv_deadzone,       140 },
+	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Analog Deadzone", &cv_deadzone, 140},
+	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Digital Deadzone", &cv_digitaldeadzone, 150},
 };
 
 static menuitem_t OP_Joystick2Menu[] =
@@ -1146,8 +1151,8 @@ static menuitem_t OP_Joystick2Menu[] =
 
 	{IT_STRING | IT_CVAR, NULL, "First-Person Vert-Look", &cv_alwaysfreelook2,120},
 	{IT_STRING | IT_CVAR, NULL, "Third-Person Vert-Look", &cv_chasefreelook2, 130},
-	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER,
-	                      NULL, "Deadzone",               &cv_deadzone2,      140 },
+	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Analog Deadzone", &cv_deadzone2,140},
+	{IT_STRING | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Digital Deadzone", &cv_digitaldeadzone2,150},
 };
 
 static menuitem_t OP_JoystickSetMenu[1+MAX_JOYSTICKS];
@@ -1184,32 +1189,98 @@ static menuitem_t OP_Mouse2OptionsMenu[] =
 
 static menuitem_t OP_CameraOptionsMenu[] =
 {
-	{IT_STRING  | IT_CVAR, NULL, "Third-person Camera"  , &cv_chasecam , 10},
-	{IT_STRING  | IT_CVAR, NULL, "Flip Camera with Gravity"  , &cv_flipcam , 20},
-	{IT_STRING  | IT_CVAR, NULL, "Orbital Looking"  , &cv_cam_orbit , 30},
-	{IT_STRING  | IT_CVAR, NULL, "Downhill Slope Adjustment", &cv_cam_adjust, 40},
+	{IT_HEADER,            NULL, "General Toggles", NULL, 0},
+	{IT_STRING  | IT_CVAR, NULL, "Third-person Camera"  , &cv_chasecam , 6},
+	{IT_STRING  | IT_CVAR, NULL, "Flip Camera with Gravity"  , &cv_flipcam , 11},
+	{IT_STRING  | IT_CVAR, NULL, "Orbital Looking"  , &cv_cam_orbit , 16},
+	{IT_STRING  | IT_CVAR, NULL, "Downhill Slope Adjustment", &cv_cam_adjust, 21},
 
-	{IT_STRING  | IT_CVAR | IT_CV_INTEGERSTEP, NULL, "Camera Distance", &cv_cam_dist, 60},
-	{IT_STRING  | IT_CVAR | IT_CV_INTEGERSTEP, NULL, "Camera Height", &cv_cam_height, 70},
-	{IT_STRING  | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Camera Spacial Speed", &cv_cam_speed, 80},
-	{IT_STRING  | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Camera Turning Speed", &cv_cam_turnmultiplier, 90},
+	{IT_HEADER,                                NULL, "Camera Positioning", NULL, 30},
+	{IT_STRING  | IT_CVAR | IT_CV_INTEGERSTEP, NULL, "Camera Distance", &cv_cam_savedist[0][0], 36},
+	{IT_STRING  | IT_CVAR | IT_CV_INTEGERSTEP, NULL, "Camera Height", &cv_cam_saveheight[0][0], 41},
+	{IT_STRING  | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Camera Spacial Speed", &cv_cam_speed, 46},
+	{IT_STRING  | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Rotation Speed", &cv_cam_turnmultiplier, 51},
 
-	{IT_STRING  | IT_CVAR, NULL, "Crosshair", &cv_crosshair, 100},
+	{IT_HEADER,            NULL, "Display Options", NULL, 60},
+	{IT_STRING  | IT_CVAR, NULL, "Crosshair", &cv_crosshair, 66},
 };
 
 static menuitem_t OP_Camera2OptionsMenu[] =
 {
-	{IT_STRING  | IT_CVAR, NULL, "Third-person Camera"  , &cv_chasecam2 , 10},
-	{IT_STRING  | IT_CVAR, NULL, "Flip Camera with Gravity"  , &cv_flipcam2 , 20},
-	{IT_STRING  | IT_CVAR, NULL, "Orbital Looking"  , &cv_cam2_orbit , 30},
-	{IT_STRING  | IT_CVAR, NULL, "Downhill Slope Adjustment", &cv_cam2_adjust, 40},
+	{IT_HEADER,            NULL, "General Toggles", NULL, 0},
+	{IT_STRING  | IT_CVAR, NULL, "Third-person Camera"  , &cv_chasecam2 , 6},
+	{IT_STRING  | IT_CVAR, NULL, "Flip Camera with Gravity"  , &cv_flipcam2 , 11},
+	{IT_STRING  | IT_CVAR, NULL, "Orbital Looking"  , &cv_cam2_orbit , 16},
+	{IT_STRING  | IT_CVAR, NULL, "Downhill Slope Adjustment", &cv_cam2_adjust, 21},
 
-	{IT_STRING  | IT_CVAR | IT_CV_INTEGERSTEP, NULL, "Camera Distance", &cv_cam2_dist, 60},
-	{IT_STRING  | IT_CVAR | IT_CV_INTEGERSTEP, NULL, "Camera Height", &cv_cam2_height, 70},
-	{IT_STRING  | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Camera Spacial Speed", &cv_cam2_speed, 80},
-	{IT_STRING  | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Camera Turning Speed", &cv_cam2_turnmultiplier, 90},
+	{IT_HEADER,                                NULL, "Camera Positioning", NULL, 30},
+	{IT_STRING  | IT_CVAR | IT_CV_INTEGERSTEP, NULL, "Camera Distance", &cv_cam_savedist[0][1], 36},
+	{IT_STRING  | IT_CVAR | IT_CV_INTEGERSTEP, NULL, "Camera Height", &cv_cam_saveheight[0][1], 41},
+	{IT_STRING  | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Camera Spacial Speed", &cv_cam2_speed, 46},
+	{IT_STRING  | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Rotation Speed", &cv_cam2_turnmultiplier, 51},
 
-	{IT_STRING  | IT_CVAR, NULL, "Crosshair", &cv_crosshair2, 100},
+	{IT_HEADER,            NULL, "Display Options", NULL, 60},
+	{IT_STRING  | IT_CVAR, NULL, "Crosshair", &cv_crosshair2, 66},
+};
+
+static menuitem_t OP_CameraExtendedOptionsMenu[] =
+{
+	{IT_HEADER,            NULL, "General Toggles", NULL, 0},
+	{IT_STRING  | IT_CVAR, NULL, "Third-person Camera"  , &cv_chasecam , 6},
+	{IT_STRING  | IT_CVAR, NULL, "Flip Camera with Gravity"  , &cv_flipcam , 11},
+	{IT_STRING  | IT_CVAR, NULL, "Orbital Looking"  , &cv_cam_orbit , 16},
+	{IT_STRING  | IT_CVAR, NULL, "Downhill Slope Adjustment", &cv_cam_adjust, 21},
+
+	{IT_HEADER,                                NULL, "Camera Positioning", NULL, 30},
+	{IT_STRING  | IT_CVAR | IT_CV_INTEGERSTEP, NULL, "Camera Distance", &cv_cam_savedist[1][0], 36},
+	{IT_STRING  | IT_CVAR | IT_CV_INTEGERSTEP, NULL, "Camera Height", &cv_cam_saveheight[1][0], 41},
+	{IT_STRING  | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Camera Spacial Speed", &cv_cam_speed, 46},
+	{IT_STRING  | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Rotation Speed", &cv_cam_turnmultiplier, 51},
+
+	{IT_HEADER,                           NULL, "Automatic Camera Options", NULL, 60},
+	{IT_STRING  | IT_CVAR | IT_CV_SLIDER, NULL, "Shift to player angle", &cv_cam_shiftfacing[0],  66},
+	{IT_STRING  | IT_CVAR | IT_CV_SLIDER, NULL, "Turn to player angle", &cv_cam_turnfacing[0],  71},
+	{IT_STRING  | IT_CVAR | IT_CV_SLIDER, NULL, "Turn to ability", &cv_cam_turnfacingability[0],  76},
+	{IT_STRING  | IT_CVAR | IT_CV_SLIDER, NULL, "Turn to spindash", &cv_cam_turnfacingspindash[0],  81},
+	{IT_STRING  | IT_CVAR | IT_CV_SLIDER, NULL, "Turn to input", &cv_cam_turnfacinginput[0],  86},
+
+	{IT_HEADER,            NULL, "Locked Camera Options", NULL, 95},
+	{IT_STRING  | IT_CVAR, NULL, "Lock button behavior", &cv_cam_centertoggle[0],  101},
+	{IT_STRING  | IT_CVAR, NULL, "Sideways movement", &cv_cam_lockedinput[0],  106},
+	{IT_STRING  | IT_CVAR, NULL, "Targeting assist", &cv_cam_lockonboss[0],  111},
+
+	{IT_HEADER,            NULL, "Display Options", NULL, 120},
+	{IT_STRING  | IT_CVAR, NULL, "Crosshair", &cv_crosshair, 126},
+};
+
+static menuitem_t OP_Camera2ExtendedOptionsMenu[] =
+{
+	{IT_HEADER,            NULL, "General Toggles", NULL, 0},
+	{IT_STRING  | IT_CVAR, NULL, "Third-person Camera"  , &cv_chasecam2 , 6},
+	{IT_STRING  | IT_CVAR, NULL, "Flip Camera with Gravity"  , &cv_flipcam2 , 11},
+	{IT_STRING  | IT_CVAR, NULL, "Orbital Looking"  , &cv_cam2_orbit , 16},
+	{IT_STRING  | IT_CVAR, NULL, "Downhill Slope Adjustment", &cv_cam2_adjust, 21},
+
+	{IT_HEADER,                                NULL, "Camera Positioning", NULL, 30},
+	{IT_STRING  | IT_CVAR | IT_CV_INTEGERSTEP, NULL, "Camera Distance", &cv_cam_savedist[1][1], 36},
+	{IT_STRING  | IT_CVAR | IT_CV_INTEGERSTEP, NULL, "Camera Height", &cv_cam_saveheight[1][1], 41},
+	{IT_STRING  | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Camera Spacial Speed", &cv_cam2_speed, 46},
+	{IT_STRING  | IT_CVAR | IT_CV_FLOATSLIDER, NULL, "Rotation Speed", &cv_cam2_turnmultiplier, 51},
+
+	{IT_HEADER,                           NULL, "Automatic Camera Options", NULL, 60},
+	{IT_STRING  | IT_CVAR | IT_CV_SLIDER, NULL, "Shift to player angle", &cv_cam_shiftfacing[1],  66},
+	{IT_STRING  | IT_CVAR | IT_CV_SLIDER, NULL, "Turn to player angle", &cv_cam_turnfacing[1],  71},
+	{IT_STRING  | IT_CVAR | IT_CV_SLIDER, NULL, "Turn to ability", &cv_cam_turnfacingability[1],  76},
+	{IT_STRING  | IT_CVAR | IT_CV_SLIDER, NULL, "Turn to spindash", &cv_cam_turnfacingspindash[1],  81},
+	{IT_STRING  | IT_CVAR | IT_CV_SLIDER, NULL, "Turn to input", &cv_cam_turnfacinginput[1],  86},
+
+	{IT_HEADER,            NULL, "Locked Camera Options", NULL, 95},
+	{IT_STRING  | IT_CVAR, NULL, "Lock button behavior", &cv_cam_centertoggle[1],  101},
+	{IT_STRING  | IT_CVAR, NULL, "Sideways movement", &cv_cam_lockedinput[1],  106},
+	{IT_STRING  | IT_CVAR, NULL, "Targeting assist", &cv_cam_lockonboss[1],  111},
+
+	{IT_HEADER,            NULL, "Display Options", NULL, 120},
+	{IT_STRING  | IT_CVAR, NULL, "Crosshair", &cv_crosshair2, 126},
 };
 
 static menuitem_t OP_VideoOptionsMenu[] =
@@ -1327,7 +1398,7 @@ static menuitem_t OP_OpenGLOptionsMenu[] =
 	{IT_STRING|IT_CVAR,         NULL, "Model lighting",      &cv_grmodellighting, 32},
 
 	{IT_HEADER, NULL, "General", NULL, 51},
-	{IT_STRING|IT_CVAR,         NULL, "Field of view",   &cv_grfov,            63},
+	{IT_STRING|IT_CVAR,         NULL, "Field of view",   &cv_fov,            63},
 	{IT_STRING|IT_CVAR,         NULL, "Quality",         &cv_scr_depth,        73},
 	{IT_STRING|IT_CVAR,         NULL, "Texture Filter",  &cv_grfiltermode,     83},
 	{IT_STRING|IT_CVAR,         NULL, "Anisotropic",     &cv_granisotropicmode,93},
@@ -1376,8 +1447,9 @@ static menuitem_t OP_SoundOptionsMenu[] =
 	{IT_HEADER, NULL, "Miscellaneous", NULL, 102},
 	{IT_STRING | IT_CVAR, NULL, "Closed Captioning", &cv_closedcaptioning, 114},
 	{IT_STRING | IT_CVAR, NULL, "Reset Music Upon Dying", &cv_resetmusic, 124},
+	{IT_STRING | IT_CVAR, NULL, "Default 1-Up sound", &cv_1upsound, 134},
 
-	{IT_STRING | IT_SUBMENU, NULL, "Advanced Settings...", &OP_SoundAdvancedDef, 144},
+	{IT_STRING | IT_SUBMENU, NULL, "Advanced Settings...", &OP_SoundAdvancedDef, 154},
 };
 
 #ifdef HAVE_OPENMPT
@@ -1443,6 +1515,7 @@ static menuitem_t OP_ScreenshotOptionsMenu[] =
 
 	{IT_STRING|IT_CVAR, NULL, "Region Optimizing", &cv_gif_optimize,              95},
 	{IT_STRING|IT_CVAR, NULL, "Downscaling",       &cv_gif_downscale,             100},
+	{IT_STRING|IT_CVAR, NULL, "Local Color Table", &cv_gif_localcolortable,       105},
 
 	{IT_STRING|IT_CVAR, NULL, "Memory Level",      &cv_zlib_memorya,              95},
 	{IT_STRING|IT_CVAR, NULL, "Compression Level", &cv_zlib_levela,               100},
@@ -1453,13 +1526,14 @@ static menuitem_t OP_ScreenshotOptionsMenu[] =
 enum
 {
 	op_screenshot_colorprofile = 1,
+	op_screenshot_storagelocation = 3,
 	op_screenshot_folder = 4,
 	op_movie_folder = 11,
 	op_screenshot_capture = 12,
 	op_screenshot_gif_start = 13,
-	op_screenshot_gif_end = 14,
-	op_screenshot_apng_start = 15,
-	op_screenshot_apng_end = 18,
+	op_screenshot_gif_end = 15,
+	op_screenshot_apng_start = 16,
+	op_screenshot_apng_end = 19,
 };
 
 static menuitem_t OP_EraseDataMenu[] =
@@ -1513,32 +1587,33 @@ static menuitem_t OP_ServerOptionsMenu[] =
 	{IT_STRING | IT_CVAR,    NULL, "Players required for exit",        &cv_playersforexit,      96},
 	{IT_STRING | IT_CVAR,    NULL, "Starposts",                        &cv_coopstarposts,      101},
 	{IT_STRING | IT_CVAR,    NULL, "Life sharing",                     &cv_cooplives,          106},
+	{IT_STRING | IT_CVAR,    NULL, "Post-goal free roaming",           &cv_exitmove,           111},
 
-	{IT_HEADER, NULL, "Race, Competition", NULL, 115},
-	{IT_STRING | IT_CVAR,    NULL, "Level completion countdown",       &cv_countdowntime,      121},
-	{IT_STRING | IT_CVAR,    NULL, "Item Monitors",                    &cv_competitionboxes,   126},
+	{IT_HEADER, NULL, "Race, Competition", NULL, 120},
+	{IT_STRING | IT_CVAR,    NULL, "Level completion countdown",       &cv_countdowntime,      126},
+	{IT_STRING | IT_CVAR,    NULL, "Item Monitors",                    &cv_competitionboxes,   131},
 
-	{IT_HEADER, NULL, "Ringslinger (Match, CTF, Tag, H&S)", NULL, 135},
-	{IT_STRING | IT_CVAR,    NULL, "Time Limit",                       &cv_timelimit,          141},
-	{IT_STRING | IT_CVAR,    NULL, "Score Limit",                      &cv_pointlimit,         146},
-	{IT_STRING | IT_CVAR,    NULL, "Overtime on Tie",                  &cv_overtime,           151},
-	{IT_STRING | IT_CVAR,    NULL, "Player respawn delay",             &cv_respawntime,        156},
+	{IT_HEADER, NULL, "Ringslinger (Match, CTF, Tag, H&S)", NULL, 140},
+	{IT_STRING | IT_CVAR,    NULL, "Time Limit",                       &cv_timelimit,          146},
+	{IT_STRING | IT_CVAR,    NULL, "Score Limit",                      &cv_pointlimit,         151},
+	{IT_STRING | IT_CVAR,    NULL, "Overtime on Tie",                  &cv_overtime,           156},
+	{IT_STRING | IT_CVAR,    NULL, "Player respawn delay",             &cv_respawntime,        161},
 
-	{IT_STRING | IT_CVAR,    NULL, "Item Monitors",                    &cv_matchboxes,         166},
-	{IT_STRING | IT_CVAR,    NULL, "Weapon Rings",                     &cv_specialrings,       171},
-	{IT_STRING | IT_CVAR,    NULL, "Power Stones",                     &cv_powerstones,        176},
+	{IT_STRING | IT_CVAR,    NULL, "Item Monitors",                    &cv_matchboxes,         171},
+	{IT_STRING | IT_CVAR,    NULL, "Weapon Rings",                     &cv_specialrings,       176},
+	{IT_STRING | IT_CVAR,    NULL, "Power Stones",                     &cv_powerstones,        181},
 
-	{IT_STRING | IT_CVAR,    NULL, "Flag respawn delay",               &cv_flagtime,           186},
-	{IT_STRING | IT_CVAR,    NULL, "Hiding time",                      &cv_hidetime,           191},
+	{IT_STRING | IT_CVAR,    NULL, "Flag respawn delay",               &cv_flagtime,           191},
+	{IT_STRING | IT_CVAR,    NULL, "Hiding time",                      &cv_hidetime,           196},
 
-	{IT_HEADER, NULL, "Teams", NULL, 200},
-	{IT_STRING | IT_CVAR,    NULL, "Autobalance sizes",                &cv_autobalance,        206},
-	{IT_STRING | IT_CVAR,    NULL, "Scramble on Map Change",           &cv_scrambleonchange,   211},
+	{IT_HEADER, NULL, "Teams", NULL, 205},
+	{IT_STRING | IT_CVAR,    NULL, "Autobalance sizes",                &cv_autobalance,        211},
+	{IT_STRING | IT_CVAR,    NULL, "Scramble on Map Change",           &cv_scrambleonchange,   216},
 
 #ifndef NONET
-	{IT_HEADER, NULL, "Advanced", NULL, 220},
-	{IT_STRING | IT_CVAR | IT_CV_STRING, NULL, "Master server",        &cv_masterserver,        226},
-	{IT_STRING | IT_CVAR,    NULL, "Attempts to resynchronise",        &cv_resynchattempts,     240},
+	{IT_HEADER, NULL, "Advanced", NULL, 225},
+	{IT_STRING | IT_CVAR | IT_CV_STRING, NULL, "Master server",        &cv_masterserver,        231},
+	{IT_STRING | IT_CVAR,    NULL, "Attempts to resynchronise",        &cv_resynchattempts,     245},
 #endif
 };
 
@@ -1928,12 +2003,24 @@ menu_t OP_MainDef = DEFAULTMENUSTYLE(
 menu_t OP_ChangeControlsDef = CONTROLMENUSTYLE(
 	MN_OP_MAIN + (MN_OP_CHANGECONTROLS << 12), // second level (<<6) set on runtime
 	OP_ChangeControlsMenu, &OP_MainDef);
-menu_t OP_P1ControlsDef = DEFAULTMENUSTYLE(
+
+menu_t OP_P1ControlsDef = {
 	MN_OP_MAIN + (MN_OP_P1CONTROLS << 6),
-	"M_CONTRO", OP_P1ControlsMenu, &OP_MainDef, 50, 30);
-menu_t OP_P2ControlsDef = DEFAULTMENUSTYLE(
+	"M_CONTRO",
+	sizeof(OP_P1ControlsMenu)/sizeof(menuitem_t),
+	&OP_MainDef,
+	OP_P1ControlsMenu,
+	M_DrawControlsDefMenu,
+	50, 30, 0, NULL};
+menu_t OP_P2ControlsDef = {
 	MN_OP_MAIN + (MN_OP_P2CONTROLS << 6),
-	"M_CONTRO", OP_P2ControlsMenu, &OP_MainDef, 50, 30);
+	"M_CONTRO",
+	sizeof(OP_P2ControlsMenu)/sizeof(menuitem_t),
+	&OP_MainDef,
+	OP_P2ControlsMenu,
+	M_DrawControlsDefMenu,
+	50, 30, 0, NULL};
+
 menu_t OP_MouseOptionsDef = DEFAULTMENUSTYLE(
 	MN_OP_MAIN + (MN_OP_P1CONTROLS << 6) + (MN_OP_P1MOUSE << 12),
 	"M_CONTRO", OP_MouseOptionsMenu, &OP_P1ControlsDef, 35, 30);
@@ -1958,12 +2045,41 @@ menu_t OP_JoystickSetDef =
 	0,
 	NULL
 };
-menu_t OP_CameraOptionsDef = DEFAULTMENUSTYLE(
+
+menu_t OP_CameraOptionsDef = {
 	MN_OP_MAIN + (MN_OP_P1CONTROLS << 6) + (MN_OP_P1CAMERA << 12),
-	"M_CONTRO", OP_CameraOptionsMenu, &OP_P1ControlsDef, 35, 30);
-menu_t OP_Camera2OptionsDef = DEFAULTMENUSTYLE(
+	"M_CONTRO",
+	sizeof (OP_CameraOptionsMenu)/sizeof (menuitem_t),
+	&OP_P1ControlsDef,
+	OP_CameraOptionsMenu,
+	M_DrawCameraOptionsMenu,
+	35, 30,
+	0,
+	NULL
+};
+menu_t OP_Camera2OptionsDef = {
 	MN_OP_MAIN + (MN_OP_P2CONTROLS << 6) + (MN_OP_P2CAMERA << 12),
-	"M_CONTRO", OP_Camera2OptionsMenu, &OP_P2ControlsDef, 35, 30);
+	"M_CONTRO",
+	sizeof (OP_Camera2OptionsMenu)/sizeof (menuitem_t),
+	&OP_P2ControlsDef,
+	OP_Camera2OptionsMenu,
+	M_DrawCameraOptionsMenu,
+	35, 30,
+	0,
+	NULL
+};
+
+static menuitem_t OP_PlaystyleMenu[] = {{IT_KEYHANDLER | IT_NOTHING, NULL, "", M_HandlePlaystyleMenu, 0}};
+
+menu_t OP_PlaystyleDef = {
+	MN_OP_MAIN + (MN_OP_P1CONTROLS << 6) + (MN_OP_PLAYSTYLE << 12),
+	NULL,
+	1,
+	&OP_P1ControlsDef,
+	OP_PlaystyleMenu,
+	M_DrawPlaystyleMenu,
+	0, 0, 0, NULL
+};
 
 
 menu_t OP_VideoOptionsDef =
@@ -2915,7 +3031,8 @@ static void M_ChangeCvar(INT32 choice)
 			|| !(currentMenu->menuitems[itemOn].status & IT_CV_INTEGERSTEP))
 		{
 			char s[20];
-			sprintf(s,"%f",FIXED_TO_FLOAT(cv->value)+(choice)*(1.0f/16.0f));
+			float n = FIXED_TO_FLOAT(cv->value)+(choice)*(1.0f/16.0f);
+			sprintf(s,"%ld%s",(long)n,M_Ftrim(n));
 			CV_Set(cv,s);
 		}
 		else
@@ -3080,7 +3197,7 @@ boolean M_Responder(event_t *ev)
 		}
 		else if (ev->type == ev_joystick  && ev->data1 == 0 && joywait < I_GetTime())
 		{
-			const INT32 jdeadzone = (JOYAXISRANGE * cv_deadzone.value) / FRACUNIT;
+			const INT32 jdeadzone = (JOYAXISRANGE * cv_digitaldeadzone.value) / FRACUNIT;
 			if (ev->data3 != INT32_MAX)
 			{
 				if (Joystick.bGamepadStyle || abs(ev->data3) > jdeadzone)
@@ -3645,6 +3762,12 @@ void M_SetupNextMenu(menu_t *menudef)
 	hidetitlemap = false;
 }
 
+// Guess I'll put this here, idk
+boolean M_MouseNeeded(void)
+{
+	return (currentMenu == &MessageDef && currentMenu->prevMenu == &OP_ChangeControlsDef);
+}
+
 //
 // M_Ticker
 //
@@ -3666,6 +3789,9 @@ void M_Ticker(void)
 		if (--vidm_testingmode == 0)
 			setmodeneeded = vidm_previousmode + 1;
 	}
+
+	if (currentMenu == &OP_ScreenshotOptionsDef)
+		M_SetupScreenshotMenu();
 }
 
 //
@@ -4198,6 +4324,102 @@ static void M_DrawGenericMenu(void)
 	}
 }
 
+const char *PlaystyleNames[4] = {"Legacy", "Standard", "Simple", "Old Analog??"};
+const char *PlaystyleDesc[4] = {
+	// Legacy
+	"The play style used for\n"
+	"old-school SRB2.\n"
+	"\n"
+	"This play style is identical\n"
+	"to Standard, except that the\n"
+	"player always looks in the\n"
+	"direction of the camera."
+	,
+
+	// Standard
+	"The default play style,\n"
+	"designed for full control\n"
+	"with a keyboard and mouse.\n"
+	"\n"
+	"The camera rotates only when\n"
+	"you tell it to. The player\n"
+	"looks in the direction they're\n"
+	"moving, but acts in the direction\n"
+	"the camera is facing.\n"
+	"\n"
+	"Mastery of this play style will\n"
+	"open up the highest level of play!"
+	,
+
+	// Simple
+	"A play style designed for\n"
+	"gamepads and hassle-free play.\n"
+	"\n"
+	"The camera rotates automatically\n"
+	"as you move, and the player faces\n"
+	"and acts in the direction\n"
+	"they're moving.\n"
+	"\n"
+	"Hold \x82" "Center View\x80 to lock the\n"
+	"camera behind the player!\n"
+	,
+
+	// Old Analog
+	"I see.\n"
+	"\n"
+	"You really liked the old analog mode,\n"
+	"so when 2.2 came out, you opened up\n"
+	"your config file and brought it back.\n"
+	"\n"
+	"That's absolutely valid, but I implore\n"
+	"you to try the new Simple play style\n"
+	"instead!"
+};
+
+static UINT8 playstyle_activeplayer = 0, playstyle_currentchoice = 0;
+
+static void M_DrawControlsDefMenu(void)
+{
+	UINT8 opt = 0;
+
+	M_DrawGenericMenu();
+
+	if (currentMenu == &OP_P1ControlsDef)
+	{
+		opt = cv_directionchar[0].value ? 1 : 0;
+		opt = playstyle_currentchoice = cv_useranalog[0].value ? 3 - opt : opt;
+
+		if (opt == 2)
+		{
+			OP_CameraOptionsDef.menuitems = OP_CameraExtendedOptionsMenu;
+			OP_CameraOptionsDef.numitems = sizeof (OP_CameraExtendedOptionsMenu) / sizeof (menuitem_t);
+		}
+		else
+		{
+			OP_CameraOptionsDef.menuitems = OP_CameraOptionsMenu;
+			OP_CameraOptionsDef.numitems = sizeof (OP_CameraOptionsMenu) / sizeof (menuitem_t);
+		}
+	}
+	else
+	{
+		opt = cv_directionchar[1].value ? 1 : 0;
+		opt = playstyle_currentchoice = cv_useranalog[1].value ? 3 - opt : opt;
+
+		if (opt == 2)
+		{
+			OP_Camera2OptionsDef.menuitems = OP_Camera2ExtendedOptionsMenu;
+			OP_Camera2OptionsDef.numitems = sizeof (OP_Camera2ExtendedOptionsMenu) / sizeof (menuitem_t);
+		}
+		else
+		{
+			OP_Camera2OptionsDef.menuitems = OP_Camera2OptionsMenu;
+			OP_Camera2OptionsDef.numitems = sizeof (OP_Camera2OptionsMenu) / sizeof (menuitem_t);
+		}
+	}
+
+	V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, currentMenu->y + 80, V_YELLOWMAP, PlaystyleNames[opt]);
+}
+
 #define scrollareaheight 72
 
 // note that alphakey is multiplied by 2 for scrolling menus to allow greater usage in UINT8 range.
@@ -4209,7 +4431,9 @@ static void M_DrawGenericScrollMenu(void)
 	x = currentMenu->x;
 	y = currentMenu->y;
 
-	if ((currentMenu->menuitems[itemOn].alphaKey*2 - currentMenu->menuitems[0].alphaKey*2) <= scrollareaheight)
+	if (currentMenu->menuitems[currentMenu->numitems-1].alphaKey < scrollareaheight)
+		tempcentery = currentMenu->y; // Not tall enough to scroll, but this thinker is used in case it becomes so
+	else if ((currentMenu->menuitems[itemOn].alphaKey*2 - currentMenu->menuitems[0].alphaKey*2) <= scrollareaheight)
 		tempcentery = currentMenu->y - currentMenu->menuitems[0].alphaKey*2;
 	else if ((currentMenu->menuitems[currentMenu->numitems-1].alphaKey*2 - currentMenu->menuitems[itemOn].alphaKey*2) <= scrollareaheight)
 		tempcentery = currentMenu->y - currentMenu->menuitems[currentMenu->numitems-1].alphaKey*2 + 2*scrollareaheight;
@@ -4755,6 +4979,9 @@ static boolean M_CanShowLevelOnPlatter(INT32 mapnum, INT32 gt)
 				return true;
 
 			if (gt == GT_RACE && (mapheaderinfo[mapnum]->typeoflevel & TOL_RACE))
+				return true;
+
+			if (gt >= 0 && gt < gametypecount && (mapheaderinfo[mapnum]->typeoflevel & gametypetol[gt]))
 				return true;
 
 			return false;
@@ -5382,7 +5609,8 @@ static void M_DrawNightsAttackMountains(void)
 	static INT32 bgscrollx;
 	INT32 dupz = (vid.dupx < vid.dupy ? vid.dupx : vid.dupy);
 	patch_t *background = W_CachePatchName(curbgname, PU_PATCH);
-	INT32 x = FixedInt(bgscrollx) % SHORT(background->width);
+	INT16 w = SHORT(background->width);
+	INT32 x = FixedInt(-bgscrollx) % w;
 	INT32 y = BASEVIDHEIGHT - SHORT(background->height)*2;
 
 	if (vid.height != BASEVIDHEIGHT * dupz)
@@ -5390,11 +5618,13 @@ static void M_DrawNightsAttackMountains(void)
 	V_DrawFill(0, y+50, vid.width, BASEVIDHEIGHT, V_SNAPTOLEFT|31);
 
 	V_DrawScaledPatch(x, y, V_SNAPTOLEFT, background);
-	x += SHORT(background->width);
+	x += w;
 	if (x < BASEVIDWIDTH)
 		V_DrawScaledPatch(x, y, V_SNAPTOLEFT, background);
 
-	bgscrollx -= (FRACUNIT/2);
+	bgscrollx += (FRACUNIT/2);
+	if (bgscrollx > w<<FRACBITS)
+		bgscrollx &= 0xFFFF;
 }
 
 // NiGHTS Attack foreground.
@@ -6685,6 +6915,8 @@ static void M_HandleChecklist(INT32 choice)
 						continue;
 					if (unlockables[j].conditionset > MAXCONDITIONSETS)
 						continue;
+					if (!unlockables[j].unlocked && unlockables[j].showconditionset && !M_Achieved(unlockables[j].showconditionset))
+						continue;
 					if (unlockables[j].conditionset == unlockables[check_on].conditionset)
 						continue;
 					break;
@@ -6707,6 +6939,8 @@ static void M_HandleChecklist(INT32 choice)
 					if (!unlockables[j].conditionset)
 						continue;
 					if (unlockables[j].conditionset > MAXCONDITIONSETS)
+						continue;
+					if (!unlockables[j].unlocked && unlockables[j].showconditionset && !M_Achieved(unlockables[j].showconditionset))
 						continue;
 					if (j && unlockables[j].conditionset == unlockables[j-1].conditionset)
 						continue;
@@ -6745,7 +6979,8 @@ static void M_DrawChecklist(void)
 	while (i < MAXUNLOCKABLES)
 	{
 		if (unlockables[i].name[0] == 0 //|| unlockables[i].nochecklist
-		|| !unlockables[i].conditionset || unlockables[i].conditionset > MAXCONDITIONSETS)
+		|| !unlockables[i].conditionset || unlockables[i].conditionset > MAXCONDITIONSETS
+		|| (!unlockables[i].unlocked && unlockables[i].showconditionset && !M_Achieved(unlockables[i].showconditionset)))
 		{
 			i += 1;
 			continue;
@@ -6771,10 +7006,11 @@ static void M_DrawChecklist(void)
 
 				if (unlockables[i].objective[0] != '/')
 				{
-					addy(8);
-					V_DrawString(currentMenu->x, y,
+					addy(16);
+					V_DrawString(currentMenu->x, y-8,
 						V_ALLOWLOWERCASE,
 						va("\x1E %s", unlockables[i].objective));
+					y -= 8;
 				}
 				else
 				{
@@ -7015,8 +7251,8 @@ static void M_EmblemHints(INT32 choice)
 
 static void M_DrawEmblemHints(void)
 {
-	INT32 i, j = 0;
-	UINT32 collected = 0;
+	INT32 i, j = 0, x, y, left_hints = NUMHINTS;
+	UINT32 collected = 0, local = 0;
 	emblem_t *emblem;
 	const char *hint;
 
@@ -7025,31 +7261,58 @@ static void M_DrawEmblemHints(void)
 		emblem = &emblemlocations[i];
 		if (emblem->level != gamemap || emblem->type > ET_SKIN)
 			continue;
+		if (++local >= NUMHINTS*2)
+			break;
+	}
+
+	x = (local > NUMHINTS ? 4 : 12);
+	y = 8;
+
+	// If there are more than 1 page's but less than 2 pages' worth of emblems,
+	// put half (rounded up) of the hints on the left, and half (rounded down) on the right
+	if (local > NUMHINTS && local < (NUMHINTS*2)-1)
+		left_hints = (local + 1) / 2;
+
+	if (!local)
+		V_DrawCenteredString(160, 48, V_YELLOWMAP, "No hidden emblems on this map.");
+	else for (i = 0; i < numemblems; i++)
+	{
+		emblem = &emblemlocations[i];
+		if (emblem->level != gamemap || emblem->type > ET_SKIN)
+			continue;
 
 		if (emblem->collected)
 		{
 			collected = V_GREENMAP;
-			V_DrawMappedPatch(12, 12+(28*j), 0, W_CachePatchName(M_GetEmblemPatch(emblem, false), PU_PATCH),
+			V_DrawMappedPatch(x, y+4, 0, W_CachePatchName(M_GetEmblemPatch(emblem, false), PU_PATCH),
 				R_GetTranslationColormap(TC_DEFAULT, M_GetEmblemColor(emblem), GTC_CACHE));
 		}
 		else
 		{
 			collected = 0;
-			V_DrawScaledPatch(12, 12+(28*j), 0, W_CachePatchName("NEEDIT", PU_PATCH));
+			V_DrawScaledPatch(x, y+4, 0, W_CachePatchName("NEEDIT", PU_PATCH));
 		}
 
 		if (emblem->hint[0])
 			hint = emblem->hint;
 		else
-			hint = M_GetText("No hints available.");
+			hint = M_GetText("No hint available for this emblem.");
 		hint = V_WordWrap(40, BASEVIDWIDTH-12, 0, hint);
-		V_DrawString(40, 8+(28*j), V_RETURN8|V_ALLOWLOWERCASE|collected, hint);
+		if (local > NUMHINTS)
+			V_DrawThinString(x+28, y, V_RETURN8|V_ALLOWLOWERCASE|collected, hint);
+		else
+			V_DrawString(x+28, y, V_RETURN8|V_ALLOWLOWERCASE|collected, hint);
 
-		if (++j >= NUMHINTS)
+		y += 28;
+
+		if (++j == left_hints)
+		{
+			x = 4+(BASEVIDWIDTH/2);
+			y = 8;
+		}
+		else if (j >= NUMHINTS*2)
 			break;
 	}
-	if (!j)
-		V_DrawCenteredString(160, 48, V_YELLOWMAP, "No hidden emblems on this map.");
 
 	M_DrawGenericMenu();
 }
@@ -7642,7 +7905,7 @@ void M_TutorialSaveControlResponse(INT32 ch)
 		CV_Set(&cv_usemouse, cv_usemouse.defaultvalue);
 		CV_Set(&cv_alwaysfreelook, cv_alwaysfreelook.defaultvalue);
 		CV_Set(&cv_mousemove, cv_mousemove.defaultvalue);
-		CV_Set(&cv_analog, cv_analog.defaultvalue);
+		CV_Set(&cv_analog[0], cv_analog[0].defaultvalue);
 		S_StartSound(NULL, sfx_itemup);
 	}
 	else
@@ -7660,13 +7923,13 @@ static void M_TutorialControlResponse(INT32 ch)
 			tutorialusemouse = cv_usemouse.value;
 			tutorialfreelook = cv_alwaysfreelook.value;
 			tutorialmousemove = cv_mousemove.value;
-			tutorialanalog = cv_analog.value;
+			tutorialanalog = cv_analog[0].value;
 
 			G_CopyControls(gamecontrol, gamecontroldefault[tutorialgcs], gcl_tutorial_full, num_gcl_tutorial_full);
 			CV_Set(&cv_usemouse, cv_usemouse.defaultvalue);
 			CV_Set(&cv_alwaysfreelook, cv_alwaysfreelook.defaultvalue);
 			CV_Set(&cv_mousemove, cv_mousemove.defaultvalue);
-			CV_Set(&cv_analog, cv_analog.defaultvalue);
+			CV_Set(&cv_analog[0], cv_analog[0].defaultvalue);
 
 			//S_StartSound(NULL, sfx_itemup);
 		}
@@ -8984,7 +9247,10 @@ static void M_DrawStatsMaps(int location)
 			else
 				V_DrawSmallScaledPatch(292, y, 0, W_CachePatchName("NEEDIT", PU_PATCH));
 
-			V_DrawString(20, y, V_YELLOWMAP|V_ALLOWLOWERCASE, va("%s", exemblem->description));
+			V_DrawString(20, y, V_YELLOWMAP|V_ALLOWLOWERCASE,
+				(!exemblem->collected && exemblem->showconditionset && !M_Achieved(exemblem->showconditionset))
+				? M_CreateSecretMenuOption(exemblem->description)
+				: exemblem->description);
 		}
 
 		y += 8;
@@ -9990,7 +10256,7 @@ static void M_DrawRoomMenu(void)
 static void M_DrawConnectMenu(void)
 {
 	UINT16 i;
-	const char *gt = "Unknown";
+	char *gt;
 	INT32 numPages = (serverlistcount+(SERVERS_PER_PAGE-1))/SERVERS_PER_PAGE;
 
 	for (i = FIRSTSERVERLINE; i < min(localservercount, SERVERS_PER_PAGE)+FIRSTSERVERLINE; i++)
@@ -10034,14 +10300,17 @@ static void M_DrawConnectMenu(void)
 		V_DrawSmallString(currentMenu->x, S_LINEY(i)+8, globalflags,
 		                     va("Ping: %u", (UINT32)LONG(serverlist[slindex].info.time)));
 
-		gt = "Unknown";
-		if (serverlist[slindex].info.gametype < NUMGAMETYPES)
-			gt = Gametype_Names[serverlist[slindex].info.gametype];
+		gt = serverlist[slindex].info.gametypename;
 
 		V_DrawSmallString(currentMenu->x+46,S_LINEY(i)+8, globalflags,
 		                         va("Players: %02d/%02d", serverlist[slindex].info.numberofplayer, serverlist[slindex].info.maxplayer));
 
-		V_DrawSmallString(currentMenu->x+112, S_LINEY(i)+8, globalflags, va("Gametype: %s", gt));
+		if (strlen(gt) > 11)
+			gt = va("Gametype: %.11s...", gt);
+		else
+			gt = va("Gametype: %s", gt);
+
+		V_DrawSmallString(currentMenu->x+112, S_LINEY(i)+8, globalflags, gt);
 
 		MP_ConnectMenu[i+FIRSTSERVERLINE].status = IT_STRING | IT_CALL;
 	}
@@ -10082,7 +10351,15 @@ SERVER_LIST_ENTRY_COMPARATOR(time)
 SERVER_LIST_ENTRY_COMPARATOR(numberofplayer)
 SERVER_LIST_ENTRY_COMPARATOR_REVERSE(numberofplayer)
 SERVER_LIST_ENTRY_COMPARATOR_REVERSE(maxplayer)
-SERVER_LIST_ENTRY_COMPARATOR(gametype)
+
+static int ServerListEntryComparator_gametypename(const void *entry1, const void *entry2)
+{
+	const serverelem_t *sa = (const serverelem_t*)entry1, *sb = (const serverelem_t*)entry2;
+	int c;
+	if (( c = strcasecmp(sa->info.gametypename, sb->info.gametypename) ))
+		return c;
+	return strcmp(sa->info.servername, sb->info.servername); \
+}
 
 // Special one for modified state.
 static int ServerListEntryComparator_modified(const void *entry1, const void *entry2)
@@ -10122,7 +10399,7 @@ void M_SortServerList(void)
 		qsort(serverlist, serverlistcount, sizeof(serverelem_t), ServerListEntryComparator_maxplayer_reverse);
 		break;
 	case 5:		// Gametype.
-		qsort(serverlist, serverlistcount, sizeof(serverelem_t), ServerListEntryComparator_gametype);
+		qsort(serverlist, serverlistcount, sizeof(serverelem_t), ServerListEntryComparator_gametypename);
 		break;
 	}
 #endif
@@ -10372,8 +10649,8 @@ static void M_ServerOptions(INT32 choice)
 		OP_ServerOptionsMenu[ 2].status = IT_GRAYEDOUT; // Max players
 		OP_ServerOptionsMenu[ 3].status = IT_GRAYEDOUT; // Allow add-on downloading
 		OP_ServerOptionsMenu[ 4].status = IT_GRAYEDOUT; // Allow players to join
-		OP_ServerOptionsMenu[34].status = IT_GRAYEDOUT; // Master server
-		OP_ServerOptionsMenu[35].status = IT_GRAYEDOUT; // Attempts to resynchronise
+		OP_ServerOptionsMenu[35].status = IT_GRAYEDOUT; // Master server
+		OP_ServerOptionsMenu[36].status = IT_GRAYEDOUT; // Attempts to resynchronise
 	}
 	else
 	{
@@ -10381,10 +10658,10 @@ static void M_ServerOptions(INT32 choice)
 		OP_ServerOptionsMenu[ 2].status = IT_STRING | IT_CVAR;
 		OP_ServerOptionsMenu[ 3].status = IT_STRING | IT_CVAR;
 		OP_ServerOptionsMenu[ 4].status = IT_STRING | IT_CVAR;
-		OP_ServerOptionsMenu[34].status = (netgame
+		OP_ServerOptionsMenu[35].status = (netgame
 			? IT_GRAYEDOUT
 			: (IT_STRING | IT_CVAR | IT_CV_STRING));
-		OP_ServerOptionsMenu[35].status = IT_STRING | IT_CVAR;
+		OP_ServerOptionsMenu[36].status = IT_STRING | IT_CVAR;
 	}
 #endif
 
@@ -10507,15 +10784,77 @@ static void M_HandleConnectIP(INT32 choice)
 			break;
 
 		case KEY_DEL:
-			if (setupm_ip[0])
+			if (setupm_ip[0] && !shiftdown) // Shift+Delete is used for something else.
 			{
 				S_StartSound(NULL,sfx_menu1); // Tails
 				setupm_ip[0] = 0;
 			}
-			break;
+			if (!shiftdown) // Shift+Delete is used for something else.
+				break;
 
+			/* FALLTHRU */
 		default:
 			l = strlen(setupm_ip);
+
+			if ( ctrldown ) {
+				switch (choice) {
+					case 'v':
+					case 'V': // ctrl+v, pasting
+					{
+						const char *paste = I_ClipboardPaste();
+
+						if (paste != NULL) {
+							strncat(setupm_ip, paste, 28-1 - l); // Concat the ip field with clipboard
+							if (strlen(paste) != 0) // Don't play sound if nothing was pasted
+								S_StartSound(NULL,sfx_menu1); // Tails
+						}
+
+						break;
+					}
+					case KEY_INS:
+					case 'c':
+					case 'C': // ctrl+c, ctrl+insert, copying
+						I_ClipboardCopy(setupm_ip, l);
+						S_StartSound(NULL,sfx_menu1); // Tails
+						break;
+
+					case 'x':
+					case 'X': // ctrl+x, cutting
+						I_ClipboardCopy(setupm_ip, l);
+						S_StartSound(NULL,sfx_menu1); // Tails
+						setupm_ip[0] = 0;
+						break;
+
+					default: // otherwise do nothing
+						break;
+				}
+				break; // don't check for typed keys
+			}
+
+			if ( shiftdown ) {
+				switch (choice) {
+					case KEY_INS: // shift+insert, pasting
+						{
+							const char *paste = I_ClipboardPaste();
+
+							if (paste != NULL) {
+								strncat(setupm_ip, paste, 28-1 - l); // Concat the ip field with clipboard
+								if (strlen(paste) != 0) // Don't play sound if nothing was pasted
+									S_StartSound(NULL,sfx_menu1); // Tails
+							}
+
+							break;
+						}
+					case KEY_DEL: // shift+delete, cutting
+						I_ClipboardCopy(setupm_ip, l);
+						S_StartSound(NULL,sfx_menu1); // Tails
+						setupm_ip[0] = 0;
+						break;
+					default: // otherwise do nothing.
+						break;
+				}
+			}
+
 			if (l >= 28-1)
 				break;
 
@@ -11017,7 +11356,25 @@ static void M_ScreenshotOptions(INT32 choice)
 	Screenshot_option_Onchange();
 	Moviemode_mode_Onchange();
 
+	M_SetupScreenshotMenu();
 	M_SetupNextMenu(&OP_ScreenshotOptionsDef);
+}
+
+static void M_SetupScreenshotMenu(void)
+{
+	menuitem_t *item = &OP_ScreenshotOptionsMenu[op_screenshot_colorprofile];
+
+#ifdef HWRENDER
+	// Hide some options based on render mode
+	if (rendermode == render_opengl)
+	{
+		item->status = IT_GRAYEDOUT;
+		if ((currentMenu == &OP_ScreenshotOptionsDef) && (itemOn == op_screenshot_colorprofile)) // Can't select that
+			itemOn = op_screenshot_storagelocation;
+	}
+	else
+#endif
+		item->status = (IT_STRING | IT_CVAR);
 }
 
 // =============
@@ -11499,6 +11856,88 @@ static void M_ChangeControl(INT32 choice)
 	M_StartMessage(tmp, M_ChangecontrolResponse, MM_EVENTHANDLER);
 }
 
+static void M_Setup1PPlaystyleMenu(INT32 choice)
+{
+	(void)choice;
+
+	playstyle_activeplayer = 0;
+	OP_PlaystyleDef.prevMenu = &OP_P1ControlsDef;
+	M_SetupNextMenu(&OP_PlaystyleDef);
+}
+
+static void M_Setup2PPlaystyleMenu(INT32 choice)
+{
+	(void)choice;
+
+	playstyle_activeplayer = 1;
+	OP_PlaystyleDef.prevMenu = &OP_P2ControlsDef;
+	M_SetupNextMenu(&OP_PlaystyleDef);
+}
+
+static void M_DrawPlaystyleMenu(void)
+{
+	size_t i;
+
+	for (i = 0; i < 4; i++)
+	{
+		if (i != 3)
+			V_DrawCenteredString((i+1)*BASEVIDWIDTH/4, 20, (i == playstyle_currentchoice) ? V_YELLOWMAP : 0, PlaystyleNames[i]);
+
+		if (i == playstyle_currentchoice)
+		{
+			V_DrawScaledPatch((i+1)*BASEVIDWIDTH/4 - 8, 10, 0, W_CachePatchName("M_CURSOR", PU_CACHE));
+			V_DrawString(30, 50, V_ALLOWLOWERCASE, PlaystyleDesc[i]);
+		}
+	}
+}
+
+static void M_HandlePlaystyleMenu(INT32 choice)
+{
+	switch (choice)
+	{
+	case KEY_ESCAPE:
+	case KEY_BACKSPACE:
+		M_SetupNextMenu(currentMenu->prevMenu);
+		break;
+
+	case KEY_ENTER:
+		S_StartSound(NULL, sfx_menu1);
+		CV_SetValue((playstyle_activeplayer ? &cv_directionchar[1] : &cv_directionchar[0]), playstyle_currentchoice ? 1 : 0);
+		CV_SetValue((playstyle_activeplayer ? &cv_useranalog[1] : &cv_useranalog[0]), playstyle_currentchoice/2);
+
+		if (playstyle_activeplayer)
+			CV_UpdateCam2Dist();
+		else
+			CV_UpdateCamDist();
+
+		M_SetupNextMenu(currentMenu->prevMenu);
+		break;
+
+	case KEY_LEFTARROW:
+		S_StartSound(NULL, sfx_menu1);
+		playstyle_currentchoice = (playstyle_currentchoice+2)%3;
+		break;
+
+	case KEY_RIGHTARROW:
+		S_StartSound(NULL, sfx_menu1);
+		playstyle_currentchoice = (playstyle_currentchoice+1)%3;
+		break;
+	}
+}
+
+static void M_DrawCameraOptionsMenu(void)
+{
+	M_DrawGenericScrollMenu();
+
+	if (gamestate == GS_LEVEL && (paused || P_AutoPause()))
+	{
+		if (currentMenu == &OP_Camera2OptionsDef && splitscreen && camera2.chase)
+			P_MoveChaseCamera(&players[secondarydisplayplayer], &camera2, false);
+		if (currentMenu == &OP_CameraOptionsDef && camera.chase)
+			P_MoveChaseCamera(&players[displayplayer], &camera, false);
+	}
+}
+
 // ===============
 // VIDEO MODE MENU
 // ===============
@@ -11880,6 +12319,15 @@ static void M_HandleVideoMode(INT32 ch)
 static void M_DrawScreenshotMenu(void)
 {
 	M_DrawGenericScrollMenu();
+#ifdef HWRENDER
+	if ((rendermode == render_opengl) && (itemOn < 7)) // where it starts to go offscreen; change this number if you change the layout of the screenshot menu
+	{
+		INT32 y = currentMenu->y+currentMenu->menuitems[op_screenshot_colorprofile].alphaKey*2;
+		if (itemOn == 6)
+			y -= 10;
+		V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, y, V_REDMAP, "Yes");
+	}
+#endif
 }
 
 // ===============
