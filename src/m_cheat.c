@@ -966,6 +966,7 @@ mobjtype_t op_currentthing = 0; // For the object placement mode
 UINT16 op_currentdoomednum = 0; // For display, etc
 UINT32 op_displayflags = 0; // for display in ST_stuff
 
+static mobj_t *op_oldplayermobj = NULL;
 static pflags_t op_oldpflags = 0;
 static mobjflag_t op_oldflags1 = 0;
 static mobjflag2_t op_oldflags2 = 0;
@@ -1490,6 +1491,25 @@ void Command_ObjectPlace_f(void)
 		op_oldstate = S_PLAY_STND;
 		op_oldcolor = players[0].mo->color; // save color too in case of super/fireflower
 
+		if (COM_CheckParm("-photomode"))
+		{
+			mobj_t *oldpmo = P_SpawnMobj(players[0].mo->x, players[0].mo->y, players[0].mo->z, MT_PLAYER);
+			oldpmo->skin = players[0].mo->skin;
+			oldpmo->color = op_oldcolor;
+			oldpmo->flags = op_oldflags1;
+			oldpmo->flags2 = op_oldflags2;
+			oldpmo->eflags = op_oldeflags;
+			oldpmo->sprite = players[0].mo->sprite;
+			oldpmo->sprite2 = players[0].mo->sprite2;
+			oldpmo->frame = players[0].mo->frame;
+			oldpmo->angle = players[0].drawangle;
+			P_SetTarget(&op_oldplayermobj, oldpmo);
+			if (players[0].followmobj)
+				P_SetTarget(&players[0].followmobj->tracer, oldpmo);
+		}
+		else
+			P_SetTarget(&op_oldplayermobj, NULL);
+
 		// Remove ALL flags and motion.
 		P_UnsetThingPosition(players[0].mo);
 		players[0].pflags = 0;
@@ -1551,6 +1571,14 @@ void Command_ObjectPlace_f(void)
 		players[0].mo->momz = op_oldmomz;
 		players[0].mo->height = op_oldheight;
 		P_SetThingPosition(players[0].mo);
+
+		if (op_oldplayermobj)
+		{
+			P_RemoveMobj(op_oldplayermobj);
+			P_SetTarget(&op_oldplayermobj, NULL);
+			if (players[0].followmobj)
+				P_SetTarget(&players[0].followmobj->tracer, players[0].mo);
+		}
 
 		// Return their color to normal.
 		players[0].mo->color = op_oldcolor;
