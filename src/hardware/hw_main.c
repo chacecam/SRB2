@@ -110,7 +110,7 @@ enum
 	GRPORTAL_OUTSIDE,
 };
 
-static void HWR_RenderSinglePortal(portal_t *portal, size_t portalnum, float fpov, INT32 viewnumber, postimg_t *ptype);
+static void HWR_RenderSinglePortal(portal_t *portal, size_t portalnum, float fpov, INT32 viewnumber, postimg_t *ptype, player_t *player);
 
 #ifdef PORTALSORTING
 static portal_t gr_portals[MAX_GRPORTALS];
@@ -6100,6 +6100,7 @@ static void HWR_DrawSkyBackground(player_t *player)
 		dometransform.scalez = 1;
 		dometransform.fovxangle = fpov; // Tails
 		dometransform.fovyangle = fpov; // Tails
+
 		if (player->viewrollangle != 0)
 		{
 			fixed_t rol = AngleFixed(player->viewrollangle);
@@ -6254,7 +6255,7 @@ void HWR_SetViewSize(void)
 	HWD.pfnFlushScreenTextures();
 }
 
-static void HWR_SetTransform(float fpov, INT32 viewnumber, postimg_t *ptype)
+static void HWR_SetTransform(float fpov, INT32 viewnumber, postimg_t *ptype, player_t *player)
 {
 	// copy view cam position for local use
 	dup_viewx = viewx;
@@ -6301,6 +6302,7 @@ static void HWR_SetTransform(float fpov, INT32 viewnumber, postimg_t *ptype)
 	atransform.scalez = 1;
 	atransform.fovxangle = fpov; // Tails
 	atransform.fovyangle = fpov; // Tails
+
 	if (player->viewrollangle != 0)
 	{
 		fixed_t rol = AngleFixed(player->viewrollangle);
@@ -6440,7 +6442,7 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 	// note: sets viewangle, viewx, viewy, viewz
 	R_SkyboxFrame(player);
 
-	HWR_SetTransform(fpov, viewnumber, postprocessor);
+	HWR_SetTransform(fpov, viewnumber, postprocessor, player);
 
 	//------------------------------------------------------------------------
 	HWR_ClearView();
@@ -6501,12 +6503,11 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 	else
 		postprocessor = &postimgtype;
 
-<<<<<<< HEAD
 	ClearColor.red = 0.0f;
 	ClearColor.green = 0.0f;
 	ClearColor.blue = 0.0f;
 	ClearColor.alpha = 1.0f;
-=======
+
 	atransform.x      = gr_viewx;  // FIXED_TO_FLOAT(viewx)
 	atransform.y      = gr_viewy;  // FIXED_TO_FLOAT(viewy)
 	atransform.z      = gr_viewz;  // FIXED_TO_FLOAT(viewz)
@@ -6522,7 +6523,6 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 		atransform.roll = true;
 	}
 	atransform.splitscreen = splitscreen;
->>>>>>> master
 
 	if (viewnumber == 0) // Only do it if it's the first screen being rendered
 		HWD.pfnClearBuffer(true, false, &ClearColor); // Clear the Color Buffer, stops HOMs. Also seems to fix the skybox issue on Intel GPUs.
@@ -6578,7 +6578,7 @@ if (0)
 		portalcullsector = NULL;
 
 		gr_portal = GRPORTAL_PROCESS;
-		HWR_SetTransform(fpov, viewnumber, postprocessor);
+		HWR_SetTransform(fpov, viewnumber, postprocessor, player);
 		HWR_RenderBSPNode((INT32)numnodes-1);
 
 		// Okay, it was found.
@@ -6600,7 +6600,7 @@ if (0)
 		validcount++;
 	}
 
-	HWR_SetTransform(fpov, viewnumber, postprocessor);
+	HWR_SetTransform(fpov, viewnumber, postprocessor, player);
 	HWR_RenderAllBSP();
 	HWR_RenderSorted();
 
@@ -6619,7 +6619,7 @@ if (0)
 #ifdef PORTALSORTING
 			HWR_AddPortal(portal);
 #else
-			HWR_RenderSinglePortal(portal, addportal, fpov, viewnumber, postprocessor);
+			HWR_RenderSinglePortal(portal, addportal, fpov, viewnumber, postprocessor, player);
 			addportal++;
 #endif
 			Portal_Remove(portal);
@@ -6637,7 +6637,7 @@ if (0)
 		gr_portal = GRPORTAL_INSIDEMASK;
 
 		R_SetupFrame(player);
-		HWR_SetTransform(fpov, viewnumber, postprocessor);
+		HWR_SetTransform(fpov, viewnumber, postprocessor, player);
 		HWR_ClearAll();
 
 		while (addportal < gr_numportalsegs)
@@ -6684,14 +6684,14 @@ if (0)
 //                                                                    PORTALS
 // ==========================================================================
 
-static void HWR_RenderSinglePortal(portal_t *portal, size_t portalnum, float fpov, INT32 viewnumber, postimg_t *ptype)
+static void HWR_RenderSinglePortal(portal_t *portal, size_t portalnum, float fpov, INT32 viewnumber, postimg_t *ptype, player_t *player)
 {
 	portalrender = portal->pass; // Recursiveness depth.
 
 	// Apply the viewpoint stored for the portal.
 	R_PortalFrame(portal);
 	HWR_ClearAll();
-	HWR_SetTransform(fpov, viewnumber, ptype);
+	HWR_SetTransform(fpov, viewnumber, ptype, player);
 	validcount++;
 
 	// Render the BSP from the new viewpoint.
@@ -6718,7 +6718,7 @@ static void HWR_SortPortals(player_t *player, float fpov, INT32 viewnumber, post
 	while (addportal < gr_numportals)
 	{
 		portal_t *portal = &gr_portals[addportal];
-		HWR_RenderSinglePortal(portal, addportal, fpov, viewnumber, ptype);
+		HWR_RenderSinglePortal(portal, addportal, fpov, viewnumber, ptype, player);
 		addportal++;
 	}
 #else
@@ -6804,7 +6804,7 @@ static void HWR_SortPortals(player_t *player, float fpov, INT32 viewnumber, post
 		if (sortnode[sortindex[i]].portal)
 		{
 			portal_t *portal = sortnode[sortindex[i]].portal;
-			HWR_RenderSinglePortal(portal, addportal, fpov, viewnumber, ptype);
+			HWR_RenderSinglePortal(portal, addportal, fpov, viewnumber, ptype, player);
 			addportal++;
 			if (addportal >= (unsigned)cv_maxportals.value)
 				break;
@@ -6812,7 +6812,7 @@ static void HWR_SortPortals(player_t *player, float fpov, INT32 viewnumber, post
 		else if (sortnode[sortindex[i]].wall)
 		{
 			R_SetupFrame(player);
-			HWR_SetTransform(fpov, viewnumber, ptype);
+			HWR_SetTransform(fpov, viewnumber, ptype, player);
 			HWR_DrawSkyWall(sortnode[sortindex[i]].wall->wallVerts, &sortnode[sortindex[i]].wall->Surf);
 		}
 	}
@@ -6908,11 +6908,9 @@ consvar_t cv_grmodellighting = {"gr_modellighting", "Off", CV_SAVE|CV_CALL, CV_O
 
 consvar_t cv_grspritebillboarding = {"gr_spritebillboarding", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_grskydome = {"gr_skydome", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-<<<<<<< HEAD
+
 consvar_t cv_grportals = {"gr_portals", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
-=======
 consvar_t cv_grfakecontrast = {"gr_fakecontrast", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
->>>>>>> master
 
 consvar_t cv_grrounddown = {"gr_rounddown", "Off", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_grfogdensity = {"gr_fogdensity", "150", CV_CALL|CV_NOINIT, CV_Unsigned,
