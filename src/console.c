@@ -1,7 +1,7 @@
 // SONIC ROBO BLAST 2
 //-----------------------------------------------------------------------------
 // Copyright (C) 1998-2000 by DooM Legacy Team.
-// Copyright (C) 1999-2019 by Sonic Team Junior.
+// Copyright (C) 1999-2020 by Sonic Team Junior.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -32,6 +32,7 @@
 #include "d_main.h"
 #include "m_menu.h"
 #include "filesrch.h"
+#include "m_misc.h"
 
 #ifdef _WINDOWS
 #include "win32/win_main.h"
@@ -612,6 +613,15 @@ void CON_Ticker(void)
 	con_tick++;
 	con_tick &= 7;
 
+	// if the menu is open then close the console.
+	if (menuactive && con_destlines)
+	{
+		consoletoggle = false;
+		con_destlines = 0;
+		CON_ClearHUD();
+		I_UpdateMouseGrab();
+	}
+
 	// console key was pushed
 	if (consoletoggle)
 	{
@@ -768,7 +778,7 @@ boolean CON_Responder(event_t *ev)
 	// check for console toggle key
 	if (ev->type != ev_console)
 	{
-		if (modeattacking || metalrecording || menuactive)
+		if (modeattacking || metalrecording)
 			return false;
 
 		if (key == gamecontrol[gc_console][0] || key == gamecontrol[gc_console][1])
@@ -783,7 +793,7 @@ boolean CON_Responder(event_t *ev)
 		// check other keys only if console prompt is active
 		if (!consoleready && key < NUMINPUTS) // metzgermeister: boundary check!!
 		{
-			if (! menuactive && bindtable[key])
+			if (bindtable[key])
 			{
 				COM_BufAddText(bindtable[key]);
 				COM_BufAddText("\n");
@@ -805,6 +815,33 @@ boolean CON_Responder(event_t *ev)
 	 || key == KEY_LCTRL || key == KEY_RCTRL
 	 || key == KEY_LALT || key == KEY_RALT)
 		return true;
+
+	if (key == KEY_LEFTARROW)
+	{
+		if (input_cur != 0)
+		{
+			if (ctrldown)
+				input_cur = M_JumpWordReverse(inputlines[inputline], input_cur);
+			else
+				--input_cur;
+		}
+		if (!shiftdown)
+			input_sel = input_cur;
+		return true;
+	}
+	else if (key == KEY_RIGHTARROW)
+	{
+		if (input_cur < input_len)
+		{
+			if (ctrldown)
+				input_cur += M_JumpWord(&inputlines[inputline][input_cur]);
+			else
+				++input_cur;
+		}
+		if (!shiftdown)
+			input_sel = input_cur;
+		return true;
+	}
 
 	// ctrl modifier -- changes behavior, adds shortcuts
 	if (ctrldown)
@@ -956,23 +993,6 @@ boolean CON_Responder(event_t *ev)
 	{
 		if (con_scrollup > 0)
 			con_scrollup--;
-		return true;
-	}
-
-	if (key == KEY_LEFTARROW)
-	{
-		if (input_cur != 0)
-			--input_cur;
-		if (!shiftdown)
-			input_sel = input_cur;
-		return true;
-	}
-	else if (key == KEY_RIGHTARROW)
-	{
-		if (input_cur < input_len)
-			++input_cur;
-		if (!shiftdown)
-			input_sel = input_cur;
 		return true;
 	}
 	else if (key == KEY_HOME)
