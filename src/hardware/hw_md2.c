@@ -553,16 +553,9 @@ boolean HWR_DrawModel(modelinfo_t *md2, gr_vissprite_t *spr)
 		float finalscale;
 
 		if (spr->mobj->skin && spr->mobj->sprite == SPR_PLAY)
-		{
-			md2 = &md2_playermodels[(skin_t*)spr->mobj->skin-skins];
-			md2->skin = (skin_t*)spr->mobj->skin-skins;
 			sprinfo = &((skin_t *)spr->mobj->skin)->sprinfo[spr->mobj->sprite2];
-		}
 		else
-		{
-			md2 = &md2_models[spr->mobj->sprite];
 			sprinfo = &spriteinfo[spr->mobj->sprite];
-		}
 
 		sprframe = &sprdef->spriteframes[spr->mobj->frame & FF_FRAMEMASK];
 
