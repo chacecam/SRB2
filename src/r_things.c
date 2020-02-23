@@ -2,7 +2,7 @@
 //-----------------------------------------------------------------------------
 // Copyright (C) 1993-1996 by id Software, Inc.
 // Copyright (C) 1998-2000 by DooM Legacy Team.
-// Copyright (C) 1999-2019 by Sonic Team Junior.
+// Copyright (C) 1999-2020 by Sonic Team Junior.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -129,7 +129,7 @@ static void R_InstallSpriteLump(UINT16 wad,            // graphics patch
 		{
 			lumpcache = wadfiles[wad]->patchcache->software;
 			if (!lumpcache[lump])
-				Z_Malloc(sizeof(rsp_spritetexture_t) * 8, PU_SOFTPOLY, &lumpcache[lump]);
+				Z_Malloc(sizeof(rsp_spritetexture_t) * 16, PU_SOFTPOLY, &lumpcache[lump]);
 			tex = lumpcache[lump];
 			tex += rot;
 
@@ -1133,10 +1133,10 @@ static void R_SplitSprite(vissprite_t *sprite)
 
 			newsprite->extra_colormap = *sector->lightlist[i].extra_colormap;
 
-			if (!((newsprite->cut & SC_FULLBRIGHT)
-				&& (!newsprite->extra_colormap || !(newsprite->extra_colormap->fog & 1))))
+			if (!(newsprite->cut & SC_FULLBRIGHT)
+				|| (newsprite->extra_colormap && (newsprite->extra_colormap->flags & CMF_FADEFULLBRIGHTSPRITES)))
 			{
-				lindex = FixedMul(sprite->xscale, FixedDiv(640, vid.width))>>(LIGHTSCALESHIFT);
+				lindex = FixedMul(sprite->xscale, LIGHTRESOLUTIONFIX)>>(LIGHTSCALESHIFT);
 
 				if (lindex >= MAXLIGHTSCALE)
 					lindex = MAXLIGHTSCALE-1;
@@ -1346,17 +1346,8 @@ static void R_ProjectDropShadow(mobj_t *thing, vissprite_t *vis, fixed_t scale, 
 
 	shadow->mobj = thing; // Easy access! Tails 06-07-2002
 
-	shadow->x1 = x1 < 0 ? 0 : x1;
-	shadow->x2 = x2 >= viewwidth ? viewwidth-1 : x2;
-
-	// PORTAL SEMI-CLIPPING
-	if (portalrender)
-	{
-		if (shadow->x1 < portalclipstart)
-			shadow->x1 = portalclipstart;
-		if (shadow->x2 >= portalclipend)
-			shadow->x2 = portalclipend-1;
-	}
+	shadow->x1 = x1 < portalclipstart ? portalclipstart : x1;
+	shadow->x2 = x2 >= portalclipend ? portalclipend-1 : x2;
 
 	shadow->projx1 = shadow->x1;
 	shadow->projx2 = shadow->x2;
@@ -1935,27 +1926,12 @@ static void R_ProjectSprite(mobj_t *thing)
 	// been discarded before...
 	vis->dontdrawsprite = dontdrawsprite;
 
-	vis->x1 = x1 < 0 ? 0 : x1;
-	vis->x2 = x2 >= viewwidth ? viewwidth-1 : x2;
-	vis->projx1 = projx1 < 0 ? 0 : projx1;
-	vis->projx2 = projx2 >= viewwidth ? viewwidth-1 : projx2;
-	vis->clipleft = 0;
-	vis->clipright = viewwidth-1;
-
-	// PORTAL SEMI-CLIPPING
-	if (portalrender)
-	{
-		if (vis->x1 < portalclipstart)
-			vis->x1 = portalclipstart;
-		if (vis->x2 >= portalclipend)
-			vis->x2 = portalclipend-1;
-		if (vis->projx1 < portalclipstart)
-			vis->projx1 = portalclipstart;
-		if (vis->projx2 >= portalclipend)
-			vis->projx2 = portalclipend-1;
-		vis->clipleft = portalclipstart;
-		vis->clipright = portalclipend-1;
-	}
+	vis->x1 = x1 < portalclipstart ? portalclipstart : x1;
+	vis->x2 = x2 >= portalclipend ? portalclipend-1 : x2;
+	vis->projx1 = projx1 < portalclipstart ? portalclipstart : projx1;
+	vis->projx2 = projx2 >= portalclipend ? portalclipend-1 : projx2;
+	vis->clipleft = (portalrender) ? portalclipstart : 0;
+	vis->clipright = (portalrender) ? portalclipend-1 : viewwidth-1;
 
 	vis->xscale = xscale; //SoM: 4/17/2000
 	vis->sector = thing->subsector->sector;
@@ -2012,7 +1988,7 @@ static void R_ProjectSprite(mobj_t *thing)
 		vis->cut |= SC_FULLBRIGHT;
 
 	if (vis->cut & SC_FULLBRIGHT
-		&& (!vis->extra_colormap || !(vis->extra_colormap->fog & 1)))
+		&& (!vis->extra_colormap || !(vis->extra_colormap->flags & CMF_FADEFULLBRIGHTSPRITES)))
 	{
 		// full bright: goggles
 		vis->colormap = colormaps;
@@ -2020,7 +1996,7 @@ static void R_ProjectSprite(mobj_t *thing)
 	else
 	{
 		// diminished light
-		lindex = FixedMul(xscale, FixedDiv(640, vid.width))>>(LIGHTSCALESHIFT);
+		lindex = FixedMul(xscale, LIGHTRESOLUTIONFIX)>>(LIGHTSCALESHIFT);
 
 		if (lindex >= MAXLIGHTSCALE)
 			lindex = MAXLIGHTSCALE-1;
@@ -2170,21 +2146,10 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	vis->shear.tan = 0;
 	vis->shear.offset = 0;
 
-	vis->x1 = x1 < 0 ? 0 : x1;
-	vis->x2 = x2 >= viewwidth ? viewwidth-1 : x2;
-	vis->clipleft = 0;
-	vis->clipright = viewwidth-1;
-
-	// PORTAL SEMI-CLIPPING
-	if (portalrender)
-	{
-		if (vis->x1 < portalclipstart)
-			vis->x1 = portalclipstart;
-		if (vis->x2 >= portalclipend)
-			vis->x2 = portalclipend-1;
-		vis->clipleft = portalclipstart;
-		vis->clipright = portalclipend-1;
-	}
+	vis->x1 = x1 < portalclipstart ? portalclipstart : x1;
+	vis->x2 = x2 >= portalclipend ? portalclipend-1 : x2;
+	vis->clipleft = (portalrender) ? portalclipstart : 0;
+	vis->clipright = (portalrender) ? portalclipend-1 : viewwidth-1;
 
 	vis->projx1 = vis->x1;
 	vis->projx2 = vis->x2;

@@ -92,7 +92,7 @@ fpmatrix16_t RSP_MatrixMultiply(fpmatrix16_t *m1, fpmatrix16_t *m2);
 void RSP_MatrixTranspose(fpmatrix16_t *m);
 
 void RSP_MakeIdentityMatrix(fpmatrix16_t *m);
-void RSP_MakePerspectiveMatrix(fpmatrix16_t *m, float fov, float aspectratio, float np, float fp);
+void RSP_MakePerspectiveMatrix(fpmatrix16_t *m, float fov, float zoomneeded, float aspectratio, float np, float fp);
 void RSP_MakeViewMatrix(fpmatrix16_t *m, fpvector4_t *eye, fpvector4_t *target, fpvector4_t *up);
 fpvector4_t RSP_IntersectPlane(fpvector4_t pp, fpvector4_t pn, fpvector4_t start, fpvector4_t end, float *t);
 

@@ -36,7 +36,8 @@ void RSP_Init(void)
 // make the viewport, after resolution change
 void RSP_Viewport(INT32 width, INT32 height)
 {
-	float fov = 90.0f;
+	float fov = FIXED_TO_FLOAT(cv_fov.value);
+	float zoom = FIXED_TO_FLOAT(R_GetViewMorphZoom());
 
 	// viewport width and height
 	rsp_target.width = width;
@@ -61,7 +62,7 @@ void RSP_Viewport(INT32 width, INT32 height)
 	rsp_target.near_plane = 16.0f;
 
 	// make projection matrix
-	RSP_MakePerspectiveMatrix(&rsp_viewpoint.projection_matrix, fov, rsp_target.aspectratio, 0.1f, rsp_target.far_plane);
+	RSP_MakePerspectiveMatrix(&rsp_viewpoint.projection_matrix, fov, zoom, rsp_target.aspectratio, 0.1f, rsp_target.far_plane);
 }
 
 // up vector

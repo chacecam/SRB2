@@ -147,9 +147,9 @@ void RSP_MakeIdentityMatrix(fpmatrix16_t *matrix)
 	matrix->m[0] = matrix->m[5] = matrix->m[10] = matrix->m[15] = 1.0f;
 }
 
-void RSP_MakePerspectiveMatrix(fpmatrix16_t *m, float fov, float aspectratio, float np, float fp)
+void RSP_MakePerspectiveMatrix(fpmatrix16_t *m, float fov, float zoomneeded, float aspectratio, float np, float fp)
 {
-	float tfov = tan(fov / 2.0f);
+	float tfov = tan(fov / 2.0f) * zoomneeded;
 	float deltaZ = (fp - np);
 	int i;
 
