@@ -807,7 +807,10 @@ static void FreeMipmapColormap(INT32 patchnum, void *patch)
 		// Free image data from memory.
 		if (next->grInfo.data)
 			Z_Free(next->grInfo.data);
-		next->grInfo.data = NULL;
+
+		// Free the colormap from memory.
+		if (next->colormap)
+			Z_Free(next->colormap);
 
 		// Free the old colormap mipmap from memory.
 		free(next);
@@ -1114,7 +1117,9 @@ void HWR_GetMappedPatch(GLPatch_t *gpatch, const UINT8 *colormap)
 	for (grmip = gpatch->mipmap; grmip->nextcolormap; )
 	{
 		grmip = grmip->nextcolormap;
-		if (grmip->colormap == colormap)
+		if (!grmip->colormap)
+			continue;
+		if (!memcmp(grmip->colormap, colormap, 0xFF))
 		{
 			HWR_LoadMappedPatch(grmip, gpatch);
 			return;
@@ -1125,14 +1130,15 @@ void HWR_GetMappedPatch(GLPatch_t *gpatch, const UINT8 *colormap)
 
 	//BP: WARNING: don't free it manually without clearing the cache of harware renderer
 	//              (it have a liste of mipmap)
-	//    this malloc is cleared in HWR_FreeTextureCache
+	//    this malloc is cleared in HWR_FreeMipmapCache
 	//    (...) unfortunately z_malloc fragment alot the memory :(so malloc is better
 	newmip = calloc(1, sizeof (*newmip));
 	if (newmip == NULL)
 		I_Error("%s: Out of memory", "HWR_GetMappedPatch");
 	grmip->nextcolormap = newmip;
 
-	newmip->colormap = colormap;
+	newmip->colormap = Z_Malloc(0xFF, PU_STATIC, NULL); // allocate memory for the mipmap colormap
+	M_Memcpy(newmip->colormap, colormap, 0xFF); // only copy exactly 256 colors
 	HWR_LoadMappedPatch(newmip, gpatch);
 }
 

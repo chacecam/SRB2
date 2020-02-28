@@ -1068,7 +1068,9 @@ static void HWR_GetBlendedTexture(GLPatch_t *gpatch, GLPatch_t *blendgpatch, INT
 	for (grmip = gpatch->mipmap; grmip->nextcolormap; )
 	{
 		grmip = grmip->nextcolormap;
-		if (grmip->colormap == colormap)
+		if (!grmip->colormap)
+			continue;
+		if (!memcmp(grmip->colormap, colormap, 0xFF))
 		{
 			if (grmip->downloaded && grmip->grInfo.data)
 			{
@@ -1084,13 +1086,14 @@ static void HWR_GetBlendedTexture(GLPatch_t *gpatch, GLPatch_t *blendgpatch, INT
 
 	//BP: WARNING: don't free it manually without clearing the cache of harware renderer
 	//              (it have a liste of mipmap)
-	//    this malloc is cleared in HWR_FreeTextureCache
+	//    this malloc is cleared in HWR_FreeMipmapCache
 	//    (...) unfortunately z_malloc fragment alot the memory :(so malloc is better
 	newmip = calloc(1, sizeof (*newmip));
 	if (newmip == NULL)
 		I_Error("%s: Out of memory", "HWR_GetBlendedTexture");
 	grmip->nextcolormap = newmip;
-	newmip->colormap = colormap;
+	newmip->colormap = Z_Malloc(0xFF, PU_STATIC, NULL); // allocate memory for the mipmap colormap
+	M_Memcpy(newmip->colormap, colormap, 0xFF); // only copy exactly 256 colors
 
 	HWR_CreateBlendedTexture(gpatch, blendgpatch, newmip, skinnum, color);
 
