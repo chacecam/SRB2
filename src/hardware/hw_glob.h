@@ -108,6 +108,7 @@ void HWR_LiterallyGetFlat(lumpnum_t flatlumpnum);
 GLTexture_t *HWR_GetTexture(INT32 tex);
 void HWR_GetPatch(GLPatch_t *gpatch);
 void HWR_GetMappedPatch(GLPatch_t *gpatch, const UINT8 *colormap);
+void HWR_GetMappedSprite(GLPatch_t *gpatch, UINT8 *colormap);
 void HWR_UnlockCachedPatch(GLPatch_t *gpatch);
 GLPatch_t *HWR_GetPic(lumpnum_t lumpnum);
 void HWR_SetPalette(RGBA_t *palette);

@@ -1365,7 +1365,7 @@ boolean HWR_DrawModel(gr_vissprite_t *spr)
 		{
 			// Sprite
 			gpatch = spr->gpatch; //W_CachePatchNum(spr->patchlumpnum, PU_CACHE);
-			HWR_GetMappedPatch(gpatch, spr->colormap);
+			HWR_GetMappedSprite(gpatch, spr->colormap);
 		}
 
 		if (spr->mobj->frame & FF_ANIMATE)

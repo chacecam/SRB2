@@ -188,6 +188,7 @@ enum ETextureFlags
 	TF_WRAPXY      = TF_WRAPY|TF_WRAPX, // very common so use alias is more easy
 	TF_CHROMAKEYED = 0x00000010,
 	TF_TRANSPARENT = 0x00000040,        // texture with some alpha == 0
+	TF_COLORMAPPED = 0x00000080,        // texture contains colormap data
 };
 
 #ifdef TODO

@@ -4281,7 +4281,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 	// cache the patch in the graphics card memory
 	//12/12/99: Hurdler: same comment as above (for md2)
 	//Hurdler: 25/04/2000: now support colormap in hardware mode
-	HWR_GetMappedPatch(gpatch, spr->colormap);
+	HWR_GetMappedSprite(gpatch, spr->colormap);
 
 	baseWallVerts[0].x = baseWallVerts[3].x = spr->x1;
 	baseWallVerts[2].x = baseWallVerts[1].x = spr->x2;
@@ -4667,7 +4667,7 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 	// cache the patch in the graphics card memory
 	//12/12/99: Hurdler: same comment as above (for md2)
 	//Hurdler: 25/04/2000: now support colormap in hardware mode
-	HWR_GetMappedPatch(gpatch, spr->colormap);
+	HWR_GetMappedSprite(gpatch, spr->colormap);
 
 	// if it has a dispoffset, push it a little towards the camera
 	if (spr->dispoffset) {
@@ -4775,7 +4775,7 @@ static inline void HWR_DrawPrecipitationSprite(gr_vissprite_t *spr)
 	// cache the patch in the graphics card memory
 	//12/12/99: Hurdler: same comment as above (for md2)
 	//Hurdler: 25/04/2000: now support colormap in hardware mode
-	HWR_GetMappedPatch(gpatch, spr->colormap);
+	HWR_GetMappedSprite(gpatch, spr->colormap);
 
 	// colormap test
 	{

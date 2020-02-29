@@ -809,7 +809,7 @@ static void FreeMipmapColormap(INT32 patchnum, void *patch)
 			Z_Free(next->grInfo.data);
 
 		// Free the colormap from memory.
-		if (next->colormap)
+		if (next->colormap && (next->flags & TF_COLORMAPPED))
 			Z_Free(next->colormap);
 
 		// Free the old colormap mipmap from memory.
@@ -1096,7 +1096,7 @@ void HWR_GetPatch(GLPatch_t *gpatch)
 
 
 // -------------------+
-// HWR_GetMappedPatch : Same as HWR_GetPatch for sprite color
+// HWR_GetMappedPatch : Same as HWR_GetPatch, but for patches with colormaps
 // -------------------+
 void HWR_GetMappedPatch(GLPatch_t *gpatch, const UINT8 *colormap)
 {
@@ -1139,6 +1139,52 @@ void HWR_GetMappedPatch(GLPatch_t *gpatch, const UINT8 *colormap)
 
 	newmip->colormap = Z_Malloc(0xFF, PU_STATIC, NULL); // allocate memory for the mipmap colormap
 	M_Memcpy(newmip->colormap, colormap, 0xFF); // only copy exactly 256 colors
+	newmip->flags |= TF_COLORMAPPED; // tell the hardware driver this mipmap stores colormap data.
+	HWR_LoadMappedPatch(newmip, gpatch);
+}
+
+
+// -------------------+
+// HWR_GetMappedSprite : Same as HWR_GetMappedPatch, but for sprites with colormaps
+// -------------------+
+void HWR_GetMappedSprite(GLPatch_t *gpatch, UINT8 *colormap)
+{
+	GLMipmap_t *grmip, *newmip;
+
+	if (needpatchflush)
+		W_FlushCachedPatches();
+
+	if (colormap == colormaps || colormap == NULL)
+	{
+		// Load the default (green) color in doom cache (temporary?) AND hardware cache
+		HWR_GetPatch(gpatch);
+		return;
+	}
+
+	// search for the mimmap
+	// skip the first (no colormap translated)
+	for (grmip = gpatch->mipmap; grmip->nextcolormap; )
+	{
+		grmip = grmip->nextcolormap;
+		if (grmip->colormap == colormap)
+		{
+			HWR_LoadMappedPatch(grmip, gpatch);
+			return;
+		}
+	}
+	// not found, create it!
+	// If we are here, the sprite with the current colormap is not already in hardware memory
+
+	//BP: WARNING: don't free it manually without clearing the cache of harware renderer
+	//              (it have a liste of mipmap)
+	//    this malloc is cleared in HWR_FreeMipmapCache
+	//    (...) unfortunately z_malloc fragment alot the memory :(so malloc is better
+	newmip = calloc(1, sizeof (*newmip));
+	if (newmip == NULL)
+		I_Error("%s: Out of memory", "HWR_GetMappedSprite");
+	grmip->nextcolormap = newmip;
+
+	newmip->colormap = colormap;
 	HWR_LoadMappedPatch(newmip, gpatch);
 }
 
