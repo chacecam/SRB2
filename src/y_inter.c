@@ -951,8 +951,11 @@ skiptallydrawer:
 #endif
 
 	if (timer)
+	{
+		tic_t secs = (timer/TICRATE);
 		V_DrawCenteredString(BASEVIDWIDTH/2, 188, V_YELLOWMAP,
-			va("start in %d seconds", timer/TICRATE));
+			va("Start in %d second%s", secs, (secs != 1) ? "s" : ""));
+	}
 
 	// Make it obvious that scrambling is happening next round.
 	if (cv_scrambleonchange.value && cv_teamscramble.value && (intertic/TICRATE % 2 == 0))
