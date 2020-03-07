@@ -1780,8 +1780,8 @@ static void R_ProjectSprite(mobj_t *thing)
 	// Lactozilla: Just project a big ass sprite
 	if (model)
 	{
-		x1 /= 2;
-		x2 *= 2;
+		x1 = 0;
+		x2 = viewwidth-1;
 	}
 #endif
 
