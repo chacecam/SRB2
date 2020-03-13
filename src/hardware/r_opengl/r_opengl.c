@@ -2265,12 +2265,7 @@ EXPORT INT32  HWRAPI(GetTextureUsed) (void)
 	return res;
 }
 
-EXPORT INT32  HWRAPI(GetRenderVersion) (void)
-{
-	return VERSION;
-}
-
-EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
+void HWD_PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2])
 {
 	INT32 x, y;
 	float float_x, float_y, float_nextx, float_nexty;

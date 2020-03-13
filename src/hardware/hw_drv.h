@@ -55,11 +55,10 @@ EXPORT void HWRAPI(ClearMipMapCache) (void);
 EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value);
 
 //Hurdler: added for new development
-EXPORT void HWRAPI(DrawModel) (model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 *color);
-EXPORT void HWRAPI(CreateModelVBOs) (model_t *model);
-EXPORT void HWRAPI(SetTransform) (FTransform *ptransform);
-EXPORT INT32 HWRAPI(GetTextureUsed) (void);
-EXPORT INT32 HWRAPI(GetRenderVersion) (void);
+void HWD_DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 *color);
+void HWD_CreateModelVBOs(model_t *model);
+void HWD_SetTransform(FTransform *ptransform);
+INT32 HWD_GetTextureUsed(void);
 
 #define SCREENVERTS 10
 EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2]);
