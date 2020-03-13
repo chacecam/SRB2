@@ -1088,53 +1088,7 @@ static void *soundso = NULL;
 
 static INT32 Init3DSDriver(const char *soName)
 {
-	if (soName) soundso = hwOpen(soName);
-#if defined (_WIN32) && defined (_X86_) && !defined (STATIC3DS)
-	HW3DS.pfnStartup            = hwSym("Startup@8",soundso);
-	HW3DS.pfnShutdown           = hwSym("Shutdown@0",soundso);
-	HW3DS.pfnAddSfx             = hwSym("AddSfx@4",soundso);
-	HW3DS.pfnAddSource          = hwSym("AddSource@8",soundso);
-	HW3DS.pfnStartSource        = hwSym("StartSource@4",soundso);
-	HW3DS.pfnStopSource         = hwSym("StopSource@4",soundso);
-	HW3DS.pfnGetHW3DSVersion    = hwSym("GetHW3DSVersion@0",soundso);
-	HW3DS.pfnBeginFrameUpdate   = hwSym("BeginFrameUpdate@0",soundso);
-	HW3DS.pfnEndFrameUpdate     = hwSym("EndFrameUpdate@0",soundso);
-	HW3DS.pfnIsPlaying          = hwSym("IsPlaying@4",soundso);
-	HW3DS.pfnUpdateListener     = hwSym("UpdateListener@8",soundso);
-	HW3DS.pfnUpdateSourceParms  = hwSym("UpdateSourceParms@12",soundso);
-	HW3DS.pfnSetCone            = hwSym("SetCone@8",soundso);
-	HW3DS.pfnSetGlobalSfxVolume = hwSym("SetGlobalSfxVolume@4",soundso);
-	HW3DS.pfnUpdate3DSource     = hwSym("Update3DSource@8",soundso);
-	HW3DS.pfnReloadSource       = hwSym("ReloadSource@8",soundso);
-	HW3DS.pfnKillSource         = hwSym("KillSource@4",soundso);
-	HW3DS.pfnKillSfx            = hwSym("KillSfx@4",soundso);
-	HW3DS.pfnGetHW3DSTitle      = hwSym("GetHW3DSTitle@8",soundso);
-#else
-	HW3DS.pfnStartup            = hwSym("Startup",soundso);
-	HW3DS.pfnShutdown           = hwSym("Shutdown",soundso);
-	HW3DS.pfnAddSfx             = hwSym("AddSfx",soundso);
-	HW3DS.pfnAddSource          = hwSym("AddSource",soundso);
-	HW3DS.pfnStartSource        = hwSym("StartSource",soundso);
-	HW3DS.pfnStopSource         = hwSym("StopSource",soundso);
-	HW3DS.pfnGetHW3DSVersion    = hwSym("GetHW3DSVersion",soundso);
-	HW3DS.pfnBeginFrameUpdate   = hwSym("BeginFrameUpdate",soundso);
-	HW3DS.pfnEndFrameUpdate     = hwSym("EndFrameUpdate",soundso);
-	HW3DS.pfnIsPlaying          = hwSym("IsPlaying",soundso);
-	HW3DS.pfnUpdateListener     = hwSym("UpdateListener",soundso);
-	HW3DS.pfnUpdateSourceParms  = hwSym("UpdateSourceParms",soundso);
-	HW3DS.pfnSetCone            = hwSym("SetCone",soundso);
-	HW3DS.pfnSetGlobalSfxVolume = hwSym("SetGlobalSfxVolume",soundso);
-	HW3DS.pfnUpdate3DSource     = hwSym("Update3DSource",soundso);
-	HW3DS.pfnReloadSource       = hwSym("ReloadSource",soundso);
-	HW3DS.pfnKillSource         = hwSym("KillSource",soundso);
-	HW3DS.pfnKillSfx            = hwSym("KillSfx",soundso);
-	HW3DS.pfnGetHW3DSTitle      = hwSym("GetHW3DSTitle",soundso);
-#endif
-
-//	if (HW3DS.pfnUpdateListener2 && HW3DS.pfnUpdateListener2 != soundso)
-		return true;
-//	else
-//		return false;
+	return true;
 }
 #endif
 

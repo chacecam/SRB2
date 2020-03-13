@@ -611,7 +611,7 @@ void SetModelView(GLint w, GLint h)
 
 	// The screen textures need to be flushed if the width or height change so that they be remade for the correct size
 	if (screen_width != w || screen_height != h)
-		FlushScreenTextures();
+		HWD_FlushScreenTextures();
 
 	screen_width = w;
 	screen_height = h;
@@ -677,7 +677,7 @@ void SetStates(void)
 
 	// this set CurrentPolyFlags to the acctual configuration
 	CurrentPolyFlags = 0xffffffff;
-	SetBlend(0);
+	HWD_SetBlend(0);
 
 	/*
 	for (i = 0; i < 64; i++)
@@ -787,7 +787,7 @@ INT32 isExtAvailable(const char *extension, const GLubyte *start)
 // Init             : Initialise the OpenGL interface API
 // Returns          :
 // -----------------+
-EXPORT boolean HWRAPI(Init) (I_Error_t FatalErrorFunction)
+boolean HWD_Init(I_Error_t FatalErrorFunction)
 {
 	I_Error_GL = FatalErrorFunction;
 	DBG_Printf ("%s %s\n", DRIVER_STRING, VERSIONSTRING);
@@ -798,7 +798,7 @@ EXPORT boolean HWRAPI(Init) (I_Error_t FatalErrorFunction)
 // -----------------+
 // ClearMipMapCache : Flush OpenGL textures from memory
 // -----------------+
-EXPORT void HWRAPI(ClearMipMapCache) (void)
+void HWD_ClearMipMapCache(void)
 {
 	// DBG_Printf ("HWR_Flush(exe)\n");
 	Flush();
@@ -810,7 +810,7 @@ EXPORT void HWRAPI(ClearMipMapCache) (void)
 //                  : store pixels as 16bit 565 RGB
 // Returns          : 16bit 565 RGB pixel array stored in dst_data
 // -----------------+
-EXPORT void HWRAPI(ReadRect) (INT32 x, INT32 y, INT32 width, INT32 height,
+void HWD_ReadRect(INT32 x, INT32 y, INT32 width, INT32 height,
                                 INT32 dst_stride, UINT16 * dst_data)
 {
 	INT32 i;
@@ -860,7 +860,7 @@ EXPORT void HWRAPI(ReadRect) (INT32 x, INT32 y, INT32 width, INT32 height,
 // -----------------+
 // GClipRect        : Defines the 2D hardware clipping window
 // -----------------+
-EXPORT void HWRAPI(GClipRect) (INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip)
+void HWD_GClipRect(INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip)
 {
 	// DBG_Printf ("GClipRect(%d, %d, %d, %d)\n", minx, miny, maxx, maxy);
 
@@ -882,7 +882,7 @@ EXPORT void HWRAPI(GClipRect) (INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, f
 // -----------------+
 // ClearBuffer      : Clear the color/alpha/depth buffer(s)
 // -----------------+
-EXPORT void HWRAPI(ClearBuffer) (FBOOLEAN ColorMask,
+void HWD_ClearBuffer(FBOOLEAN ColorMask,
                                     FBOOLEAN DepthMask,
                                     FRGBAFloat * ClearColor)
 {
@@ -906,7 +906,7 @@ EXPORT void HWRAPI(ClearBuffer) (FBOOLEAN ColorMask,
 		ClearMask |= GL_DEPTH_BUFFER_BIT;
 	}
 
-	SetBlend(DepthMask ? PF_Occlude | CurrentPolyFlags : CurrentPolyFlags&~PF_Occlude);
+	HWD_SetBlend(DepthMask ? PF_Occlude | CurrentPolyFlags : CurrentPolyFlags&~PF_Occlude);
 
 	pglClear(ClearMask);
 	pglEnableClientState(GL_VERTEX_ARRAY); // We always use this one
@@ -917,7 +917,7 @@ EXPORT void HWRAPI(ClearBuffer) (FBOOLEAN ColorMask,
 // -----------------+
 // HWRAPI Draw2DLine: Render a 2D line
 // -----------------+
-EXPORT void HWRAPI(Draw2DLine) (F2DCoord * v1,
+void HWD_Draw2DLine(F2DCoord * v1,
                                    F2DCoord * v2,
                                    RGBA_t Color)
 {
@@ -965,7 +965,7 @@ static void Clamp2D(GLenum pname)
 // -----------------+
 // PF_Masked - we could use an ALPHA_TEST of GL_EQUAL, and alpha ref of 0,
 //             is it faster when pixels are discarded ?
-EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags)
+void HWD_SetBlend(FBITFIELD PolyFlags)
 {
 	FBITFIELD Xor;
 	Xor = CurrentPolyFlags^PolyFlags;
@@ -1103,11 +1103,27 @@ EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags)
 	CurrentPolyFlags = PolyFlags;
 }
 
+// -----------------+
+// SetPalette       : Set the color lookup table for paletted textures
+//                  : in OpenGL, we store values for conversion of paletted graphics when
+//                  : they are downloaded to the 3D card.
+// -----------------+
+void HWD_SetPalette(RGBA_t *palette)
+{
+	size_t palsize = (sizeof(RGBA_t) * 256);
+	// on a palette change, you have to reload all of the textures
+	if (memcmp(&myPaletteData, palette, palsize))
+	{
+		memcpy(&myPaletteData, palette, palsize);
+		Flush();
+	}
+}
+
 
 // -----------------+
 // SetTexture       : The mipmap becomes the current texture source
 // -----------------+
-EXPORT void HWRAPI(SetTexture) (FTextureInfo *pTexInfo)
+void HWD_SetTexture(FTextureInfo *pTexInfo)
 {
 	if (!pTexInfo)
 	{
@@ -1309,7 +1325,7 @@ EXPORT void HWRAPI(SetTexture) (FTextureInfo *pTexInfo)
 // -----------------+
 // DrawPolygon      : Render a polygon, set the texture, set render mode
 // -----------------+
-EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo  *pSurf,
+void HWD_DrawPolygon(FSurfaceInfo  *pSurf,
                                     //FTextureInfo  *pTexInfo,
                                     FOutVector    *pOutVerts,
                                     FUINT         iNumPts,
@@ -1321,7 +1337,7 @@ EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo  *pSurf,
 	if ((PolyFlags & PF_Corona) && (oglflags & GLF_NOZBUFREAD))
 		PolyFlags &= ~(PF_NoDepthTest|PF_Corona);
 
-	SetBlend(PolyFlags);    //TODO: inline (#pragma..)
+	HWD_SetBlend(PolyFlags);    //TODO: inline (#pragma..)
 
 	// If Modulated, mix the surface colour to the texture
 	if ((CurrentPolyFlags & PF_Modulated) && pSurf)
@@ -1642,20 +1658,20 @@ static void RenderDome(INT32 skytexture)
 	pglDisableClientState(GL_COLOR_ARRAY);
 }
 
-EXPORT void HWRAPI(RenderSkyDome) (INT32 tex, INT32 texture_width, INT32 texture_height, FTransform transform)
+void HWD_RenderSkyDome(INT32 tex, INT32 texture_width, INT32 texture_height, FTransform transform)
 {
-	SetBlend(PF_Translucent|PF_NoDepthTest|PF_Modulated);
-	SetTransform(&transform);
+	HWD_SetBlend(PF_Translucent|PF_NoDepthTest|PF_Modulated);
+	HWD_SetTransform(&transform);
 	texw = texture_width;
 	texh = texture_height;
 	RenderDome(tex);
-	SetBlend(0);
+	HWD_SetBlend(0);
 }
 
 // ==========================================================================
 //
 // ==========================================================================
-EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value)
+void HWD_SetSpecialState(hwdspecialstate_t IdState, INT32 Value)
 {
 	switch (IdState)
 	{
@@ -1923,7 +1939,7 @@ static void CreateModelVBOTiny(mesh_t *mesh, tinyframe_t *frame)
 	pglBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-EXPORT void HWRAPI(CreateModelVBOs) (model_t *model)
+void HWD_CreateModelVBOs(model_t *model)
 {
 	int i;
 	for (i = 0; i < model->numMeshes; i++)
@@ -2059,9 +2075,9 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 			pglColor4ubv((GLubyte*)color);
 
 		if (color[3] < 255)
-			SetBlend(PF_Translucent|PF_Modulated);
+			HWD_SetBlend(PF_Translucent|PF_Modulated);
 		else
-			SetBlend(PF_Masked|PF_Modulated|PF_Occlude);
+			HWD_SetBlend(PF_Masked|PF_Modulated|PF_Occlude);
 	}
 
 	pglPushMatrix(); // should be the same as glLoadIdentity
@@ -2211,7 +2227,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 // -----------------+
 // HWRAPI DrawMD2   : Draw an MD2 model with glcommands
 // -----------------+
-EXPORT void HWRAPI(DrawModel) (model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 *color)
+void HWD_DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 *color)
 {
 	DrawModelEx(model, frameIndex, duration, tics,  nextFrameIndex, pos, scale, flipped, color);
 }
@@ -2219,7 +2235,7 @@ EXPORT void HWRAPI(DrawModel) (model_t *model, INT32 frameIndex, INT32 duration,
 // -----------------+
 // SetTransform     :
 // -----------------+
-EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
+void HWD_SetTransform(FTransform *stransform)
 {
 	static boolean special_splitscreen;
 	float used_fov;
@@ -2269,7 +2285,7 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 	pglGetFloatv(GL_MODELVIEW_MATRIX, modelMatrix); // added for new coronas' code (without depth buffer)
 }
 
-EXPORT INT32  HWRAPI(GetTextureUsed) (void)
+INT32 HWD_GetTextureUsed(void)
 {
 	FTextureInfo *tmp = gr_cachehead;
 	INT32 res = 0;
@@ -2293,12 +2309,12 @@ EXPORT INT32  HWRAPI(GetTextureUsed) (void)
 	return res;
 }
 
-EXPORT INT32  HWRAPI(GetRenderVersion) (void)
+INT32 HWD_GetRenderVersion(void)
 {
 	return VERSION;
 }
 
-EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
+void HWD_PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2])
 {
 	INT32 x, y;
 	float float_x, float_y, float_nextx, float_nexty;
@@ -2388,7 +2404,7 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 
 // Sryder:	This needs to be called whenever the screen changes resolution in order to reset the screen textures to use
 //			a new size
-EXPORT void HWRAPI(FlushScreenTextures) (void)
+void HWD_FlushScreenTextures(void)
 {
 	pglDeleteTextures(1, &screentexture);
 	pglDeleteTextures(1, &startScreenWipe);
@@ -2401,7 +2417,7 @@ EXPORT void HWRAPI(FlushScreenTextures) (void)
 }
 
 // Create Screen to fade from
-EXPORT void HWRAPI(StartScreenWipe) (void)
+void HWD_StartScreenWipe(void)
 {
 	INT32 texsize = 2048;
 	boolean firstTime = (startScreenWipe == 0);
@@ -2432,7 +2448,7 @@ EXPORT void HWRAPI(StartScreenWipe) (void)
 }
 
 // Create Screen to fade to
-EXPORT void HWRAPI(EndScreenWipe)(void)
+void HWD_EndScreenWipe(void)
 {
 	INT32 texsize = 2048;
 	boolean firstTime = (endScreenWipe == 0);
@@ -2464,7 +2480,7 @@ EXPORT void HWRAPI(EndScreenWipe)(void)
 
 
 // Draw the last scene under the intermission
-EXPORT void HWRAPI(DrawIntermissionBG)(void)
+void HWD_DrawIntermissionBG(void)
 {
 	float xfix, yfix;
 	INT32 texsize = 2048;
@@ -2512,7 +2528,7 @@ EXPORT void HWRAPI(DrawIntermissionBG)(void)
 }
 
 // Do screen fades!
-EXPORT void HWRAPI(DoScreenWipe)(void)
+void HWD_DoScreenWipe(void)
 {
 	INT32 texsize = 2048;
 	float xfix, yfix;
@@ -2560,7 +2576,7 @@ EXPORT void HWRAPI(DoScreenWipe)(void)
 
 	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-	SetBlend(PF_Modulated|PF_NoDepthTest);
+	HWD_SetBlend(PF_Modulated|PF_NoDepthTest);
 	pglEnable(GL_TEXTURE_2D);
 
 	// Draw the original screen
@@ -2570,7 +2586,7 @@ EXPORT void HWRAPI(DoScreenWipe)(void)
 	pglVertexPointer(3, GL_FLOAT, 0, screenVerts);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
-	SetBlend(PF_Modulated|PF_Translucent|PF_NoDepthTest);
+	HWD_SetBlend(PF_Modulated|PF_Translucent|PF_NoDepthTest);
 
 	// Draw the end screen that fades in
 	pglActiveTexture(GL_TEXTURE0);
@@ -2603,7 +2619,7 @@ EXPORT void HWRAPI(DoScreenWipe)(void)
 }
 
 // Create a texture from the screen.
-EXPORT void HWRAPI(MakeScreenTexture) (void)
+void HWD_MakeScreenTexture(void)
 {
 	INT32 texsize = 2048;
 	boolean firstTime = (screentexture == 0);
@@ -2633,7 +2649,7 @@ EXPORT void HWRAPI(MakeScreenTexture) (void)
 	tex_downloaded = screentexture;
 }
 
-EXPORT void HWRAPI(MakeScreenFinalTexture) (void)
+void HWD_MakeScreenFinalTexture(void)
 {
 	INT32 texsize = 2048;
 	boolean firstTime = (finalScreenTexture == 0);
@@ -2663,7 +2679,7 @@ EXPORT void HWRAPI(MakeScreenFinalTexture) (void)
 	tex_downloaded = finalScreenTexture;
 }
 
-EXPORT void HWRAPI(DrawScreenFinalTexture)(int width, int height)
+void HWD_DrawScreenFinalTexture(int width, int height)
 {
 	float xfix, yfix;
 	float origaspect, newaspect;
@@ -2723,7 +2739,7 @@ EXPORT void HWRAPI(DrawScreenFinalTexture)(int width, int height)
 
 	clearColour.red = clearColour.green = clearColour.blue = 0;
 	clearColour.alpha = 1;
-	ClearBuffer(true, false, &clearColour);
+	HWD_ClearBuffer(true, false, &clearColour);
 	pglBindTexture(GL_TEXTURE_2D, finalScreenTexture);
 
 	pglColor4ubv(white);

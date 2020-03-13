@@ -282,7 +282,7 @@ void I_ShutdownGraphics(void)
 	if (oldrendermode != render_soft)
 	{
 		HWR_Shutdown(); // free stuff from the hardware renderer
-		HWD.pfnShutdown(); // close 3d card display
+		HWD_Shutdown(); // close 3d card display
 		Shutdown3DDriver(); // free the driver DLL
 	}
 #endif
@@ -392,7 +392,7 @@ void I_FinishUpdate(void)
 	else
 #ifdef HWRENDER
 	if (rendermode != render_soft)
-		HWD.pfnFinishUpdate(cv_vidwait.value);
+		HWD_FinishUpdate(cv_vidwait.value);
 	else
 #endif
 	{
@@ -694,6 +694,7 @@ static VOID VID_Init(VOID)
 	// initialize the appropriate display device
 	if (rendermode != render_soft)
 	{
+#if 0
 		const char *drvname = NULL;
 
 		switch (rendermode)
@@ -707,15 +708,16 @@ static VOID VID_Init(VOID)
 
 		// load the DLL
 		if (drvname && Init3DDriver(drvname))
+#endif
 		{
-			int hwdversion = HWD.pfnGetRenderVersion();
+			int hwdversion = HWD_GetRenderVersion();
 			if (hwdversion != VERSION)
 				CONS_Alert(CONS_WARNING, M_GetText("This r_opengl version is not supported, use it at your own risk!\n"));
 
 			// perform initialisations
-			HWD.pfnInit(I_Error);
+			HWD_Init(I_Error);
 			// get available display modes for the device
-			HWD.pfnGetModeList(&pvidmodes, &numvidmodes);
+			HWD_GetModeList(&pvidmodes, &numvidmodes);
 		}
 		else
 		{

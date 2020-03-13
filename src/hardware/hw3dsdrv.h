@@ -21,65 +21,31 @@
 #define __HW_3DS_DRV_H__
 
 // Use standart hardware API
-#include "hw_dll.h"
 #include "hws_data.h"
 
 #if defined (HAVE_SDL) || !defined (HWD)
-EXPORT void HWRAPI(Shutdown) (void);
+void HW3DS_Shutdown(void);
 #endif
 
 // Use standart Init and Shutdown functions
 
-EXPORT INT32    HWRAPI (Startup) (I_Error_t FatalErrorFunction, snddev_t *snd_dev);
-EXPORT u_int  HWRAPI (AddSfx) (sfx_data_t *sfx);
-EXPORT INT32    HWRAPI (AddSource) (source3D_data_t *src, u_int sfxhandle);
-EXPORT INT32    HWRAPI (StartSource) (INT32 handle);
-EXPORT void   HWRAPI (StopSource) (INT32 handle);
-EXPORT INT32    HWRAPI (GetHW3DSVersion) (void);
-EXPORT void   HWRAPI (BeginFrameUpdate) (void);
-EXPORT void   HWRAPI (EndFrameUpdate) (void);
-EXPORT INT32    HWRAPI (IsPlaying) (INT32 handle);
-EXPORT void   HWRAPI (UpdateListener) (listener_data_t *data, INT32 num);
-EXPORT void   HWRAPI (UpdateSourceParms) (INT32 handle, INT32 vol, INT32 sep);
-EXPORT void   HWRAPI (SetGlobalSfxVolume) (INT32 volume);
-EXPORT INT32    HWRAPI (SetCone) (INT32 handle, cone_def_t *cone_def);
-EXPORT void   HWRAPI (Update3DSource) (INT32 handle, source3D_pos_t *data);
-EXPORT INT32    HWRAPI (ReloadSource) (INT32 handle, u_int sfxhandle);
-EXPORT void   HWRAPI (KillSource) (INT32 handle);
-EXPORT void   HWRAPI (KillSfx) (u_int sfxhandle);
-EXPORT void   HWRAPI (GetHW3DSTitle) (char *buf, size_t size);
-
-
-#if !defined (_CREATE_DLL_)
-
-struct hardware3ds_s
-{
-	Startup             pfnStartup;
-	AddSfx              pfnAddSfx;
-	AddSource           pfnAddSource;
-	StartSource         pfnStartSource;
-	StopSource          pfnStopSource;
-	GetHW3DSVersion     pfnGetHW3DSVersion;
-	BeginFrameUpdate    pfnBeginFrameUpdate;
-	EndFrameUpdate      pfnEndFrameUpdate;
-	IsPlaying           pfnIsPlaying;
-	UpdateListener      pfnUpdateListener;
-	UpdateSourceParms   pfnUpdateSourceParms;
-	SetGlobalSfxVolume  pfnSetGlobalSfxVolume;
-	SetCone             pfnSetCone;
-	Update3DSource      pfnUpdate3DSource;
-	ReloadSource        pfnReloadSource;
-	KillSource          pfnKillSource;
-	KillSfx             pfnKillSfx;
-	Shutdown            pfnShutdown;
-	GetHW3DSTitle       pfnGetHW3DSTitle;
-};
-
-extern struct hardware3ds_s hw3ds_driver;
-
-#define HW3DS hw3ds_driver
-
-
-#endif  // _CREATE_DLL_
+INT32  HW3DS_Startup(I_Error_t FatalErrorFunction, snddev_t *snd_dev);
+u_int  HW3DS_AddSfx(sfx_data_t *sfx);
+INT32  HW3DS_AddSource(source3D_data_t *src, u_int sfxhandle);
+INT32  HW3DS_StartSource(INT32 handle);
+void   HW3DS_StopSource(INT32 handle);
+INT32  HW3DS_GetHW3DSVersion(void);
+void   HW3DS_BeginFrameUpdate(void);
+void   HW3DS_EndFrameUpdate(void);
+INT32  HW3DS_IsPlaying(INT32 handle);
+void   HW3DS_UpdateListener(listener_data_t *data, INT32 num);
+void   HW3DS_UpdateSourceParms(INT32 handle, INT32 vol, INT32 sep);
+void   HW3DS_SetGlobalSfxVolume(INT32 volume);
+INT32  HW3DS_SetCone(INT32 handle, cone_def_t *cone_def);
+void   HW3DS_Update3DSource(INT32 handle, source3D_pos_t *data);
+INT32  HW3DS_ReloadSource(INT32 handle, u_int sfxhandle);
+void   HW3DS_KillSource(INT32 handle);
+void   HW3DS_KillSfx(u_int sfxhandle);
+void   HW3DS_GetHW3DSTitle(char *buf, size_t size);
 
 #endif // __HW_3DS_DRV_H__

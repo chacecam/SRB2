@@ -91,144 +91,28 @@ static VOID UnloadDLL (HMODULE* pModule)
 // note : the 3D driver loading should be put somewhere else..
 
 #ifdef HWRENDER
-static HMODULE hwdModule = NULL;
-
-static loadfunc_t hwdFuncTable[] = {
-#ifdef _X86_
-	{"Init@4",              &hwdriver.pfnInit},
-	{"Shutdown@0",          &hwdriver.pfnShutdown},
-	{"GetModeList@8",       &hwdriver.pfnGetModeList},
-	{"SetPalette@4",        &hwdriver.pfnSetPalette},
-	{"FinishUpdate@4",      &hwdriver.pfnFinishUpdate},
-	{"Draw2DLine@12",       &hwdriver.pfnDraw2DLine},
-	{"DrawPolygon@16",      &hwdriver.pfnDrawPolygon},
-	{"RenderSkyDome@16",    &hwdriver.pfnRenderSkyDome},
-	{"SetBlend@4",          &hwdriver.pfnSetBlend},
-	{"ClearBuffer@12",      &hwdriver.pfnClearBuffer},
-	{"SetTexture@4",        &hwdriver.pfnSetTexture},
-	{"ReadRect@24",         &hwdriver.pfnReadRect},
-	{"GClipRect@20",        &hwdriver.pfnGClipRect},
-	{"ClearMipMapCache@0",  &hwdriver.pfnClearMipMapCache},
-	{"SetSpecialState@8",   &hwdriver.pfnSetSpecialState},
-	{"DrawModel@16",        &hwdriver.pfnDrawModel},
-	{"SetTransform@4",      &hwdriver.pfnSetTransform},
-	{"GetTextureUsed@0",    &hwdriver.pfnGetTextureUsed},
-	{"GetRenderVersion@0",  &hwdriver.pfnGetRenderVersion},
-#ifdef SHUFFLE
-	{"PostImgRedraw@4",     &hwdriver.pfnPostImgRedraw},
-#endif
-	{"FlushScreenTextures@0",&hwdriver.pfnFlushScreenTextures},
-	{"StartScreenWipe@0",   &hwdriver.pfnStartScreenWipe},
-	{"EndScreenWipe@0",     &hwdriver.pfnEndScreenWipe},
-	{"DoScreenWipe@4",      &hwdriver.pfnDoScreenWipe},
-	{"DrawIntermissionBG@0",&hwdriver.pfnDrawIntermissionBG},
-	{"MakeScreenTexture@0", &hwdriver.pfnMakeScreenTexture},
-	{"MakeScreenFinalTexture@0", &hwdriver.pfnMakeScreenFinalTexture},
-	{"DrawScreenFinalTexture@8", &hwdriver.pfnDrawScreenFinalTexture},
-#else
-	{"Init",                &hwdriver.pfnInit},
-	{"Shutdown",            &hwdriver.pfnShutdown},
-	{"GetModeList",         &hwdriver.pfnGetModeList},
-	{"SetPalette",          &hwdriver.pfnSetPalette},
-	{"FinishUpdate",        &hwdriver.pfnFinishUpdate},
-	{"Draw2DLine",          &hwdriver.pfnDraw2DLine},
-	{"DrawPolygon",         &hwdriver.pfnDrawPolygon},
-	{"RenderSkyDome",       &hwdriver.pfnRenderSkyDome},
-	{"SetBlend",            &hwdriver.pfnSetBlend},
-	{"ClearBuffer",         &hwdriver.pfnClearBuffer},
-	{"SetTexture",          &hwdriver.pfnSetTexture},
-	{"ReadRect",            &hwdriver.pfnReadRect},
-	{"GClipRect",           &hwdriver.pfnGClipRect},
-	{"ClearMipMapCache",    &hwdriver.pfnClearMipMapCache},
-	{"SetSpecialState",     &hwdriver.pfnSetSpecialState},
-	{"DrawModel",           &hwdriver.pfnDrawModel},
-	{"SetTransform",        &hwdriver.pfnSetTransform},
-	{"GetTextureUsed",      &hwdriver.pfnGetTextureUsed},
-	{"GetRenderVersion",    &hwdriver.pfnGetRenderVersion},
-#ifdef SHUFFLE
-	{"PostImgRedraw",       &hwdriver.pfnPostImgRedraw},
-#endif
-	{"FlushScreenTextures", &hwdriver.pfnFlushScreenTextures},
-	{"StartScreenWipe",     &hwdriver.pfnStartScreenWipe},
-	{"EndScreenWipe",       &hwdriver.pfnEndScreenWipe},
-	{"DoScreenWipe",        &hwdriver.pfnDoScreenWipe},
-	{"DrawIntermissionBG",  &hwdriver.pfnDrawIntermissionBG},
-	{"MakeScreenTexture",   &hwdriver.pfnMakeScreenTexture},
-	{"MakeScreenFinalTexture", &hwdriver.pfnMakeScreenFinalTexture},
-	{"DrawScreenFinalTexture", &hwdriver.pfnDrawScreenFinalTexture},
-#endif
-	{NULL,NULL}
-};
-
 BOOL Init3DDriver (LPCSTR dllName)
 {
-	hwdModule = LoadDLL(dllName, hwdFuncTable);
-	return (hwdModule != NULL);
+	(void)dllName;
+	return TRUE;
 }
 
 VOID Shutdown3DDriver (VOID)
 {
-	UnloadDLL(&hwdModule);
+	// :)
 }
 #endif
 
 #ifdef HW3SOUND
-static HMODULE hwsModule = NULL;
-
-static loadfunc_t hwsFuncTable[] = {
-#ifdef _X86_
-	{"Startup@8",              &hw3ds_driver.pfnStartup},
-	{"Shutdown@0",             &hw3ds_driver.pfnShutdown},
-	{"AddSfx@4",               &hw3ds_driver.pfnAddSfx},
-	{"AddSource@8",            &hw3ds_driver.pfnAddSource},
-	{"StartSource@4",          &hw3ds_driver.pfnStartSource},
-	{"StopSource@4",           &hw3ds_driver.pfnStopSource},
-	{"GetHW3DSVersion@0",      &hw3ds_driver.pfnGetHW3DSVersion},
-	{"BeginFrameUpdate@0",     &hw3ds_driver.pfnBeginFrameUpdate},
-	{"EndFrameUpdate@0",       &hw3ds_driver.pfnEndFrameUpdate},
-	{"IsPlaying@4",            &hw3ds_driver.pfnIsPlaying},
-	{"UpdateListener@8",       &hw3ds_driver.pfnUpdateListener},
-	{"UpdateSourceParms@12",   &hw3ds_driver.pfnUpdateSourceParms},
-	{"SetCone@8",              &hw3ds_driver.pfnSetCone},
-	{"SetGlobalSfxVolume@4",   &hw3ds_driver.pfnSetGlobalSfxVolume},
-	{"Update3DSource@8",       &hw3ds_driver.pfnUpdate3DSource},
-	{"ReloadSource@8",         &hw3ds_driver.pfnReloadSource},
-	{"KillSource@4",           &hw3ds_driver.pfnKillSource},
-	{"KillSfx@4",              &hw3ds_driver.pfnKillSfx},
-	{"GetHW3DSTitle@8",        &hw3ds_driver.pfnGetHW3DSTitle},
-#else
-	{"Startup",                &hw3ds_driver.pfnStartup},
-	{"Shutdown",               &hw3ds_driver.pfnShutdown},
-	{"AddSfx",                 &hw3ds_driver.pfnAddSfx},
-	{"AddSource",              &hw3ds_driver.pfnAddSource},
-	{"StartSource",            &hw3ds_driver.pfnStartSource},
-	{"StopSource",             &hw3ds_driver.pfnStopSource},
-	{"GetHW3DSVersion",        &hw3ds_driver.pfnGetHW3DSVersion},
-	{"BeginFrameUpdate",       &hw3ds_driver.pfnBeginFrameUpdate},
-	{"EndFrameUpdate",         &hw3ds_driver.pfnEndFrameUpdate},
-	{"IsPlaying",              &hw3ds_driver.pfnIsPlaying},
-	{"UpdateListener",         &hw3ds_driver.pfnUpdateListener},
-	{"UpdateSourceParms",      &hw3ds_driver.pfnUpdateSourceParms},
-	{"SetCone",                &hw3ds_driver.pfnSetCone},
-	{"SetGlobalSfxVolume",     &hw3ds_driver.pfnSetGlobalSfxVolume},
-	{"Update3DSource",         &hw3ds_driver.pfnUpdate3DSource},
-	{"ReloadSource",           &hw3ds_driver.pfnReloadSource},
-	{"KillSource",             &hw3ds_driver.pfnKillSource},
-	{"KillSfx",                &hw3ds_driver.pfnKillSfx},
-	{"GetHW3DSTitle",          &hw3ds_driver.pfnGetHW3DSTitle},
-#endif
-	{NULL, NULL}
-};
-
 BOOL Init3DSDriver(LPCSTR dllName)
 {
-	hwsModule = LoadDLL(dllName, hwsFuncTable);
-	return (hwsModule != NULL);
+	(void)dllName;
+	return TRUE;
 }
 
 VOID Shutdown3DSDriver (VOID)
 {
-	UnloadDLL(&hwsModule);
+	// :)
 }
 #endif
 #endif //_WINDOWS

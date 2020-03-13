@@ -2363,10 +2363,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\hardware\hw_dll.h"
-				>
-			</File>
-			<File
 				RelativePath="..\hardware\hw_draw.c"
 				>
 				<FileConfiguration

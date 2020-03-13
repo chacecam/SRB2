@@ -45,7 +45,6 @@
 
 #ifdef HWRENDER
 #include "hw_glob.h"
-#include "hw_dll.h"
 #include "../r_local.h"
 #include "../i_system.h"
 

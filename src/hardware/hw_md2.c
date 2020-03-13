@@ -401,7 +401,7 @@ static void md2_loadTexture(md2_t *model)
 			image++;
 		}
 	}
-	HWD.pfnSetTexture(grpatch->mipmap);
+	HWD_SetTexture(grpatch->mipmap);
 }
 
 // -----------------+
@@ -449,7 +449,7 @@ static void md2_loadBlendTexture(md2_t *model)
 		grpatch->mipmap->width = (UINT16)w;
 		grpatch->mipmap->height = (UINT16)h;
 	}
-	HWD.pfnSetTexture(grpatch->mipmap); // We do need to do this so that it can be cleared and knows to recreate it when necessary
+	HWD_SetTexture(grpatch->mipmap); // We do need to do this so that it can be cleared and knows to recreate it when necessary
 
 	Z_Free(filename);
 }
@@ -1037,7 +1037,7 @@ static void HWR_GetBlendedTexture(GLPatch_t *gpatch, GLPatch_t *blendgpatch, INT
 	if (colormap == colormaps || colormap == NULL)
 	{
 		// Don't do any blending
-		HWD.pfnSetTexture(gpatch->mipmap);
+		HWD_SetTexture(gpatch->mipmap);
 		return;
 	}
 
@@ -1045,7 +1045,7 @@ static void HWR_GetBlendedTexture(GLPatch_t *gpatch, GLPatch_t *blendgpatch, INT
 		&& (gpatch->width != blendgpatch->width || gpatch->height != blendgpatch->height))
 	{
 		// Blend image exists, but it's bad.
-		HWD.pfnSetTexture(gpatch->mipmap);
+		HWD_SetTexture(gpatch->mipmap);
 		return;
 	}
 
@@ -1058,7 +1058,7 @@ static void HWR_GetBlendedTexture(GLPatch_t *gpatch, GLPatch_t *blendgpatch, INT
 		{
 			if (grmip->downloaded && grmip->data)
 			{
-				HWD.pfnSetTexture(grmip); // found the colormap, set it to the correct texture
+				HWD_SetTexture(grmip); // found the colormap, set it to the correct texture
 				Z_ChangeTag(grmip->data, PU_HWRMODELTEXTURE_UNLOCKED);
 				return;
 			}
@@ -1080,7 +1080,7 @@ static void HWR_GetBlendedTexture(GLPatch_t *gpatch, GLPatch_t *blendgpatch, INT
 
 	HWR_CreateBlendedTexture(gpatch, blendgpatch, newmip, skinnum, color);
 
-	HWD.pfnSetTexture(newmip);
+	HWD_SetTexture(newmip);
 	Z_ChangeTag(newmip->data, PU_HWRMODELTEXTURE_UNLOCKED);
 }
 
@@ -1283,7 +1283,7 @@ boolean HWR_DrawModel(gr_vissprite_t *spr)
 			if (md2->model)
 			{
 				md2_printModelInfo(md2->model);
-				HWD.pfnCreateModelVBOs(md2->model);
+				HWD_CreateModelVBOs(md2->model);
 			}
 			else
 			{
@@ -1297,7 +1297,7 @@ boolean HWR_DrawModel(gr_vissprite_t *spr)
 		if (!HWR_AllowModel(spr->mobj))
 			return false;
 
-		//HWD.pfnSetBlend(blend); // This seems to actually break translucency?
+		//HWD_SetBlend(blend); // This seems to actually break translucency?
 		finalscale = md2->scale;
 		//Hurdler: arf, I don't like that implementation at all... too much crappy
 		gpatch = md2->grpatch;
@@ -1508,7 +1508,7 @@ boolean HWR_DrawModel(gr_vissprite_t *spr)
 		p.mirror = atransform.mirror; // from Kart
 #endif
 
-		HWD.pfnDrawModel(md2->model, frame, durs, tics, nextFrame, &p, finalscale, flip, color);
+		HWD_DrawModel(md2->model, frame, durs, tics, nextFrame, &p, finalscale, flip, color);
 	}
 
 	return true;

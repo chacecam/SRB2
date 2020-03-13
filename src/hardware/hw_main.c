@@ -57,11 +57,6 @@
 //#define POLYSKY
 
 // ==========================================================================
-// the hardware driver object
-// ==========================================================================
-struct hwdriver_s hwdriver;
-
-// ==========================================================================
 //                                                                     PROTOS
 // ==========================================================================
 
@@ -415,9 +410,9 @@ UINT32 HWR_Lighting(INT32 light, UINT32 color, UINT32 fadecolor, boolean fogbloc
 
 			// Set the fog options.
 			if (cv_grsoftwarefog.value == 1 && plane) // With floors, software draws them way darker for their distance
-				HWD.pfnSetSpecialState(HWD_SET_FOG_DENSITY, (INT32)(CALCFOGDENSITYFLOOR(light)));
+				HWD_SetSpecialState(HWD_SET_FOG_DENSITY, (INT32)(CALCFOGDENSITYFLOOR(light)));
 			else // everything else is drawn like walls
-				HWD.pfnSetSpecialState(HWD_SET_FOG_DENSITY, (INT32)(CALCFOGDENSITY(light)));
+				HWD_SetSpecialState(HWD_SET_FOG_DENSITY, (INT32)(CALCFOGDENSITY(light)));
 		}
 		else
 		{
@@ -429,11 +424,11 @@ UINT32 HWR_Lighting(INT32 light, UINT32 color, UINT32 fadecolor, boolean fogbloc
 
 			// Set the fog options.
 			light = (UINT8)(CALCLIGHT(light,(255-fogalpha)));
-			HWD.pfnSetSpecialState(HWD_SET_FOG_DENSITY, (INT32)(cv_grfogdensity.value-(cv_grfogdensity.value*(float)light/255.0f)));
+			HWD_SetSpecialState(HWD_SET_FOG_DENSITY, (INT32)(cv_grfogdensity.value-(cv_grfogdensity.value*(float)light/255.0f)));
 		}
 
-		HWD.pfnSetSpecialState(HWD_SET_FOG_COLOR, (fogcolor.s.red*0x10000)+(fogcolor.s.green*0x100)+fogcolor.s.blue);
-		HWD.pfnSetSpecialState(HWD_SET_FOG_MODE, 1);
+		HWD_SetSpecialState(HWD_SET_FOG_COLOR, (fogcolor.s.red*0x10000)+(fogcolor.s.green*0x100)+fogcolor.s.blue);
+		HWD_SetSpecialState(HWD_SET_FOG_MODE, 1);
 	}
 	return surfcolor.rgba;
 }
@@ -586,7 +581,7 @@ static void HWR_RenderPlane(sector_t *sector, extrasubsector_t *xsub, boolean is
 		}
 	}
 	else // set no texture
-		HWD.pfnSetTexture(NULL);
+		HWD_SetTexture(NULL);
 
 	// reference point for flat texture coord for each vertex around the polygon
 	flatxref = (float)(((fixed_t)pv->x & (~flatflag)) / fflatwidth);
@@ -742,7 +737,7 @@ static void HWR_RenderPlane(sector_t *sector, extrasubsector_t *xsub, boolean is
 	else
 		PolyFlags |= PF_Masked|PF_Modulated;
 
-	HWD.pfnDrawPolygon(&Surf, planeVerts, nrPlaneVerts, PolyFlags);
+	HWD_DrawPolygon(&Surf, planeVerts, nrPlaneVerts, PolyFlags);
 
 #ifdef ALAM_LIGHTING
 	// add here code for dynamic lighting on planes
@@ -790,7 +785,7 @@ static void HWR_RenderSkyPlane(extrasubsector_t *xsub, fixed_t fixedheight)
 		v3d->z = pv->y;
 	}
 
-	HWD.pfnDrawPolygon(NULL, planeVerts, nrPlaneVerts, PF_Invisible|PF_NoTexture|PF_Occlude);
+	HWD_DrawPolygon(NULL, planeVerts, nrPlaneVerts, PF_Invisible|PF_NoTexture|PF_Occlude);
 }
 #endif //polysky
 
@@ -865,7 +860,7 @@ static void HWR_DrawSegsSplats(FSurfaceInfo * pSurf)
 				break;
 		}
 
-		HWD.pfnDrawPolygon(&pSurf2, trVerts, 4, i|PF_Modulated|PF_Decal);
+		HWD_DrawPolygon(&pSurf2, trVerts, 4, i|PF_Modulated|PF_Decal);
 	}
 }
 #endif
@@ -921,7 +916,7 @@ static void HWR_ProjectWall(FOutVector   * wallVerts,
 		pSurf->FlatColor.rgba = HWR_Lighting(lightlevel, NORMALFOG, FADEFOG, false, false);
 	}
 
-	HWD.pfnDrawPolygon(pSurf, wallVerts, 4, blendmode|PF_Modulated|PF_Occlude);
+	HWD_DrawPolygon(pSurf, wallVerts, 4, blendmode|PF_Modulated|PF_Occlude);
 
 #ifdef WALLSPLATS
 	if (gr_curline->linedef->splats && cv_splats.value)
@@ -933,7 +928,7 @@ static void HWR_ProjectWall(FOutVector   * wallVerts,
 
 	//Hurdler: for better dynamic light in dark area, we should draw the light first
 	//         and then the wall all that with the right blending func
-	//HWD.pfnDrawPolygon(pSurf, trVerts, 4, PF_Additive|PF_Modulated|PF_Occlude);
+	//HWD_DrawPolygon(pSurf, trVerts, 4, PF_Additive|PF_Modulated|PF_Occlude);
 #endif
 }
 
@@ -1257,7 +1252,7 @@ static void HWR_SplitWall(sector_t *sector, FOutVector *wallVerts, INT32 texnum,
 // Draw walls into the depth buffer so that anything behind is culled properly
 static void HWR_DrawSkyWall(FOutVector *wallVerts, FSurfaceInfo *Surf)
 {
-	HWD.pfnSetTexture(NULL);
+	HWD_SetTexture(NULL);
 	// no texture
 	wallVerts[3].tow = wallVerts[2].tow = 0;
 	wallVerts[0].tow = wallVerts[1].tow = 0;
@@ -3193,7 +3188,7 @@ static void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling, 
 		}
 	}
 	else // set no texture
-		HWD.pfnSetTexture(NULL);
+		HWD_SetTexture(NULL);
 
 	// reference point for flat texture coord for each vertex around the polygon
 	flatxref = (float)((polysector->origVerts[0].x & (~flatflag)) / fflatwidth);
@@ -3294,7 +3289,7 @@ static void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling, 
 	else
 		blendmode |= PF_Masked|PF_Modulated;
 
-	HWD.pfnDrawPolygon(&Surf, planeVerts, nrPlaneVerts, blendmode);
+	HWD_DrawPolygon(&Surf, planeVerts, nrPlaneVerts, blendmode);
 }
 
 static void HWR_AddPolyObjectPlanes(void)
@@ -4154,7 +4149,7 @@ static void HWR_DrawDropShadow(mobj_t *thing, gr_vissprite_t *spr, fixed_t scale
 
 	sSurf.FlatColor.s.alpha = alpha;
 
-	HWD.pfnDrawPolygon(&sSurf, shadowVerts, 4, PF_Translucent|PF_Modulated);
+	HWD_DrawPolygon(&sSurf, shadowVerts, 4, PF_Translucent|PF_Modulated);
 }
 
 // This is expecting a pointer to an array containing 4 wallVerts for a sprite
@@ -4483,7 +4478,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 
 		Surf.FlatColor.s.alpha = alpha;
 
-		HWD.pfnDrawPolygon(&Surf, wallVerts, 4, blend|PF_Modulated);
+		HWD_DrawPolygon(&Surf, wallVerts, 4, blend|PF_Modulated);
 
 		top = bot;
 #ifdef ESLOPE
@@ -4525,7 +4520,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 
 	Surf.FlatColor.s.alpha = alpha;
 
-	HWD.pfnDrawPolygon(&Surf, wallVerts, 4, blend|PF_Modulated);
+	HWD_DrawPolygon(&Surf, wallVerts, 4, blend|PF_Modulated);
 }
 
 // -----------------+
@@ -4673,7 +4668,7 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 			blend = PF_Translucent|PF_Occlude;
 		}
 
-		HWD.pfnDrawPolygon(&Surf, wallVerts, 4, blend|PF_Modulated);
+		HWD_DrawPolygon(&Surf, wallVerts, 4, blend|PF_Modulated);
 	}
 }
 
@@ -4775,7 +4770,7 @@ static inline void HWR_DrawPrecipitationSprite(gr_vissprite_t *spr)
 		blend = PF_Translucent|PF_Occlude;
 	}
 
-	HWD.pfnDrawPolygon(&Surf, wallVerts, 4, blend|PF_Modulated);
+	HWD_DrawPolygon(&Surf, wallVerts, 4, blend|PF_Modulated);
 }
 #endif
 
@@ -5155,7 +5150,7 @@ static void HWR_CreateDrawNodes(void)
 		} //i++
 	} // loop++
 
-	HWD.pfnSetTransform(&atransform);
+	HWD_SetTransform(&atransform);
 	// Okay! Let's draw it all! Woo!
 	for (i = 0; i < p; i++)
 	{
@@ -5766,7 +5761,7 @@ static void HWR_DrawSkyBackground(player_t *player)
 		dometransform.splitscreen = splitscreen;
 
 		HWR_GetTexture(texturetranslation[skytexture]);
-		HWD.pfnRenderSkyDome(skytexture, textures[skytexture]->width, textures[skytexture]->height, dometransform);
+		HWD_RenderSkyDome(skytexture, textures[skytexture]->width, textures[skytexture]->height, dometransform);
 	}
 	else
 	{
@@ -5847,7 +5842,7 @@ static void HWR_DrawSkyBackground(player_t *player)
 			v[0].tow = v[1].tow -= ((float) angle / angleturn);
 		}
 
-		HWD.pfnDrawPolygon(NULL, v, 4, 0);
+		HWD_DrawPolygon(NULL, v, 4, 0);
 	}
 }
 
@@ -5864,16 +5859,16 @@ static inline void HWR_ClearView(void)
 
 	/// \bug faB - enable depth mask, disable color mask
 
-	HWD.pfnGClipRect((INT32)gr_viewwindowx,
+	HWD_GClipRect((INT32)gr_viewwindowx,
 	                 (INT32)gr_viewwindowy,
 	                 (INT32)(gr_viewwindowx + gr_viewwidth),
 	                 (INT32)(gr_viewwindowy + gr_viewheight),
 	                 ZCLIP_PLANE);
-	HWD.pfnClearBuffer(false, true, 0);
+	HWD_ClearBuffer(false, true, 0);
 
 	//disable clip window - set to full size
 	// rem by Hurdler
-	// HWD.pfnGClipRect(0, 0, vid.width, vid.height);
+	// HWD_GClipRect(0, 0, vid.width, vid.height);
 }
 
 
@@ -5908,7 +5903,7 @@ void HWR_SetViewSize(void)
 	gr_pspritexscale = gr_viewwidth / BASEVIDWIDTH;
 	gr_pspriteyscale = ((vid.height*gr_pspritexscale*BASEVIDWIDTH)/BASEVIDHEIGHT)/vid.width;
 
-	HWD.pfnFlushScreenTextures();
+	HWD_FlushScreenTextures();
 }
 
 // ==========================================================================
@@ -6004,7 +5999,7 @@ if (0)
 	if (cv_grfog.value)
 		HWR_FoggingOn(); // First of all, turn it on, set the default user settings too
 	else
-		HWD.pfnSetSpecialState(HWD_SET_FOG_MODE, 0); // Turn it off
+		HWD_SetSpecialState(HWD_SET_FOG_MODE, 0); // Turn it off
 }
 
 	if (drawsky)
@@ -6034,7 +6029,7 @@ if (0)
 
 	//04/01/2000: Hurdler: added for T&L
 	//                     Actually it only works on Walls and Planes
-	HWD.pfnSetTransform(&atransform);
+	HWD_SetTransform(&atransform);
 
 	validcount++;
 
@@ -6099,7 +6094,7 @@ if (0)
 #else
 	if (numfloors || numwalls)
 	{
-		HWD.pfnSetTransform(&atransform);
+		HWD_SetTransform(&atransform);
 		if (numfloors)
 			HWR_Render3DWater();
 		if (numwalls)
@@ -6107,18 +6102,18 @@ if (0)
 	}
 #endif
 
-	HWD.pfnSetTransform(NULL);
+	HWD_SetTransform(NULL);
 
 	// put it off for menus etc
 	if (cv_grfog.value)
-		HWD.pfnSetSpecialState(HWD_SET_FOG_MODE, 0);
+		HWD_SetSpecialState(HWD_SET_FOG_MODE, 0);
 
 	// Check for new console commands.
 	NetUpdate();
 
 	// added by Hurdler for correct splitscreen
 	// moved here by hurdler so it works with the new near clipping plane
-	HWD.pfnGClipRect(0, 0, vid.width, vid.height, NZCLIP_PLANE);
+	HWD_GClipRect(0, 0, vid.width, vid.height, NZCLIP_PLANE);
 }
 
 // ==========================================================================
@@ -6144,7 +6139,7 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 	ClearColor.alpha = 1.0f;
 
 	if (viewnumber == 0) // Only do it if it's the first screen being rendered
-		HWD.pfnClearBuffer(true, false, &ClearColor); // Clear the Color Buffer, stops HOMs. Also seems to fix the skybox issue on Intel GPUs.
+		HWD_ClearBuffer(true, false, &ClearColor); // Clear the Color Buffer, stops HOMs. Also seems to fix the skybox issue on Intel GPUs.
 
 	if (skybox && drawsky) // If there's a skybox and we should be drawing the sky, draw the skybox
 		HWR_RenderSkyboxView(viewnumber, player); // This is drawn before everything else so it is placed behind
@@ -6230,7 +6225,7 @@ if (0)
 	if (cv_grfog.value)
 		HWR_FoggingOn(); // First of all, turn it on, set the default user settings too
 	else
-		HWD.pfnSetSpecialState(HWD_SET_FOG_MODE, 0); // Turn it off
+		HWD_SetSpecialState(HWD_SET_FOG_MODE, 0); // Turn it off
 }
 
 	if (!skybox && drawsky) // Don't draw the regular sky if there's a skybox
@@ -6260,7 +6255,7 @@ if (0)
 
 	//04/01/2000: Hurdler: added for T&L
 	//                     Actually it only works on Walls and Planes
-	HWD.pfnSetTransform(&atransform);
+	HWD_SetTransform(&atransform);
 
 	validcount++;
 
@@ -6325,7 +6320,7 @@ if (0)
 #else
 	if (numfloors || numpolyplanes || numwalls)
 	{
-		HWD.pfnSetTransform(&atransform);
+		HWD_SetTransform(&atransform);
 		if (numfloors)
 			HWR_Render3DWater();
 		if (numwalls)
@@ -6333,11 +6328,11 @@ if (0)
 	}
 #endif
 
-	HWD.pfnSetTransform(NULL);
+	HWD_SetTransform(NULL);
 
 	// put it off for menus etc
 	if (cv_grfog.value)
-		HWD.pfnSetSpecialState(HWD_SET_FOG_MODE, 0);
+		HWD_SetSpecialState(HWD_SET_FOG_MODE, 0);
 
 	HWR_DoPostProcessor(player);
 
@@ -6346,7 +6341,7 @@ if (0)
 
 	// added by Hurdler for correct splitscreen
 	// moved here by hurdler so it works with the new near clipping plane
-	HWD.pfnGClipRect(0, 0, vid.width, vid.height, NZCLIP_PLANE);
+	HWD_GClipRect(0, 0, vid.width, vid.height, NZCLIP_PLANE);
 }
 
 // ==========================================================================
@@ -6387,9 +6382,9 @@ static UINT32 atohex(const char *s)
 
 static void HWR_FoggingOn(void)
 {
-	HWD.pfnSetSpecialState(HWD_SET_FOG_COLOR, atohex(cv_grfogcolor.string));
-	HWD.pfnSetSpecialState(HWD_SET_FOG_DENSITY, cv_grfogdensity.value);
-	HWD.pfnSetSpecialState(HWD_SET_FOG_MODE, 1);
+	HWD_SetSpecialState(HWD_SET_FOG_COLOR, atohex(cv_grfogcolor.string));
+	HWD_SetSpecialState(HWD_SET_FOG_DENSITY, cv_grfogdensity.value);
+	HWD_SetSpecialState(HWD_SET_FOG_MODE, 1);
 }
 
 // ==========================================================================
@@ -6446,25 +6441,25 @@ consvar_t cv_grsolvetjoin = {"gr_solvetjoin", "On", 0, CV_OnOff, NULL, 0, NULL, 
 static void CV_grmodellighting_OnChange(void)
 {
 	if (rendermode == render_opengl)
-		HWD.pfnSetSpecialState(HWD_SET_MODEL_LIGHTING, cv_grmodellighting.value);
+		HWD_SetSpecialState(HWD_SET_MODEL_LIGHTING, cv_grmodellighting.value);
 }
 
 static void CV_grfogdensity_OnChange(void)
 {
 	if (rendermode == render_opengl)
-		HWD.pfnSetSpecialState(HWD_SET_FOG_DENSITY, cv_grfogdensity.value);
+		HWD_SetSpecialState(HWD_SET_FOG_DENSITY, cv_grfogdensity.value);
 }
 
 static void CV_grfiltermode_OnChange(void)
 {
 	if (rendermode == render_opengl)
-		HWD.pfnSetSpecialState(HWD_SET_TEXTUREFILTERMODE, cv_grfiltermode.value);
+		HWD_SetSpecialState(HWD_SET_TEXTUREFILTERMODE, cv_grfiltermode.value);
 }
 
 static void CV_granisotropic_OnChange(void)
 {
 	if (rendermode == render_opengl)
-		HWD.pfnSetSpecialState(HWD_SET_TEXTUREANISOTROPICMODE, cv_granisotropicmode.value);
+		HWD_SetSpecialState(HWD_SET_TEXTUREANISOTROPICMODE, cv_granisotropicmode.value);
 }
 
 //added by Hurdler: console varibale that are saved
@@ -6544,10 +6539,10 @@ void HWR_Startup(void)
 void HWR_Switch(void)
 {
 	// Set special states from CVARs
-	HWD.pfnSetSpecialState(HWD_SET_MODEL_LIGHTING, cv_grmodellighting.value);
-	HWD.pfnSetSpecialState(HWD_SET_FOG_DENSITY, cv_grfogdensity.value);
-	HWD.pfnSetSpecialState(HWD_SET_TEXTUREFILTERMODE, cv_grfiltermode.value);
-	HWD.pfnSetSpecialState(HWD_SET_TEXTUREANISOTROPICMODE, cv_granisotropicmode.value);
+	HWD_SetSpecialState(HWD_SET_MODEL_LIGHTING, cv_grmodellighting.value);
+	HWD_SetSpecialState(HWD_SET_FOG_DENSITY, cv_grfogdensity.value);
+	HWD_SetSpecialState(HWD_SET_TEXTUREFILTERMODE, cv_grfiltermode.value);
+	HWD_SetSpecialState(HWD_SET_TEXTUREANISOTROPICMODE, cv_granisotropicmode.value);
 }
 
 // --------------------------------------------------------------------------
@@ -6560,7 +6555,7 @@ void HWR_Shutdown(void)
 	HWR_FreePolyPool();
 	HWR_FreeMipmapCache();
 	HWR_FreeTextureCache();
-	HWD.pfnFlushScreenTextures();
+	HWD_FlushScreenTextures();
 }
 
 void transform(float *cx, float *cy, float *cz)
@@ -6768,9 +6763,9 @@ static void HWR_RenderWall(FOutVector   *wallVerts, FSurfaceInfo *pSurf, FBITFIE
 	pSurf->FlatColor.s.alpha = alpha; // put the alpha back after lighting
 
 	if (blend & PF_Environment)
-		HWD.pfnDrawPolygon(pSurf, wallVerts, 4, blend|PF_Modulated|PF_Occlude); // PF_Occlude must be used for solid objects
+		HWD_DrawPolygon(pSurf, wallVerts, 4, blend|PF_Modulated|PF_Occlude); // PF_Occlude must be used for solid objects
 	else
-		HWD.pfnDrawPolygon(pSurf, wallVerts, 4, blend|PF_Modulated); // No PF_Occlude means overlapping (incorrect) transparency
+		HWD_DrawPolygon(pSurf, wallVerts, 4, blend|PF_Modulated); // No PF_Occlude means overlapping (incorrect) transparency
 
 #ifdef WALLSPLATS
 	if (gr_curline->linedef->splats && cv_splats.value)
@@ -6785,7 +6780,7 @@ static void HWR_RenderWall(FOutVector   *wallVerts, FSurfaceInfo *pSurf, FBITFIE
 
 INT32 HWR_GetTextureUsed(void)
 {
-	return HWD.pfnGetTextureUsed();
+	return HWD_GetTextureUsed();
 }
 
 void HWR_DoPostProcessor(player_t *player)
@@ -6819,12 +6814,12 @@ void HWR_DoPostProcessor(player_t *player)
 
 		Surf.FlatColor.s.alpha = 0xc0; // match software mode
 
-		HWD.pfnDrawPolygon(&Surf, v, 4, PF_Modulated|PF_Additive|PF_NoTexture|PF_NoDepthTest);
+		HWD_DrawPolygon(&Surf, v, 4, PF_Modulated|PF_Additive|PF_NoTexture|PF_NoDepthTest);
 	}
 
 	// Capture the screen for intermission and screen waving
 	if(gamestate != GS_INTERMISSION)
-		HWD.pfnMakeScreenTexture();
+		HWD_MakeScreenTexture();
 
 	if (splitscreen) // Not supported in splitscreen - someone want to add support?
 		return;
@@ -6863,12 +6858,12 @@ void HWR_DoPostProcessor(player_t *player)
 				v[x][y][1] = (y/((float)(SCREENVERTS-1.0f)/9.0f))-4.5f;
 			}
 		}
-		HWD.pfnPostImgRedraw(v);
+		HWD_PostImgRedraw(v);
 		disStart += 1;
 
 		// Capture the screen again for screen waving on the intermission
 		if(gamestate != GS_INTERMISSION)
-			HWD.pfnMakeScreenTexture();
+			HWD_MakeScreenTexture();
 	}
 	// Flipping of the screen isn't done here anymore
 }
@@ -6876,18 +6871,18 @@ void HWR_DoPostProcessor(player_t *player)
 void HWR_StartScreenWipe(void)
 {
 	//CONS_Debug(DBG_RENDER, "In HWR_StartScreenWipe()\n");
-	HWD.pfnStartScreenWipe();
+	HWD_StartScreenWipe();
 }
 
 void HWR_EndScreenWipe(void)
 {
 	//CONS_Debug(DBG_RENDER, "In HWR_EndScreenWipe()\n");
-	HWD.pfnEndScreenWipe();
+	HWD_EndScreenWipe();
 }
 
 void HWR_DrawIntermissionBG(void)
 {
-	HWD.pfnDrawIntermissionBG();
+	HWD_DrawIntermissionBG();
 }
 
 //
@@ -6932,7 +6927,7 @@ void HWR_DoWipe(UINT8 wipenum, UINT8 scrnnum)
 		return;
 
 	HWR_GetFadeMask(wipelumpnum);
-	HWD.pfnDoScreenWipe();
+	HWD_DoScreenWipe();
 }
 
 void HWR_DoTintedWipe(UINT8 wipenum, UINT8 scrnnum)
@@ -6943,12 +6938,12 @@ void HWR_DoTintedWipe(UINT8 wipenum, UINT8 scrnnum)
 
 void HWR_MakeScreenFinalTexture(void)
 {
-    HWD.pfnMakeScreenFinalTexture();
+    HWD_MakeScreenFinalTexture();
 }
 
 void HWR_DrawScreenFinalTexture(int width, int height)
 {
-    HWD.pfnDrawScreenFinalTexture(width, height);
+    HWD_DrawScreenFinalTexture(width, height);
 }
 
 #endif // HWRENDER

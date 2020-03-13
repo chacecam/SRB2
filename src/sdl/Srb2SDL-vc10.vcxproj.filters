@@ -225,9 +225,6 @@
     <ClInclude Include="..\hardware\hw_defs.h">
       <Filter>Hw_Hardware</Filter>
     </ClInclude>
-    <ClInclude Include="..\hardware\hw_dll.h">
-      <Filter>Hw_Hardware</Filter>
-    </ClInclude>
     <ClInclude Include="..\hardware\hw_drv.h">
       <Filter>Hw_Hardware</Filter>
     </ClInclude>

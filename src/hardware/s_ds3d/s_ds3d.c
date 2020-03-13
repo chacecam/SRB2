@@ -482,7 +482,7 @@ static void Update2DSoundPanning (LPDIRECTSOUNDBUFFER lpSnd, INT32 sep)
  * Initialise driver and listener
  *
  *****************************************************************************/
-EXPORT BOOL HWRAPI( Startup ) (I_Error_t FatalErrorFunction, snddev_t *snd_dev)
+BOOL HW3DS_Startup(I_Error_t FatalErrorFunction, snddev_t *snd_dev)
 {
 	HRESULT      hr;
 	DSBUFFERDESC desc;
@@ -636,7 +636,7 @@ EXPORT BOOL HWRAPI( Startup ) (I_Error_t FatalErrorFunction, snddev_t *snd_dev)
  *
  ***************************************************************
  */
-EXPORT void HWRAPI( Shutdown ) (void)
+void HW3DS_Shutdown (void)
 {
 	INT32 i;
 
@@ -670,7 +670,7 @@ EXPORT void HWRAPI( Shutdown ) (void)
 
 
 
-EXPORT INT32 HWRAPI (IsPlaying) (INT32 handle)
+INT32 HW3DS_IsPlaying(INT32 handle)
 {
 	if (handle < 0 || handle >= allocated_sounds)
 		return FALSE;
@@ -749,7 +749,7 @@ static stack_t *setup_source(INT32 handle, sfx_data_t *sfx, BOOL is_3dsource)
  * Creates 2D (stereo) source
  *
  ******************************************************************************/
-EXPORT INT32 HWRAPI ( Add2DSource ) (sfx_data_t *sfx)
+INT32 HW3DS_Add2DSource (sfx_data_t *sfx)
 {
 	stack_t *snd;
 
@@ -771,7 +771,7 @@ EXPORT INT32 HWRAPI ( Add2DSource ) (sfx_data_t *sfx)
  *
  ******************************************************************************/
 
-EXPORT INT32 HWRAPI ( Add3DSource ) (source3D_data_t *src, sfx_data_t *sfx)
+INT32 HW3DS_Add3DSource (source3D_data_t *src, sfx_data_t *sfx)
 {
 	stack_t *snd;
 
@@ -827,7 +827,7 @@ EXPORT INT32 HWRAPI ( Add3DSource ) (source3D_data_t *src, sfx_data_t *sfx)
  * Otherwise put source into cache
  *
  *****************************************************************************/
-EXPORT void HWRAPI (KillSource) (INT32 handle)
+void HW3DS_KillSource(INT32 handle)
 {
 
 	if (handle < 0 || handle >= allocated_sounds)
@@ -851,7 +851,7 @@ EXPORT void HWRAPI (KillSource) (INT32 handle)
  * Update volume and separation (panning) of 2D source
  *
  *****************************************************************************/
-EXPORT void HWRAPI (Update2DSoundParms) (INT32 handle, INT32 vol, INT32 sep)
+void HW3DS_Update2DSoundParms(INT32 handle, INT32 vol, INT32 sep)
 {
 	LPDIRECTSOUNDBUFFER dsbuffer;
 
@@ -871,7 +871,7 @@ EXPORT void HWRAPI (Update2DSoundParms) (INT32 handle, INT32 vol, INT32 sep)
 // --------------------------------------------------------------------------
 // Set the global volume for sound effects
 // --------------------------------------------------------------------------
-EXPORT void HWRAPI (SetGlobalSfxVolume) (INT32 volume)
+void HW3DS_SetGlobalSfxVolume(INT32 volume)
 {
 	INT32     vol;
 	HRESULT hr;
@@ -885,7 +885,7 @@ EXPORT void HWRAPI (SetGlobalSfxVolume) (INT32 volume)
 	hr = IDirectSoundBuffer_SetVolume (PrimaryBuffer, vol);
 }
 
-EXPORT void HWRAPI ( StopSource) (INT32 handle)
+void HW3DS_StopSource(INT32 handle)
 {
 	LPDIRECTSOUNDBUFFER dsbuffer;
 
@@ -902,19 +902,19 @@ EXPORT void HWRAPI ( StopSource) (INT32 handle)
 }
 
 
-EXPORT INT32 HWRAPI ( GetHW3DSVersion) (void)
+INT32 HW3DS_GetHW3DSVersion(void)
 {
 	return VERSION;
 }
 
 
-EXPORT void HWRAPI (BeginFrameUpdate) (void)
+void HW3DS_BeginFrameUpdate(void)
 {
 	update_mode = DS3D_DEFERRED;
 }
 
 
-EXPORT void HWRAPI (EndFrameUpdate) (void)
+void HW3DS_EndFrameUpdate(void)
 {
 	if (update_mode == DS3D_DEFERRED)
 		IDirectSound3DListener_CommitDeferredSettings(Listener);
@@ -931,7 +931,7 @@ EXPORT void HWRAPI (EndFrameUpdate) (void)
  * - orientation
  * - velocity
  *****************************************************************************/
-EXPORT void HWRAPI (UpdateListener) (listener_data_t *data)
+void HW3DS_UpdateListener(listener_data_t *data)
 {
 	D3DVECTOR pos;
 	D3DVECTOR face;
@@ -1011,7 +1011,7 @@ EXPORT void HWRAPI (UpdateListener) (listener_data_t *data)
 	IDirectSound3DListener_SetAllParameters(Listener, &listener_parms, update_mode);
 }
 
-EXPORT void HWRAPI (UpdateListener2) (listener_data_t *data)
+void HW3DS_UpdateListener2(listener_data_t *data)
 {
 	D3DVECTOR pos;
 	D3DVECTOR face;
@@ -1095,7 +1095,7 @@ EXPORT void HWRAPI (UpdateListener2) (listener_data_t *data)
 	//IDirectSound3DListener_SetAllParameters(Listener, &listener_parms, update_mode);
 }
 
-EXPORT INT32 HWRAPI (SetCone) (INT32 handle, cone_def_t *cone_def)
+INT32 HW3DS_SetCone(INT32 handle, cone_def_t *cone_def)
 {
 	stack_t     *snd;
 	//DS3DBUFFER  parms;
@@ -1124,7 +1124,7 @@ EXPORT INT32 HWRAPI (SetCone) (INT32 handle, cone_def_t *cone_def)
 	return -1;
 }
 
-EXPORT void HWRAPI (Update3DSource) (INT32 handle, source3D_pos_t *data)
+void HW3DS_Update3DSource(INT32 handle, source3D_pos_t *data)
 {
 	stack_t     *snd;
 
@@ -1173,7 +1173,7 @@ EXPORT void HWRAPI (Update3DSource) (INT32 handle, source3D_pos_t *data)
 }
 
 
-EXPORT INT32 HWRAPI (StartSource) (INT32 handle)
+INT32 HW3DS_StartSource(INT32 handle)
 {
 	LPDIRECTSOUNDBUFFER snd;
 
@@ -1189,7 +1189,7 @@ EXPORT INT32 HWRAPI (StartSource) (INT32 handle)
 //-------------------------------------------------------------
 // Load new sound data into source
 //-------------------------------------------------------------
-EXPORT INT32 HWRAPI (Reload3DSource) (INT32 handle, sfx_data_t *data)
+INT32 HW3DS_Reload3DSource(INT32 handle, sfx_data_t *data)
 {
 	DS3DBUFFER  temp;
 	stack_t    *snd;
@@ -1229,7 +1229,7 @@ EXPORT INT32 HWRAPI (Reload3DSource) (INT32 handle, sfx_data_t *data)
 	return(snd - _stack);
 }
 
-EXPORT void HWRAPI (UpdateSourceVolume) (INT32 handle, INT32 volume)
+void HW3DS_UpdateSourceVolume(INT32 handle, INT32 volume)
 {
 	if (handle < 0 || handle >= allocated_sounds)
 		return;

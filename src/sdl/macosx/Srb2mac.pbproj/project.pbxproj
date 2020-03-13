@@ -1043,13 +1043,6 @@
 			path = ../../hardware/hw_defs.h;
 			refType = 2;
 		};
-		84177738085A106C000C01D8 = {
-			fileEncoding = 30;
-			isa = PBXFileReference;
-			name = hw_dll.h;
-			path = ../../hardware/hw_dll.h;
-			refType = 2;
-		};
 		84177739085A106C000C01D8 = {
 			fileEncoding = 30;
 			isa = PBXFileReference;

@@ -430,7 +430,7 @@ static void reladd(INT32 chan)
  * Initialise driver and listener
  *
  *****************************************************************************/
-EXPORT INT32 HWRAPI(Startup) (I_Error_t FatalErrorFunction, snddev_t *snd_dev)
+INT32 HW3DS_Startup(I_Error_t FatalErrorFunction, snddev_t *snd_dev)
 {
 	boolean inited = false;
 	INT32 i = 0;
@@ -578,7 +578,7 @@ EXPORT INT32 HWRAPI(Startup) (I_Error_t FatalErrorFunction, snddev_t *snd_dev)
 	return inited;
 }
 
-EXPORT void HWRAPI(Shutdown) (void)
+void HW3DS_Shutdown(void)
 {
 	DBG_Printf("Shuting down FMOD\n");
 	FSOUND_Sample_Free(blankfmsample);
@@ -592,7 +592,7 @@ EXPORT void HWRAPI(Shutdown) (void)
  *
  ******************************************************************************/
 
-EXPORT INT32 HWRAPI (Add3DSource) (source3D_data_t *src, sfx_data_t *sfx)
+INT32 HW3DS_Add3DSource(source3D_data_t *src, sfx_data_t *sfx)
 {
 	FSOUND_SAMPLE *fmsample = NULL;
 	INT32 chan = -1;
@@ -676,7 +676,7 @@ EXPORT INT32 HWRAPI (Add3DSource) (source3D_data_t *src, sfx_data_t *sfx)
  * Creates 2D (stereo) source
  *
  ******************************************************************************/
-EXPORT INT32 HWRAPI (Add2DSource) (sfx_data_t *sfx)
+INT32 HW3DS_Add2DSource(sfx_data_t *sfx)
 {
 	FSOUND_SAMPLE *fmsample = NULL;
 	INT32 chan = -1;
@@ -724,7 +724,7 @@ EXPORT INT32 HWRAPI (Add2DSource) (sfx_data_t *sfx)
 	return chan;
 }
 
-EXPORT INT32 HWRAPI (StartSource) (INT32 chan)
+INT32 HW3DS_StartSource(INT32 chan)
 {
 	FSOUND_SAMPLE *fmsample;
 	if (chan < 0)
@@ -761,7 +761,7 @@ EXPORT INT32 HWRAPI (StartSource) (INT32 chan)
 	return chan;
 }
 
-EXPORT void HWRAPI (StopSource) (INT32 chan)
+void HW3DS_StopSource(INT32 chan)
 {
 	FSOUND_SAMPLE *fmsample;
 
@@ -790,22 +790,22 @@ EXPORT void HWRAPI (StopSource) (INT32 chan)
 #endif
 }
 
-EXPORT INT32 HWRAPI (GetHW3DSVersion) (void)
+INT32 HW3DS_GetHW3DSVersion(void)
 {
 	return VERSION;
 }
 
-EXPORT void HWRAPI (BeginFrameUpdate) (void)
+void HW3DS_BeginFrameUpdate(void)
 {
 	FSOUND_Update();
 }
 
-EXPORT void HWRAPI (EndFrameUpdate) (void)
+void HW3DS_EndFrameUpdate(void)
 {
 	relupdate(FSOUND_FREE);
 }
 
-EXPORT INT32 HWRAPI (IsPlaying) (INT32 chan)
+INT32 HW3DS_IsPlaying(INT32 chan)
 {
 	if (chan < 0)
 		return false;
@@ -824,7 +824,7 @@ EXPORT INT32 HWRAPI (IsPlaying) (INT32 chan)
  * - orientation
  * - velocity
  *****************************************************************************/
-EXPORT void HWRAPI (UpdateListener) (listener_data_t *data)
+void HW3DS_UpdateListener(listener_data_t *data)
 {
 	if (data)
 	{
@@ -849,7 +849,7 @@ EXPORT void HWRAPI (UpdateListener) (listener_data_t *data)
 	}
 }
 
-EXPORT void HWRAPI (UpdateListener2) (listener_data_t *data)
+void HW3DS_UpdateListener2(listener_data_t *data)
 {
 	if (data)
 	{
@@ -876,7 +876,7 @@ EXPORT void HWRAPI (UpdateListener2) (listener_data_t *data)
 	}
 }
 
-EXPORT void HWRAPI (UpdateSourceVolume) (INT32 chan, INT32 vol)
+void HW3DS_UpdateSourceVolume(INT32 chan, INT32 vol)
 {
 	if (chan < 0)
 		return;
@@ -900,7 +900,7 @@ EXPORT void HWRAPI (UpdateSourceVolume) (INT32 chan, INT32 vol)
  * Update volume and separation (panning) of 2D source
  *
  *****************************************************************************/
-EXPORT void HWRAPI (Update2DSoundParms) (INT32 chan, INT32 vol, INT32 sep)
+void HW3DS_Update2DSoundParms(INT32 chan, INT32 vol, INT32 sep)
 {
 	FSOUND_SAMPLE *fmsample;
 
@@ -936,7 +936,7 @@ EXPORT void HWRAPI (Update2DSoundParms) (INT32 chan, INT32 vol, INT32 sep)
 // --------------------------------------------------------------------------
 // Set the global volume for sound effects
 // --------------------------------------------------------------------------
-EXPORT void HWRAPI (SetGlobalSfxVolume) (INT32 vol)
+void HW3DS_SetGlobalSfxVolume(INT32 vol)
 {
 	INT32 realvol = (vol<<3)+(vol>>2);
 
@@ -947,7 +947,7 @@ EXPORT void HWRAPI (SetGlobalSfxVolume) (INT32 vol)
 }
 
 //Alam_GBC: Not Used?
-EXPORT INT32 HWRAPI (SetCone) (INT32 chan, cone_def_t *cone_def)
+INT32 HW3DS_SetCone(INT32 chan, cone_def_t *cone_def)
 {
 	FSOUND_SAMPLE *fmsample;
 
@@ -976,7 +976,7 @@ EXPORT INT32 HWRAPI (SetCone) (INT32 chan, cone_def_t *cone_def)
 
 }
 
-EXPORT void HWRAPI (Update3DSource) (INT32 chan, source3D_pos_t *sfx)
+void HW3DS_Update3DSource(INT32 chan, source3D_pos_t *sfx)
 {
 	float pos[3];
 	float vel[3];
@@ -1018,7 +1018,7 @@ EXPORT void HWRAPI (Update3DSource) (INT32 chan, source3D_pos_t *sfx)
 //-------------------------------------------------------------
 // Load new sound data into source
 //-------------------------------------------------------------
-EXPORT INT32 HWRAPI (Reload3DSource) (INT32 handle, sfx_data_t *sfx)
+INT32 HW3DS_Reload3DSource(INT32 handle, sfx_data_t *sfx)
 {
 	source3D_data_t src;
 	float pos[3], vel[3];
@@ -1115,7 +1115,7 @@ EXPORT INT32 HWRAPI (Reload3DSource) (INT32 handle, sfx_data_t *sfx)
  * Otherwise put source into cache
  *
  *****************************************************************************/
-EXPORT void HWRAPI (KillSource) (INT32 chan)
+void HW3DS_KillSource(INT32 chan)
 {
 	FSOUND_SAMPLE *fmsample;
 	INT32 relchan;
@@ -1145,66 +1145,3 @@ EXPORT void HWRAPI (KillSource) (INT32 chan)
 #endif
 	if (fmsample != blankfmsample) FSOUND_Sample_Free(fmsample);
 }
-
-#ifdef _WINDOWS
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, // handle to DLL module
-                    DWORD fdwReason,    // reason for calling function
-                    LPVOID lpvReserved) // reserved
-{
-	// Perform actions based on the reason for calling.
-	UNREFERENCED_PARAMETER(lpvReserved);
-	switch (fdwReason)
-	{
-		case DLL_PROCESS_ATTACH:
-			// Initialize once for each new process.
-			// Return FALSE to fail DLL load.
-#ifdef DEBUG_TO_FILE
-			logstream = fopen("s_fmod.log", "wt");
-			if (logstream == NULL)
-				return FALSE;
-#endif
-			DisableThreadLibraryCalls(hinstDLL);
-			break;
-
-		case DLL_THREAD_ATTACH:
-			// Do thread-specific initialization.
-			break;
-
-		case DLL_THREAD_DETACH:
-			// Do thread-specific cleanup.
-			break;
-
-		case DLL_PROCESS_DETACH:
-			// Perform any necessary cleanup.
-#ifdef DEBUG_TO_FILE
-			if (logstream)
-			{
-				fclose(logstream);
-				logstream = NULL;
-			}
-#endif
-			break;
-	}
-	return TRUE; // Successful DLL_PROCESS_ATTACH.
-}
-#elif !defined (HAVE_SDL)
-
-// **************************************************************************
-//                                                                  FUNCTIONS
-// **************************************************************************
-
-EXPORT void _init()
-{
-#ifdef DEBUG_TO_FILE
-	logstream = fopen("s_fmod.log","wt");
-#endif
-}
-
-EXPORT void _fini()
-{
-#ifdef DEBUG_TO_FILE
-	if (logstream)
-		fclose(logstream);
-#endif
-}
-#endif

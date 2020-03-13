@@ -564,10 +564,6 @@ SOURCE=..\hardware\hw_defs.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\hardware\hw_dll.h
-# End Source File
-# Begin Source File
-
 SOURCE=..\hardware\hw_draw.c
 # End Source File
 # Begin Source File

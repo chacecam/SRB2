@@ -26,102 +26,51 @@
 #include "hw_defs.h"
 #include "hw_md2.h"
 
-#include "hw_dll.h"
-
 // ==========================================================================
 //                                                       STANDARD DLL EXPORTS
 // ==========================================================================
 
-EXPORT boolean HWRAPI(Init) (I_Error_t ErrorFunction);
+typedef void (*I_Error_t) (const char *error, ...) FUNCIERROR;
+void DBG_Printf(const char *lpFmt, ...) /*FUNCPRINTF*/;
+
+boolean HWD_Init(I_Error_t ErrorFunction);
 #ifndef HAVE_SDL
-EXPORT void HWRAPI(Shutdown) (void);
+void HWD_Shutdown(void);
 #endif
 #ifdef _WINDOWS
-EXPORT void HWRAPI(GetModeList) (vmode_t **pvidmodes, INT32 *numvidmodes);
+void HWD_GetModeList(vmode_t **pvidmodes, INT32 *numvidmodes);
 #endif
-EXPORT void HWRAPI(SetPalette) (RGBA_t *ppal);
-EXPORT void HWRAPI(FinishUpdate) (INT32 waitvbl);
-EXPORT void HWRAPI(Draw2DLine) (F2DCoord *v1, F2DCoord *v2, RGBA_t Color);
-EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags);
-EXPORT void HWRAPI(RenderSkyDome) (INT32 tex, INT32 texture_width, INT32 texture_height, FTransform transform);
-EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags);
-EXPORT void HWRAPI(ClearBuffer) (FBOOLEAN ColorMask, FBOOLEAN DepthMask, FRGBAFloat *ClearColor);
-EXPORT void HWRAPI(SetTexture) (FTextureInfo *TexInfo);
-EXPORT void HWRAPI(ReadRect) (INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
-EXPORT void HWRAPI(GClipRect) (INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip);
-EXPORT void HWRAPI(ClearMipMapCache) (void);
+void HWD_SetPalette(RGBA_t *ppal);
+void HWD_FinishUpdate(INT32 waitvbl);
+void HWD_Draw2DLine(F2DCoord *v1, F2DCoord *v2, RGBA_t Color);
+void HWD_DrawPolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags);
+void HWD_RenderSkyDome(INT32 tex, INT32 texture_width, INT32 texture_height, FTransform transform);
+void HWD_SetBlend(FBITFIELD PolyFlags);
+void HWD_ClearBuffer(FBOOLEAN ColorMask, FBOOLEAN DepthMask, FRGBAFloat *ClearColor);
+void HWD_SetTexture(FTextureInfo *TexInfo);
+void HWD_ReadRect(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
+void HWD_GClipRect(INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip);
+void HWD_ClearMipMapCache(void);
 
 //Hurdler: added for backward compatibility
-EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value);
+void HWD_SetSpecialState(hwdspecialstate_t IdState, INT32 Value);
 
 //Hurdler: added for new development
-EXPORT void HWRAPI(DrawModel) (model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 *color);
-EXPORT void HWRAPI(CreateModelVBOs) (model_t *model);
-EXPORT void HWRAPI(SetTransform) (FTransform *ptransform);
-EXPORT INT32 HWRAPI(GetTextureUsed) (void);
-EXPORT INT32 HWRAPI(GetRenderVersion) (void);
+void HWD_DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 *color);
+void HWD_CreateModelVBOs(model_t *model);
+void HWD_SetTransform(FTransform *ptransform);
+INT32 HWD_GetTextureUsed(void);
+INT32 HWD_GetRenderVersion(void);
 
 #define SCREENVERTS 10
-EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2]);
-EXPORT void HWRAPI(FlushScreenTextures) (void);
-EXPORT void HWRAPI(StartScreenWipe) (void);
-EXPORT void HWRAPI(EndScreenWipe) (void);
-EXPORT void HWRAPI(DoScreenWipe) (void);
-EXPORT void HWRAPI(DrawIntermissionBG) (void);
-EXPORT void HWRAPI(MakeScreenTexture) (void);
-EXPORT void HWRAPI(MakeScreenFinalTexture) (void);
-EXPORT void HWRAPI(DrawScreenFinalTexture) (int width, int height);
-// ==========================================================================
-//                                      HWR DRIVER OBJECT, FOR CLIENT PROGRAM
-// ==========================================================================
-
-#if !defined (_CREATE_DLL_)
-
-struct hwdriver_s
-{
-	Init                pfnInit;
-	SetPalette          pfnSetPalette;
-	FinishUpdate        pfnFinishUpdate;
-	Draw2DLine          pfnDraw2DLine;
-	DrawPolygon         pfnDrawPolygon;
-	RenderSkyDome       pfnRenderSkyDome;
-	SetBlend            pfnSetBlend;
-	ClearBuffer         pfnClearBuffer;
-	SetTexture          pfnSetTexture;
-	ReadRect            pfnReadRect;
-	GClipRect           pfnGClipRect;
-	ClearMipMapCache    pfnClearMipMapCache;
-	SetSpecialState     pfnSetSpecialState;//Hurdler: added for backward compatibility
-	DrawModel           pfnDrawModel;
-	CreateModelVBOs     pfnCreateModelVBOs;
-	SetTransform        pfnSetTransform;
-	GetTextureUsed      pfnGetTextureUsed;
-	GetRenderVersion    pfnGetRenderVersion;
-#ifdef _WINDOWS
-	GetModeList         pfnGetModeList;
-#endif
-#ifndef HAVE_SDL
-	Shutdown            pfnShutdown;
-#endif
-	PostImgRedraw       pfnPostImgRedraw;
-	FlushScreenTextures pfnFlushScreenTextures;
-	StartScreenWipe     pfnStartScreenWipe;
-	EndScreenWipe       pfnEndScreenWipe;
-	DoScreenWipe        pfnDoScreenWipe;
-	DrawIntermissionBG  pfnDrawIntermissionBG;
-	MakeScreenTexture   pfnMakeScreenTexture;
-	MakeScreenFinalTexture  pfnMakeScreenFinalTexture;
-	DrawScreenFinalTexture  pfnDrawScreenFinalTexture;
-};
-
-extern struct hwdriver_s hwdriver;
-
-//Hurdler: 16/10/99: added for OpenGL gamma correction
-//extern RGBA_t  gamma_correction;
-
-#define HWD hwdriver
-
-#endif //not defined _CREATE_DLL_
+void HWD_PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2]);
+void HWD_FlushScreenTextures(void);
+void HWD_StartScreenWipe(void);
+void HWD_EndScreenWipe(void);
+void HWD_DoScreenWipe(void);
+void HWD_DrawIntermissionBG(void);
+void HWD_MakeScreenTexture(void);
+void HWD_MakeScreenFinalTexture(void);
+void HWD_DrawScreenFinalTexture(int width, int height);
 
 #endif //__HWR_DRV_H__
-

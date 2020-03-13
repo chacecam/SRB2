@@ -129,8 +129,8 @@ static void HW3S_KillSource(INT32 snum)
 
 	if (s->sfxinfo)
 	{
-		HW3DS.pfnStopSource(s->handle);
-		HW3DS.pfnKillSource(s->handle);
+		HW3DS_StopSource(s->handle);
+		HW3DS_KillSource(s->handle);
 		s->handle = -1;
 		s->sfxinfo->usefulness--;
 		s->origin = NULL;
@@ -148,7 +148,7 @@ static void HW3S_StopSource(INT32 snum)
 	if (s->sfxinfo)
 	{
 		// stop the sound playing
-		HW3DS.pfnStopSource(s->handle);
+		HW3DS_StopSource(s->handle);
 	}
 }
 */
@@ -209,12 +209,12 @@ void HW3S_StopSounds(void)
 			HW3S_KillSource(snum);
 
 	// Also stop all static sources
-	HW3DS.pfnStopSource(p_attack_source.handle);
-	HW3DS.pfnStopSource(p_attack_source2.handle);
-	HW3DS.pfnStopSource(p_scream_source.handle);
-	HW3DS.pfnStopSource(p_scream_source2.handle);
-	HW3DS.pfnStopSource(ambient_source.left.handle);
-	HW3DS.pfnStopSource(ambient_source.right.handle);
+	HW3DS_StopSource(p_attack_source.handle);
+	HW3DS_StopSource(p_attack_source2.handle);
+	HW3DS_StopSource(p_scream_source.handle);
+	HW3DS_StopSource(p_scream_source2.handle);
+	HW3DS_StopSource(ambient_source.left.handle);
+	HW3DS_StopSource(ambient_source.right.handle);
 }
 
 
@@ -423,8 +423,8 @@ INT32 HW3S_I_StartSound(const void *origin_p, source3D_data_t *source_parm, chan
 
 			if (source->sfxinfo != sfx)
 			{
-				HW3DS.pfnStopSource(source->handle);
-				source->handle = HW3DS.pfnReloadSource(source->handle, sfx->volume);
+				HW3DS_StopSource(source->handle);
+				source->handle = HW3DS_ReloadSource(source->handle, sfx->volume);
 				//I_OutputMsg("PlayerSound data reloaded\n");
 			}
 		}
@@ -434,8 +434,8 @@ INT32 HW3S_I_StartSound(const void *origin_p, source3D_data_t *source_parm, chan
 
 			if (ambient_source.left.sfxinfo != sfx)
 			{
-				HW3DS.pfnStopSource(ambient_source.left.handle);
-				HW3DS.pfnStopSource(ambient_source.right.handle);
+				HW3DS_StopSource(ambient_source.left.handle);
+				HW3DS_StopSource(ambient_source.right.handle);
 
 				// judgecutor:
 				// Outphased sfx's temporarily not used!!!
@@ -445,22 +445,22 @@ INT32 HW3S_I_StartSound(const void *origin_p, source3D_data_t *source_parm, chan
 					outphased_sfx.length = sfx_data.length;
 					outphased_sfx.id = sfx_data.id;
 	*/
-				ambient_source.left.handle = HW3DS.pfnReloadSource(ambient_source.left.handle, (u_int)sfx->length);
-				//ambient_source.right.handle = HW3DS.pfnReloadSource(ambient_source.right.handle, &outphased_sfx);
-				ambient_source.right.handle = HW3DS.pfnReloadSource(ambient_source.right.handle, (u_int)sfx->length);
+				ambient_source.left.handle = HW3DS_ReloadSource(ambient_source.left.handle, (u_int)sfx->length);
+				//ambient_source.right.handle = HW3DS_ReloadSource(ambient_source.right.handle, &outphased_sfx);
+				ambient_source.right.handle = HW3DS_ReloadSource(ambient_source.right.handle, (u_int)sfx->length);
 				ambient_source.left.sfxinfo = ambient_source.right.sfxinfo = sfx;
 				//Z_Free(outphased_sfx.data);
 			}
 
-			HW3DS.pfnUpdateSourceParms(ambient_source.left.handle, volume, -1);
-			HW3DS.pfnUpdateSourceParms(ambient_source.right.handle, volume, -1);
+			HW3DS_UpdateSourceParms(ambient_source.left.handle, volume, -1);
+			HW3DS_UpdateSourceParms(ambient_source.right.handle, volume, -1);
 
 			if (sfx->usefulness++ < 0)
 				sfx->usefulness = -1;
 
 			// Ambient sound is special case
-			HW3DS.pfnStartSource(ambient_source.left.handle);
-			HW3DS.pfnStartSource(ambient_source.right.handle);
+			HW3DS_StartSource(ambient_source.left.handle);
+			HW3DS_StartSource(ambient_source.right.handle);
 		}
 		else
 		{
@@ -483,10 +483,10 @@ INT32 HW3S_I_StartSound(const void *origin_p, source3D_data_t *source_parm, chan
 					HW3S_FillSourceParameters(origin, source_parm, c_type);
 				}
 
-				source->handle = HW3DS.pfnAddSource(source_parm, (u_int)sfx->length);
+				source->handle = HW3DS_AddSource(source_parm, (u_int)sfx->length);
 			}
 			else
-				source->handle = HW3DS.pfnAddSource(NULL, (u_int)sfx->length);
+				source->handle = HW3DS_AddSource(NULL, (u_int)sfx->length);
 		}
 
 		// increase the usefulness
@@ -495,7 +495,7 @@ INT32 HW3S_I_StartSound(const void *origin_p, source3D_data_t *source_parm, chan
 
 		source->sfxinfo = sfx;
 		source->origin = origin;
-		HW3DS.pfnStartSource(source->handle);
+		HW3DS_StartSource(source->handle);
 	}
 
 	if (c_type != CT_NORMAL && origin && (origin == listenmobj))
@@ -517,8 +517,8 @@ INT32 HW3S_I_StartSound(const void *origin_p, source3D_data_t *source_parm, chan
 
 		if (source->sfxinfo != sfx)
 		{
-			HW3DS.pfnStopSource(source->handle);
-			source->handle = HW3DS.pfnReloadSource(source->handle, sfx->volume);
+			HW3DS_StopSource(source->handle);
+			source->handle = HW3DS_ReloadSource(source->handle, sfx->volume);
 			//I_OutputMsg("PlayerSound data reloaded\n");
 		}
 	}
@@ -528,8 +528,8 @@ INT32 HW3S_I_StartSound(const void *origin_p, source3D_data_t *source_parm, chan
 
 		if (ambient_source.left.sfxinfo != sfx)
 		{
-			HW3DS.pfnStopSource(ambient_source.left.handle);
-			HW3DS.pfnStopSource(ambient_source.right.handle);
+			HW3DS_StopSource(ambient_source.left.handle);
+			HW3DS_StopSource(ambient_source.right.handle);
 
 			// judgecutor:
 			// Outphased sfx's temporarily not used!!!
@@ -539,22 +539,22 @@ INT32 HW3S_I_StartSound(const void *origin_p, source3D_data_t *source_parm, chan
 				outphased_sfx.length = sfx_data.length;
 				outphased_sfx.id = sfx_data.id;
 */
-			ambient_source.left.handle = HW3DS.pfnReloadSource(ambient_source.left.handle, (u_int)sfx->length);
-			//ambient_source.right.handle = HW3DS.pfnReloadSource(ambient_source.right.handle, &outphased_sfx);
-			ambient_source.right.handle = HW3DS.pfnReloadSource(ambient_source.right.handle, (u_int)sfx->length);
+			ambient_source.left.handle = HW3DS_ReloadSource(ambient_source.left.handle, (u_int)sfx->length);
+			//ambient_source.right.handle = HW3DS_ReloadSource(ambient_source.right.handle, &outphased_sfx);
+			ambient_source.right.handle = HW3DS_ReloadSource(ambient_source.right.handle, (u_int)sfx->length);
 			ambient_source.left.sfxinfo = ambient_source.right.sfxinfo = sfx;
 			//Z_Free(outphased_sfx.data);
 		}
 
-		HW3DS.pfnUpdateSourceParms(ambient_source.left.handle, volume, -1);
-		HW3DS.pfnUpdateSourceParms(ambient_source.right.handle, volume, -1);
+		HW3DS_UpdateSourceParms(ambient_source.left.handle, volume, -1);
+		HW3DS_UpdateSourceParms(ambient_source.right.handle, volume, -1);
 
 		if (sfx->usefulness++ < 0)
 			sfx->usefulness = -1;
 
 		// Ambient sound is special case
-		HW3DS.pfnStartSource(ambient_source.left.handle);
-		HW3DS.pfnStartSource(ambient_source.right.handle);
+		HW3DS_StartSource(ambient_source.left.handle);
+		HW3DS_StartSource(ambient_source.right.handle);
 		return -1;
 	}
 	else
@@ -578,10 +578,10 @@ INT32 HW3S_I_StartSound(const void *origin_p, source3D_data_t *source_parm, chan
 				HW3S_FillSourceParameters(origin, source_parm, c_type);
 			}
 
-			source->handle = HW3DS.pfnAddSource(source_parm, (u_int)sfx->length);
+			source->handle = HW3DS_AddSource(source_parm, (u_int)sfx->length);
 		}
 		else
-			source->handle = HW3DS.pfnAddSource(NULL, (u_int)sfx->length);
+			source->handle = HW3DS_AddSource(NULL, (u_int)sfx->length);
 
 	}
 
@@ -591,7 +591,7 @@ INT32 HW3S_I_StartSound(const void *origin_p, source3D_data_t *source_parm, chan
 
 	source->sfxinfo = sfx;
 	source->origin = origin;
-	HW3DS.pfnStartSource(source->handle);
+	HW3DS_StartSource(source->handle);
 	return s_num;
 
 }
@@ -651,7 +651,7 @@ INT32 HW3S_Init(I_Error_t FatalErrorFunction, snddev_t *snd_dev)
 	INT32                succ;
 	source3D_data_t    source_data;
 
-	if (HW3DS.pfnStartup(FatalErrorFunction, snd_dev))
+	if (HW3DS_Startup(FatalErrorFunction, snd_dev))
 	{
 		// Attack source
 		source_data.head_relative = 1;
@@ -669,8 +669,8 @@ INT32 HW3S_Init(I_Error_t FatalErrorFunction, snddev_t *snd_dev)
 
 		M_Memcpy(&p_attack_source2, &p_attack_source, sizeof (source_t));
 
-		p_attack_source.handle = HW3DS.pfnAddSource(&source_data, sfx_None);
-		p_attack_source2.handle = HW3DS.pfnAddSource(&source_data, sfx_None);
+		p_attack_source.handle = HW3DS_AddSource(&source_data, sfx_None);
+		p_attack_source2.handle = HW3DS_AddSource(&source_data, sfx_None);
 
 		// Scream source
 		source_data.pos.y = 0;
@@ -680,8 +680,8 @@ INT32 HW3S_Init(I_Error_t FatalErrorFunction, snddev_t *snd_dev)
 
 		M_Memcpy(&p_scream_source2, &p_scream_source, sizeof (source_t));
 
-		p_scream_source.handle = HW3DS.pfnAddSource(&source_data, sfx_None);
-		p_scream_source2.handle = HW3DS.pfnAddSource(&source_data, sfx_None);
+		p_scream_source.handle = HW3DS_AddSource(&source_data, sfx_None);
+		p_scream_source2.handle = HW3DS_AddSource(&source_data, sfx_None);
 
 		//FIXED_TO_FLOAT(mobjinfo[MT_PLAYER].height - (5 * FRACUNIT));
 
@@ -699,8 +699,8 @@ INT32 HW3S_Init(I_Error_t FatalErrorFunction, snddev_t *snd_dev)
 		M_Memcpy(&ambient_sdata.right, &ambient_sdata.left, sizeof (source3D_data_t));
 
 		ambient_sdata.right.pos.x = -ambient_sdata.left.pos.x;
-		ambient_source.left.handle = HW3DS.pfnAddSource(&ambient_sdata.left, sfx_None);
-		ambient_source.right.handle = HW3DS.pfnAddSource(&ambient_sdata.right, sfx_None);
+		ambient_source.left.handle = HW3DS_AddSource(&ambient_sdata.left, sfx_None);
+		ambient_source.right.handle = HW3DS_AddSource(&ambient_sdata.right, sfx_None);
 
 		succ = p_attack_source.handle > -1 && p_scream_source.handle > -1 &&
 			p_attack_source2.handle > -1 && p_scream_source2.handle > -1 &&
@@ -718,7 +718,7 @@ INT32 HW3S_Init(I_Error_t FatalErrorFunction, snddev_t *snd_dev)
 //=============================================================================
 INT32 HW3S_GetVersion(void)
 {
-	return HW3DS.pfnGetHW3DSVersion();
+	return HW3DS_GetHW3DSVersion();
 }
 
 
@@ -726,7 +726,7 @@ INT32 HW3S_GetVersion(void)
 void HW3S_BeginFrameUpdate(void)
 {
 	if (hws_mode != HWS_DEFAULT_MODE)
-		HW3DS.pfnBeginFrameUpdate();
+		HW3DS_BeginFrameUpdate();
 }
 
 
@@ -734,7 +734,7 @@ void HW3S_BeginFrameUpdate(void)
 void HW3S_EndFrameUpdate(void)
 {
 	if (hws_mode != HWS_DEFAULT_MODE)
-		HW3DS.pfnEndFrameUpdate();
+		HW3DS_EndFrameUpdate();
 }
 
 
@@ -742,7 +742,7 @@ void HW3S_EndFrameUpdate(void)
 //=============================================================================
 INT32 HW3S_SoundIsPlaying(INT32 handle)
 {
-	return HW3DS.pfnIsPlaying(handle);
+	return HW3DS_IsPlaying(handle);
 }
 
 INT32 HW3S_OriginPlaying(void *origin)
@@ -816,7 +816,7 @@ static void HW3S_UpdateListener(mobj_t *listener)
 		data.momy = TPS(FIXED_TO_FLOAT(listener->momy));
 		data.momz = TPS(FIXED_TO_FLOAT(listener->momz));
 	}
-	HW3DS.pfnUpdateListener(&data, 1);
+	HW3DS_UpdateListener(&data, 1);
 }
 
 static void HW3S_UpdateListener2(mobj_t *listener)
@@ -825,7 +825,7 @@ static void HW3S_UpdateListener2(mobj_t *listener)
 
 	if (!listener || !listener->player)
 	{
-		HW3DS.pfnUpdateListener(NULL, 2);
+		HW3DS_UpdateListener(NULL, 2);
 		return;
 	}
 
@@ -856,12 +856,12 @@ static void HW3S_UpdateListener2(mobj_t *listener)
 		data.momz = TPS(FIXED_TO_FLOAT(listener->momz));
 	}
 
-	HW3DS.pfnUpdateListener(&data, 2);
+	HW3DS_UpdateListener(&data, 2);
 }
 
 void HW3S_SetSfxVolume(INT32 volume)
 {
-	HW3DS.pfnSetGlobalSfxVolume(volume);
+	HW3DS_SetGlobalSfxVolume(volume);
 }
 
 
@@ -870,7 +870,7 @@ static void HW3S_Update3DSource(source_t *src)
 	source3D_data_t data;
 	data.permanent = 0;
 	HW3S_FillSourceParameters(src->origin, &data, src->type);
-	HW3DS.pfnUpdate3DSource(src->handle, &data.pos);
+	HW3DS_Update3DSource(src->handle, &data.pos);
 
 }
 
@@ -891,7 +891,7 @@ void HW3S_UpdateSources(void)
 		if (src->sfxinfo)
 		{
 #if 0
-			if (HW3DS.pfnIsPlaying(src->handle))
+			if (HW3DS_IsPlaying(src->handle))
 			{
 				if (src->origin)
 				{
@@ -948,7 +948,7 @@ void HW3S_UpdateSources(void)
 
 void HW3S_Shutdown(void)
 {
-	HW3DS.pfnShutdown();
+	HW3DS_Shutdown();
 }
 
 void *HW3S_GetSfx(sfxinfo_t *sfx)
@@ -963,7 +963,7 @@ void *HW3S_GetSfx(sfxinfo_t *sfx)
 	W_ReadLump(sfx->lumpnum, sfx_data.data);
 	sfx_data.priority = sfx->priority;
 
-	sfx->length = HW3DS.pfnAddSfx(&sfx_data);
+	sfx->length = HW3DS_AddSfx(&sfx_data);
 
 	Z_ChangeTag(sfx->data, PU_CACHE);
 
@@ -984,7 +984,7 @@ void HW3S_FreeSfx(sfxinfo_t *sfx)
 	}
 
 	if (sfx->length > 0)
-		HW3DS.pfnKillSfx((u_int)sfx->length);
+		HW3DS_KillSfx((u_int)sfx->length);
 	sfx->length = 0;
 
 	sfx->lumpnum = LUMPERROR;
