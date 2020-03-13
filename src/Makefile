@@ -28,22 +28,6 @@
 #       Remove all object files
 #     cleandep
 #       Remove depend.dep
-#     dll
-#       compile primary HW render DLL/SO
-#     all_dll
-#       compile all HW render and 3D sound DLLs for the set
-#     opengl_dll
-#       Pure Mingw only, compile OpenGL HW render DLL
-#     ds3d_dll
-#       Pure Mingw only, compile DirectX DirectSound HW sound DLL
-#     fmod_dll
-#       Pure Mingw only, compile FMOD HW sound DLL
-#     openal_dll
-#       Pure Mingw only, compile OpenAL HW sound DLL
-#     fmod_so
-#       Non-Mingw, compile FMOD HW sound SO
-#     openal_so
-#       Non-Mingw, compile OpenAL HW sound SO
 #
 #
 # Addon:
@@ -508,7 +492,7 @@ endif
 
 ifdef MINGW
 ifndef SDL
-all:	 pre-build $(BIN)/$(EXENAME) dll
+all:	 pre-build $(BIN)/$(EXENAME)
 endif
 endif
 
@@ -589,57 +573,6 @@ endif
 $(OBJDIR):
 	-$(MKDIR) $(OBJDIR)
 
-ifndef SDL
-ifdef NOHW
-dll :
-else
-dll : opengl_dll
-endif
-ifdef MINGW
-all_dll: opengl_dll ds3d_dll fmod_dll openal_dll
-
-opengl_dll: $(BIN)/r_opengl.dll
-$(BIN)/r_opengl.dll: $(OBJDIR)/ogl_win.o $(OBJDIR)/r_opengl.o
-	-$(MKDIR) $(BIN)
-	@echo Linking R_OpenGL.dll...
-	$(CC) --shared  $^ -o $@ -g -Wl,--add-stdcall-alias -lgdi32 -static-libgcc
-ifndef NOUPX
-	-$(UPX) $(UPX_OPTS) $@
-endif
-
-ds3d_dll: $(BIN)/s_ds3d.dll
-$(BIN)/s_ds3d.dll: $(OBJDIR)/s_ds3d.o
-	@echo Linking S_DS3d.dll...
-	$(CC) --shared  $^ -o $@ -g -Wl,--add-stdcall-alias -ldsound -luuid
-
-fmod_dll: $(BIN)/s_fmod.dll
-$(BIN)/s_fmod.dll: $(OBJDIR)/s_fmod.o
-	-$(MKDIR) $(BIN)
-	@echo Linking S_FMOD.dll...
-	$(CC) --shared  $^ -o $@ -g -Wl,--add-stdcall-alias -lfmod
-
-openal_dll: $(BIN)/s_openal.dll
-$(BIN)/s_openal.dll: $(OBJDIR)/s_openal.o
-	-$(MKDIR) $(BIN)
-	@echo Linking S_OpenAL.dll...
-	$(CC) --shared  $^ -o $@ -g -Wl,--add-stdcall-alias -lopenal32
-else
-all_dll: fmod_so openal_so
-
-fmod_so: $(BIN)/s_fmod.so
-$(BIN)/s_fmod.so: $(OBJDIR)/s_fmod.o
-	-$(MKDIR) $(BIN)
-	@echo Linking S_FMOD.so...
-	$(CC) --shared $^ -o $@ -g --nostartfiles -lm -lfmod
-
-openal_so: $(BIN)/s_openal.so
-$(BIN)/s_openal.so: $(OBJDIR)/s_openal.o
-	-$(MKDIR) $(BIN)
-	@echo Linking S_OpenAL.so...
-	$(CC) --shared $^ -o $@ -g --nostartfiles -lm -lopenal
-endif
-
-else
 ifdef SDL
 ifdef MINGW
 $(OBJDIR)/r_opengl.o: hardware/r_opengl/r_opengl.c hardware/r_opengl/r_opengl.h \
@@ -660,8 +593,6 @@ $(OBJDIR)/r_opengl.o: hardware/r_opengl/r_opengl.c hardware/r_opengl/r_opengl.h 
  p_mobj.h doomdata.h d_ticcmd.h r_defs.h hardware/hw_dll.h
 	$(CC) $(CFLAGS) $(WFLAGS) -I/usr/X11R6/include -c $< -o $@
 endif
-endif
-
 endif
 
 #dependecy made by gcc itself !

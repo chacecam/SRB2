@@ -41,8 +41,6 @@
 #include "SDL_loadso.h"
 #endif
 
-#define  _CREATE_DLL_  // necessary for Unix AND Windows
-
 #include "../hardware/hw_drv.h"
 #include "ogl_sdl.h"
 #ifdef STATIC_OPENGL

@@ -44,7 +44,6 @@ FILE* logstream = NULL;
 #include <AL/alc.h> //Helpers
 #endif
 
-#define  _CREATE_DLL_
 #include "../../doomdef.h"
 #include "../hw3dsdrv.h"
 
@@ -930,69 +929,3 @@ EXPORT void HWRAPI (GetHW3DSTitle) (char *buf, size_t size)
 {
 	strncpy(buf, "OpenAL", size);
 }
-
-
-#ifdef _WINDOWS
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, // handle to DLL module
-                    DWORD fdwReason,    // reason for calling function
-                    LPVOID lpvReserved) // reserved
-{
-	// Perform actions based on the reason for calling.
-	UNREFERENCED_PARAMETER(lpvReserved);
-	switch ( fdwReason )
-	{
-		case DLL_PROCESS_ATTACH:
-		// Initialize once for each new process.
-		// Return FALSE to fail DLL load.
-#ifdef DEBUG_TO_FILE
-			logstream = fopen("s_openal.log", "wt");
-			if (logstream == NULL)
-				return FALSE;
-#endif
-		DisableThreadLibraryCalls(hinstDLL);
-		break;
-
-		case DLL_THREAD_ATTACH:
-			// Do thread-specific initialization.
-			break;
-
-		case DLL_THREAD_DETACH:
-			// Do thread-specific cleanup.
-			break;
-
-		case DLL_PROCESS_DETACH:
-			// Perform any necessary cleanup.
-#ifdef DEBUG_TO_FILE
-			if ( logstream)
-			{
-				fclose(logstream);
-				logstream  = NULL;
-			}
-#endif
-			break;
-	}
-	return TRUE;  // Successful DLL_PROCESS_ATTACH.
-}
-#elif !defined (_WINDOWS)
-
-// **************************************************************************
-//                                                                  FUNCTIONS
-// **************************************************************************
-
-EXPORT void _init()
-{
-#ifdef DEBUG_TO_FILE
-	logstream = fopen("s_openal.log", "w+");
-#endif
-}
-
-EXPORT void _fini()
-{
-#ifdef DEBUG_TO_FILE
-	if (logstream)
-		fclose(logstream);
-	logstream = NULL;
-#endif
-}
-#endif
-

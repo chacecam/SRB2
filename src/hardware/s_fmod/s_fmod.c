@@ -64,7 +64,6 @@ FILE *logstream = NULL;
 #define REL2D
 #endif
 
-#define  _CREATE_DLL_
 #include "../../doomdef.h"
 #include "../hw3dsdrv.h"
 #define INT2CHAR(p) (char *)p + 8
