@@ -694,42 +694,10 @@ static VOID VID_Init(VOID)
 	// initialize the appropriate display device
 	if (rendermode != render_soft)
 	{
-#if 0
-		const char *drvname = NULL;
-
-		switch (rendermode)
-		{
-			case render_opengl:
-				drvname = "r_opengl.dll";
-				break;
-			default:
-				I_Error("Unknown hardware render mode");
-		}
-
-		// load the DLL
-		if (drvname && Init3DDriver(drvname))
-#endif
-		{
-			int hwdversion = HWD_GetRenderVersion();
-			if (hwdversion != VERSION)
-				CONS_Alert(CONS_WARNING, M_GetText("This r_opengl version is not supported, use it at your own risk!\n"));
-
-			// perform initialisations
-			HWD_Init(I_Error);
-			// get available display modes for the device
-			HWD_GetModeList(&pvidmodes, &numvidmodes);
-		}
-		else
-		{
-			switch (rendermode)
-			{
-				case render_opengl:
-					I_Error("Error initializing OpenGL");
-				default:
-					break;
-			}
-			rendermode = render_soft;
-		}
+		// perform initialisations
+		HWD_Init(I_Error);
+		// get available display modes for the device
+		HWD_GetModeList(&pvidmodes, &numvidmodes);
 	}
 
 	if (rendermode == render_soft)

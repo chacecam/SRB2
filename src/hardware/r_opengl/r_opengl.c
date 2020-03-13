@@ -2309,11 +2309,6 @@ INT32 HWD_GetTextureUsed(void)
 	return res;
 }
 
-INT32 HWD_GetRenderVersion(void)
-{
-	return VERSION;
-}
-
 void HWD_PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2])
 {
 	INT32 x, y;

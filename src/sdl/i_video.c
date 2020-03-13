@@ -1785,15 +1785,7 @@ void I_StartupHardwareGraphics(void)
 	static boolean glstartup = false;
 	if (!glstartup)
 	{
-		// check gl renderer lib
-		if (HWD_GetRenderVersion() != VERSION)
-		{
-			CONS_Alert(CONS_ERROR, M_GetText("The version of the renderer doesn't match the version of the executable\nBe sure you have installed SRB2 properly.\n"));
-			hwrenderloaded = -1;
-		}
-		else
-			hwrenderloaded = HWD_Init(I_Error) ? 1 : -1; // let load the OpenGL library
-
+		hwrenderloaded = HWD_Init(I_Error) ? 1 : -1; // let load the OpenGL library
 		if (hwrenderloaded == -1)
 		{
 			rendermode = render_soft;

@@ -60,7 +60,6 @@ void HWD_DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 tics,
 void HWD_CreateModelVBOs(model_t *model);
 void HWD_SetTransform(FTransform *ptransform);
 INT32 HWD_GetTextureUsed(void);
-INT32 HWD_GetRenderVersion(void);
 
 #define SCREENVERTS 10
 void HWD_PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2]);
