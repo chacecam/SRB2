@@ -64,53 +64,6 @@ INT32     oglflags = 0;
 //                                                                  FUNCTIONS
 // **************************************************************************
 
-// -----------------+
-// APIENTRY DllMain : DLL Entry Point,
-//                  : open/close debug log
-// Returns          :
-// -----------------+
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, // handle to DLL module
-                    DWORD fdwReason,    // reason for calling function
-                    LPVOID lpvReserved) // reserved
-{
-	// Perform actions based on the reason for calling.
-	UNREFERENCED_PARAMETER(lpvReserved);
-	switch (fdwReason)
-	{
-		case DLL_PROCESS_ATTACH:
-			// Initialize once for each new process.
-			// Return FALSE to fail DLL load.
-#ifdef DEBUG_TO_FILE
-			gllogstream = fopen("ogllog.txt", "wt");
-			if (gllogstream == NULL)
-				return FALSE;
-#endif
-			DisableThreadLibraryCalls(hinstDLL);
-			break;
-
-		case DLL_THREAD_ATTACH:
-			// Do thread-specific initialization.
-			break;
-
-		case DLL_THREAD_DETACH:
-			// Do thread-specific cleanup.
-			break;
-
-		case DLL_PROCESS_DETACH:
-			// Perform any necessary cleanup.
-#ifdef DEBUG_TO_FILE
-			if (gllogstream)
-			{
-				fclose(gllogstream);
-				gllogstream  = NULL;
-			}
-#endif
-			break;
-	}
-
-	return TRUE;  // Successful DLL_PROCESS_ATTACH.
-}
-
 #ifdef STATIC_OPENGL
 #define pwglGetProcAddress wglGetProcAddress;
 #define pwglCreateContext wglCreateContext;
