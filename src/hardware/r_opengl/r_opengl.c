@@ -719,14 +719,20 @@ void HWD_Flush(void)
 // ExtensionAvailable   : Look if an OpenGL extension is available
 // Returns              : true if extension available
 // ---------------------+
-INT32 OGL_ExtensionAvailable(const char *extension, const GLubyte *start)
+boolean OGL_ExtensionAvailable(const char *extension, const GLubyte *start)
 {
+#ifdef HAVE_SDL
+	(void)start;
+	if (SDL_GL_ExtensionSupported(extension))
+		return true;
+	return false;
+#else
 	GLubyte         *where, *terminator;
 
-	if (!extension || !start) return 0;
+	if (!extension || !start) return false;
 	where = (GLubyte *) strchr(extension, ' ');
 	if (where || *extension == '\0')
-		return 0;
+		return false;
 
 	for (;;)
 	{
@@ -736,10 +742,12 @@ INT32 OGL_ExtensionAvailable(const char *extension, const GLubyte *start)
 		terminator = where + strlen(extension);
 		if (where == start || *(where - 1) == ' ')
 			if (*terminator == ' ' || *terminator == '\0')
-				return 1;
+				return true;
 		start = terminator;
 	}
-	return 0;
+
+	return false;
+#endif
 }
 
 
