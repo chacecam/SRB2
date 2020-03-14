@@ -15,7 +15,7 @@
 // GNU General Public License for more details.
 //
 //-----------------------------------------------------------------------------
-/// \file
+/// \file ogl_sdl.c
 /// \brief SDL specific part of the OpenGL API for SRB2
 
 #ifdef _MSC_VER
