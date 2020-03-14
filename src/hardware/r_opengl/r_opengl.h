@@ -72,7 +72,7 @@ boolean OGL_LoadLibrary(void);
 void *OGL_GetFunc(const char *proc);
 boolean OGL_SetupFunctionPointers(void);
 boolean OGL_SetupExtraFunctionPointers(void);
-INT32 OGL_ExtensionAvailable(const char *extension, const GLubyte *start);
+boolean OGL_ExtensionAvailable(const char *extension, const GLubyte *start);
 
 #ifdef _WINDOWS
 int SetupPixelFormat(INT32 WantColorBits, INT32 WantStencilBits, INT32 WantDepthBits);
