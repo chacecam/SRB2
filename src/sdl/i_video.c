@@ -224,9 +224,7 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 	}
 
 	if (I_HardwareRendering())
-	{
-		OglSdlSurface(vid.width, vid.height);
-	}
+		OGL_Surface(vid.width, vid.height);
 
 	if (I_SoftwareRendering())
 	{
@@ -1144,7 +1142,7 @@ void I_UpdateNoBlit(void)
 	{
 		if (I_HardwareRendering())
 		{
-			OglSdlFinishUpdate(cv_vidwait.value);
+			OGL_FinishUpdate(cv_vidwait.value);
 		}
 		else if (I_SoftwareRendering())
 		{
@@ -1233,7 +1231,7 @@ void I_FinishUpdate(void)
 	}
 	else if (I_HardwareRendering())
 	{
-		OglSdlFinishUpdate(cv_vidwait.value);
+		OGL_FinishUpdate(cv_vidwait.value);
 	}
 	exposevideo = SDL_FALSE;
 }
@@ -1735,7 +1733,7 @@ void I_StartupOpenGL(void)
 		CONS_Printf("I_StartupOpenGL()...\n");
 
 		// let load the OpenGL library
-		if (HWD_Init(I_Error))
+		if (HWD_Init())
 			vid.glstate = VID_GL_LIBRARY_LOADED;
 		else
 		{

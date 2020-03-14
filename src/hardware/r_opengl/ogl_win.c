@@ -82,7 +82,7 @@ static PFNwglMakeCurrent pwglMakeCurrent;
 #endif
 
 #ifndef STATIC_OPENGL
-void *GetGLFunc(const char *proc)
+void *OGL_GetFunc(const char *proc)
 {
 	void *func = NULL;
 	if (strncmp(proc, "glu", 3) == 0)
@@ -100,7 +100,7 @@ void *GetGLFunc(const char *proc)
 }
 #endif
 
-boolean LoadGL(void)
+boolean OGL_LoadLibrary(void)
 {
 #ifndef STATIC_OPENGL
 	OGL32 = LoadLibrary("OPENGL32.DLL");
@@ -110,12 +110,12 @@ boolean LoadGL(void)
 
 	GLU32 = LoadLibrary("GLU32.DLL");
 
-	pwglGetProcAddress = GetGLFunc("wglGetProcAddress");
-	pwglCreateContext = GetGLFunc("wglCreateContext");
-	pwglDeleteContext = GetGLFunc("wglDeleteContext");
-	pwglMakeCurrent = GetGLFunc("wglMakeCurrent");
+	pwglGetProcAddress = OGL_GetFunc("wglGetProcAddress");
+	pwglCreateContext = OGL_GetFunc("wglCreateContext");
+	pwglDeleteContext = OGL_GetFunc("wglDeleteContext");
+	pwglMakeCurrent = OGL_GetFunc("wglMakeCurrent");
 #endif
-	return SetupGLfunc();
+	return OGL_SetupFunctionPointers();
 }
 
 // -----------------+
@@ -204,7 +204,7 @@ static INT32 WINAPI SetRes(viddef_t *lvid, vmode_t *pcurrentmode)
 
 	// BP : why flush texture ?
 	//      if important flush also the first one (white texture) and restore it !
-	Flush();    // Flush textures.
+	HWD_Flush();    // Flush textures.
 
 // TODO: if not fullscreen, skip display stuff and just resize viewport stuff ...
 
@@ -301,18 +301,18 @@ static INT32 WINAPI SetRes(viddef_t *lvid, vmode_t *pcurrentmode)
 	DBG_Printf("oglflags   : 0x%X\n", oglflags);
 
 #ifdef USE_WGL_SWAP
-	if (isExtAvailable("WGL_EXT_swap_control",gl_extensions))
-		wglSwapIntervalEXT = GetGLFunc("wglSwapIntervalEXT");
+	if (OGL_ExtensionAvailable("WGL_EXT_swap_control",gl_extensions))
+		wglSwapIntervalEXT = OGL_GetFunc("wglSwapIntervalEXT");
 	else
 		wglSwapIntervalEXT = NULL;
 #endif
 
-	if (isExtAvailable("GL_EXT_texture_filter_anisotropic",gl_extensions))
+	if (OGL_ExtensionAvailable("GL_EXT_texture_filter_anisotropic",gl_extensions))
 		pglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maximumAnisotropy);
 	else
 		maximumAnisotropy = 0;
 
-	SetupGLFunc13();
+	OGL_SetupExtraFunctionPointers();
 
 	screen_depth = (GLbyte)(lvid->bpp*8);
 	if (screen_depth > 16)
@@ -320,8 +320,8 @@ static INT32 WINAPI SetRes(viddef_t *lvid, vmode_t *pcurrentmode)
 	else
 		textureformatGL = GL_RGB5_A1;
 
-	SetModelView(lvid->width, lvid->height);
-	SetStates();
+	HWD_SetModelView(lvid->width, lvid->height);
+	HWD_SetStates();
 	// we need to clear the depth buffer. Very important!!!
 	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
@@ -470,7 +470,7 @@ EXPORT void HWRAPI(Shutdown) (void)
 					nb_frames, nb_centiemes/100.0f, (100*nb_frames)/(double)nb_centiemes);
 #endif
 
-	Flush();
+	HWD_Flush();
 
 	// Exit previous mode
 	if (hGLRC)

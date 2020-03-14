@@ -32,33 +32,39 @@
 //                                                       STANDARD DLL EXPORTS
 // ==========================================================================
 
-EXPORT boolean HWRAPI(Init) (I_Error_t ErrorFunction);
-#ifndef HAVE_SDL
-EXPORT void HWRAPI(Shutdown) (void);
-#endif
+typedef void (*I_Error_t) (const char *error, ...) FUNCIERROR;
+void DBG_Printf(const char *lpFmt, ...) /*FUNCPRINTF*/;
+
+boolean HWD_Init(void);
+
 #ifdef _WINDOWS
-EXPORT void HWRAPI(GetModeList) (vmode_t **pvidmodes, INT32 *numvidmodes);
+void HWD_Shutdown(void);
+void HWD_GetModeList(vmode_t **pvidmodes, INT32 *numvidmodes);
+void HWD_FinishUpdate(INT32 waitvbl);
 #endif
-EXPORT void HWRAPI(SetPalette) (RGBA_t *ppal);
-EXPORT void HWRAPI(FinishUpdate) (INT32 waitvbl);
-EXPORT void HWRAPI(Draw2DLine) (F2DCoord *v1, F2DCoord *v2, RGBA_t Color);
-EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags);
-EXPORT void HWRAPI(RenderSkyDome) (INT32 tex, INT32 texture_width, INT32 texture_height, FTransform transform);
-EXPORT void HWRAPI(SetBlend) (FBITFIELD PolyFlags);
-EXPORT void HWRAPI(ClearBuffer) (FBOOLEAN ColorMask, FBOOLEAN DepthMask, FRGBAFloat *ClearColor);
-EXPORT void HWRAPI(SetTexture) (FTextureInfo *TexInfo);
-EXPORT void HWRAPI(ReadRect) (INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
-EXPORT void HWRAPI(GClipRect) (INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip);
-EXPORT void HWRAPI(ClearMipMapCache) (void);
 
-//Hurdler: added for backward compatibility
-EXPORT void HWRAPI(SetSpecialState) (hwdspecialstate_t IdState, INT32 Value);
+void HWD_SetTransform(FTransform *ptransform);
+void HWD_SetModelView(int w, int h);
+void HWD_SetStates(void);
+void HWD_SetPalette(RGBA_t *ppal);
 
-//Hurdler: added for new development
+void HWD_DrawPolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags);
+void HWD_Draw2DLine(F2DCoord *v1, F2DCoord *v2, RGBA_t Color);
+void HWD_RenderSkyDome(INT32 tex, INT32 texture_width, INT32 texture_height, FTransform transform);
 void HWD_DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 *color);
 void HWD_CreateModelVBOs(model_t *model);
-void HWD_SetTransform(FTransform *ptransform);
+
+void HWD_SetTexture(FTextureInfo *TexInfo);
+void HWD_SetBlend(FBITFIELD PolyFlags);
+void HWD_SetSpecialState(hwdspecialstate_t IdState, INT32 Value);
+
+void HWD_ClearBuffer(FBOOLEAN ColorMask, FBOOLEAN DepthMask, FRGBAFloat *ClearColor);
+void HWD_ReadRect(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
+void HWD_GClipRect(INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip);
+
 INT32 HWD_GetTextureUsed(void);
+void HWD_ClearMipMapCache(void);
+void HWD_Flush(void);
 
 #define SCREENVERTS 10
 EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2]);

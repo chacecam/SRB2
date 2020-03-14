@@ -71,7 +71,7 @@ INT32 oglflags = 0;
 void *GLUhandle = NULL;
 SDL_GLContext sdlglcontext = 0;
 
-void *GetGLFunc(const char *proc)
+void *OGL_GetFunc(const char *proc)
 {
 	if (strncmp(proc, "glu", 3) == 0)
 	{
@@ -83,7 +83,7 @@ void *GetGLFunc(const char *proc)
 	return SDL_GL_GetProcAddress(proc);
 }
 
-boolean LoadGL(void)
+boolean OGL_LoadLibrary(void)
 {
 #ifndef STATIC_OPENGL
 	const char *OGLLibname = NULL;
@@ -124,7 +124,7 @@ boolean LoadGL(void)
 	{
 		GLUhandle = hwOpen(GLULibname);
 		if (GLUhandle)
-			return SetupGLfunc();
+			return OGL_SetupFunctionPointers();
 		else
 		{
 			CONS_Alert(CONS_ERROR, "Could not load GLU Library: %s\n", GLULibname);
@@ -138,10 +138,10 @@ boolean LoadGL(void)
 		CONS_Alert(CONS_ERROR, "If you know what is the GLU library's name, use -GLUlib\n");
 	}
 #endif
-	return SetupGLfunc();
+	return OGL_SetupFunctionPointers();
 }
 
-/**	\brief	The OglSdlSurface function
+/**	\brief	The OGL_Surface function
 
 	\param	w	width
 	\param	h	height
@@ -149,55 +149,30 @@ boolean LoadGL(void)
 
 	\return	if true, changed video mode
 */
-boolean OglSdlSurface(INT32 w, INT32 h)
+boolean OGL_Surface(INT32 w, INT32 h)
 {
 	INT32 cbpp;
-	const GLvoid *glvendor = NULL, *glrenderer = NULL, *glversion = NULL;
 
-	cbpp = cv_scr_depth.value < 16 ? 16 : cv_scr_depth.value;
-
-	glvendor = pglGetString(GL_VENDOR);
-	// Get info and extensions.
-	//BP: why don't we make it earlier ?
-	//Hurdler: we cannot do that before intialising gl context
-	glrenderer = pglGetString(GL_RENDERER);
-	glversion = pglGetString(GL_VERSION);
-	gl_extensions = pglGetString(GL_EXTENSIONS);
-
-	DBG_Printf("Vendor     : %s\n", glvendor);
-	DBG_Printf("Renderer   : %s\n", glrenderer);
-	DBG_Printf("Version    : %s\n", glversion);
-	DBG_Printf("Extensions : %s\n", gl_extensions);
-	oglflags = 0;
-
-	if (isExtAvailable("GL_EXT_texture_filter_anisotropic", gl_extensions))
-		pglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maximumAnisotropy);
-	else
-		maximumAnisotropy = 1;
-
-	SetupGLFunc13();
-
-	granisotropicmode_cons_t[1].value = maximumAnisotropy;
-
+	OGL_SetupExtraFunctionPointers();
 	SDL_GL_SetSwapInterval(cv_vidwait.value ? 1 : 0);
 
-	SetModelView(w, h);
-	SetStates();
+	HWD_SetModelView(w, h);
+	HWD_SetStates();
 	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-	HWR_Startup();
+	cbpp = cv_scr_depth.value < 16 ? 16 : cv_scr_depth.value;
 	textureformatGL = cbpp > 16 ? GL_RGBA : GL_RGB5_A1;
 
 	return true;
 }
 
-/**	\brief	The OglSdlFinishUpdate function
+/**	\brief	The OGL_SDLFinishUpdate function
 
 	\param	vidwait	wait for video sync
 
 	\return	void
 */
-void OglSdlFinishUpdate(boolean waitvbl)
+void OGL_FinishUpdate(boolean waitvbl)
 {
 	static boolean oldwaitvbl = false;
 	int sdlw, sdlh;
