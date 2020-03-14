@@ -152,13 +152,6 @@ static const GLfloat byte2float[256] = {
 	0.972549f, 0.976471f, 0.980392f, 0.984314f, 0.988235f, 0.992157f, 0.996078f, 1.000000f
 };
 
-float byteasfloat(UINT8 fbyte)
-{
-	return (float)(byte2float[fbyte]*2.0f);
-}
-
-static I_Error_t I_Error_GL = NULL;
-
 // -----------------+
 // DBG_Printf       : Output error messages to debug log if DEBUG_TO_FILE is defined,
 //                  : else do nothing
@@ -425,14 +418,11 @@ static PFNglDeleteBuffers pglDeleteBuffers;
 #define GL_STATIC_DRAW 0x88E4
 #endif
 
-boolean SetupGLfunc(void)
+boolean OGL_SetupFunctionPointers(void)
 {
-	// Open the debug log stream
-	gllogstream = fopen("ogllog.txt", "wt");
-
 #ifndef STATIC_OPENGL
 #define GETOPENGLFUNC(func, proc) \
-	func = GetGLFunc(#proc); \
+	func = OGL_GetFunc(#proc); \
 	if (!func) \
 	{ \
 		DBG_Printf("failed to get OpenGL function: %s", #proc); \
@@ -501,26 +491,26 @@ boolean SetupGLfunc(void)
 
 #undef GETOPENGLFUNC
 
-	pgluBuild2DMipmaps = GetGLFunc("gluBuild2DMipmaps");
+	pgluBuild2DMipmaps = OGL_GetFunc("gluBuild2DMipmaps");
 
 #endif
 	return true;
 }
 
-// This has to be done after the context is created so the version number can be obtained
-// This is stupid -- even some of the oldest usable OpenGL hardware today supports 1.3-level featureset.
-boolean SetupGLFunc13(void)
+// Must be done after window creation.
+// See https://wiki.libsdl.org/SDL_GL_GetProcAddress.
+boolean OGL_SetupExtraFunctionPointers(void)
 {
-	pglActiveTexture = GetGLFunc("glActiveTexture");
-	pglMultiTexCoord2f = GetGLFunc("glMultiTexCoord2f");
-	pglClientActiveTexture = GetGLFunc("glClientActiveTexture");
-	pglMultiTexCoord2fv = GetGLFunc("glMultiTexCoord2fv");
+	pglActiveTexture = OGL_GetFunc("glActiveTexture");
+	pglMultiTexCoord2f = OGL_GetFunc("glMultiTexCoord2f");
+	pglClientActiveTexture = OGL_GetFunc("glClientActiveTexture");
+	pglMultiTexCoord2fv = OGL_GetFunc("glMultiTexCoord2fv");
 
 	/* 1.5 funcs */
-	pglGenBuffers = GetGLFunc("glGenBuffers");
-	pglBindBuffer = GetGLFunc("glBindBuffer");
-	pglBufferData = GetGLFunc("glBufferData");
-	pglDeleteBuffers = GetGLFunc("glDeleteBuffers");
+	pglGenBuffers = OGL_GetFunc("glGenBuffers");
+	pglBindBuffer = OGL_GetFunc("glBindBuffer");
+	pglBufferData = OGL_GetFunc("glBufferData");
+	pglDeleteBuffers = OGL_GetFunc("glDeleteBuffers");
 
 	return true;
 }
@@ -611,18 +601,18 @@ static void GLProject(GLfloat objX, GLfloat objY, GLfloat objZ,
 // -----------------+
 // SetModelView     :
 // -----------------+
-void SetModelView(GLint w, GLint h)
+void HWD_SetModelView(int w, int h)
 {
-//	DBG_Printf("SetModelView(): %dx%d\n", (int)w, (int)h);
+//	DBG_Printf("SetModelView(): %dx%d\n", w, h);
 
 	// The screen textures need to be flushed if the width or height change so that they be remade for the correct size
-	if (screen_width != w || screen_height != h)
+	if (screen_width != (GLint)w || screen_height != (GLint)h)
 		HWD_FlushScreenTextures();
 
-	screen_width = w;
-	screen_height = h;
+	screen_width = (GLint)w;
+	screen_height = (GLint)h;
 
-	pglViewport(0, 0, w, h);
+	pglViewport(0, 0, (GLint)w, (GLint)h);
 #ifdef GL_ACCUM_BUFFER_BIT
 	pglClear(GL_ACCUM_BUFFER_BIT);
 #endif
@@ -645,7 +635,7 @@ void SetModelView(GLint w, GLint h)
 // -----------------+
 // SetStates        : Set permanent states
 // -----------------+
-void SetStates(void)
+void HWD_SetStates(void)
 {
 	// Bind little white RGBA texture to ID NOTEXTURE_NUM.
 	/*
@@ -656,7 +646,7 @@ void SetStates(void)
 	GLfloat LightDiffuse[] = {1.0f, 1.0f, 1.0f, 1.0f};
 #endif
 
-//	DBG_Printf("SetStates()\n");
+//	DBG_Printf("HWD_SetStates()\n");
 
 	// Hurdler: not necessary, is it?
 	pglShadeModel(GL_SMOOTH);      // iterate vertice colors
@@ -723,9 +713,9 @@ void SetStates(void)
 // Flush            : flush OpenGL textures
 //                  : Clear list of downloaded mipmaps
 // -----------------+
-void Flush(void)
+void HWD_Flush(void)
 {
-	//DBG_Printf ("HWR_Flush()\n");
+	//DBG_Printf ("HWD_Flush()\n");
 
 	while (gr_cachehead)
 	{
@@ -761,11 +751,11 @@ void Flush(void)
 }
 
 
-// -----------------+
-// isExtAvailable   : Look if an OpenGL extension is available
-// Returns          : true if extension available
-// -----------------+
-INT32 isExtAvailable(const char *extension, const GLubyte *start)
+// ---------------------+
+// ExtensionAvailable   : Look if an OpenGL extension is available
+// Returns              : true if extension available
+// ---------------------+
+INT32 OGL_ExtensionAvailable(const char *extension, const GLubyte *start)
 {
 	GLubyte         *where, *terminator;
 
@@ -793,11 +783,46 @@ INT32 isExtAvailable(const char *extension, const GLubyte *start)
 // Init             : Initialise the OpenGL interface API
 // Returns          :
 // -----------------+
-boolean HWD_Init(I_Error_t FatalErrorFunction)
+boolean HWD_Init(void)
 {
-	I_Error_GL = FatalErrorFunction;
-	DBG_Printf ("%s %s\n", DRIVER_STRING, VERSIONSTRING);
-	return LoadGL();
+	// Open the debug log stream
+#ifdef DEBUG_TO_FILE
+	if (!gllogstream)
+		gllogstream = fopen("ogllog.txt", "wt");
+#endif
+
+	DBG_Printf("%s %s\n", DRIVER_STRING, VERSIONSTRING);
+
+	// Load the OpenGL library.
+	if (OGL_LoadLibrary())
+	{
+		const GLvoid *glvendor = NULL, *glrenderer = NULL, *glversion = NULL;
+
+		// Get info and extensions.
+		glvendor = pglGetString(GL_VENDOR);
+		glrenderer = pglGetString(GL_RENDERER);
+		glversion = pglGetString(GL_VERSION);
+		oglflags = 0;
+
+		DBG_Printf("Vendor     : %s\n", (const char *)glvendor);
+		DBG_Printf("Renderer   : %s\n", (const char *)glrenderer);
+		DBG_Printf("Version    : %s\n", (const char *)glversion);
+
+		gl_extensions = pglGetString(GL_EXTENSIONS);
+
+		if (OGL_ExtensionAvailable("GL_EXT_texture_filter_anisotropic", gl_extensions))
+			pglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maximumAnisotropy);
+		else
+			maximumAnisotropy = 1;
+		granisotropicmode_cons_t[1].value = maximumAnisotropy;
+
+		// Startup the hardware renderer.
+		HWR_Startup();
+		return true;
+	}
+
+	// Initialisation failed!
+	return false;
 }
 
 
@@ -807,7 +832,7 @@ boolean HWD_Init(I_Error_t FatalErrorFunction)
 void HWD_ClearMipMapCache(void)
 {
 	// DBG_Printf ("HWR_Flush(exe)\n");
-	Flush();
+	HWD_Flush();
 }
 
 
@@ -1121,7 +1146,7 @@ void HWD_SetPalette(RGBA_t *palette)
 	if (memcmp(&myPaletteData, palette, palsize))
 	{
 		memcpy(&myPaletteData, palette, palsize);
-		Flush();
+		HWD_Flush();
 	}
 }
 
@@ -1767,13 +1792,13 @@ void HWD_SetSpecialState(hwdspecialstate_t IdState, INT32 Value)
 				MipMap = GL_FALSE;
 				min_filter = GL_LINEAR;
 			}
-			Flush(); //??? if we want to change filter mode by texture, remove this
+			HWD_Flush(); //??? if we want to change filter mode by texture, remove this
 			break;
 
 		case HWD_SET_TEXTUREANISOTROPICMODE:
 			anisotropic_filter = min(Value,maximumAnisotropy);
 			if (maximumAnisotropy)
-				Flush(); //??? if we want to change filter mode by texture, remove this
+				HWD_Flush(); //??? if we want to change filter mode by texture, remove this
 			break;
 
 		default:

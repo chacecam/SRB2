@@ -21,9 +21,8 @@
 
 extern void *GLUhandle;
 
-boolean OglSdlSurface(INT32 w, INT32 h);
-
-void OglSdlFinishUpdate(boolean vidwait);
+boolean OGL_Surface(INT32 w, INT32 h);
+void OGL_FinishUpdate(boolean vidwait);
 
 extern SDL_Renderer *renderer;
 extern SDL_GLContext sdlglcontext;

@@ -228,9 +228,7 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 
 #ifdef HWRENDER
 	if (rendermode == render_opengl)
-	{
-		OglSdlSurface(vid.width, vid.height);
-	}
+		OGL_Surface(vid.width, vid.height);
 #endif
 
 	if (rendermode == render_soft)
@@ -1148,7 +1146,7 @@ void I_UpdateNoBlit(void)
 #ifdef HWRENDER
 		if (rendermode == render_opengl)
 		{
-			OglSdlFinishUpdate(cv_vidwait.value);
+			OGL_FinishUpdate(cv_vidwait.value);
 		}
 		else
 #endif
@@ -1240,7 +1238,7 @@ void I_FinishUpdate(void)
 #ifdef HWRENDER
 	else if (rendermode == render_opengl)
 	{
-		OglSdlFinishUpdate(cv_vidwait.value);
+		OGL_FinishUpdate(cv_vidwait.value);
 	}
 #endif
 	exposevideo = SDL_FALSE;
@@ -1785,7 +1783,7 @@ void I_StartupHardwareGraphics(void)
 	static boolean glstartup = false;
 	if (!glstartup)
 	{
-		hwrenderloaded = HWD_Init(I_Error) ? 1 : -1; // let load the OpenGL library
+		hwrenderloaded = HWD_Init() ? 1 : -1; // let load the OpenGL library
 		if (hwrenderloaded == -1)
 		{
 			rendermode = render_soft;

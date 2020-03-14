@@ -68,16 +68,15 @@ extern FILE             *gllogstream;
 //                                                                     PROTOS
 // ==========================================================================
 
-boolean LoadGL(void);
-void *GetGLFunc(const char *proc);
-boolean SetupGLfunc(void);
-boolean SetupGLFunc13(void);
-void Flush(void);
-INT32 isExtAvailable(const char *extension, const GLubyte *start);
+boolean OGL_LoadLibrary(void);
+void *OGL_GetFunc(const char *proc);
+boolean OGL_SetupFunctionPointers(void);
+boolean OGL_SetupExtraFunctionPointers(void);
+INT32 OGL_ExtensionAvailable(const char *extension, const GLubyte *start);
+
+#ifdef _WINDOWS
 int SetupPixelFormat(INT32 WantColorBits, INT32 WantStencilBits, INT32 WantDepthBits);
-void SetModelView(GLint w, GLint h);
-void SetStates(void);
-FUNCMATH float byteasfloat(UINT8 fbyte);
+#endif
 
 #ifndef GL_EXT_texture_filter_anisotropic
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT     0x84FE
