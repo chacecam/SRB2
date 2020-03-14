@@ -166,7 +166,7 @@ boolean OGL_Surface(INT32 w, INT32 h)
 	return true;
 }
 
-/**	\brief	The OGL_SDLFinishUpdate function
+/**	\brief	The OGL_FinishUpdate function
 
 	\param	vidwait	wait for video sync
 
