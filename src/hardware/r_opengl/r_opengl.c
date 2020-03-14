@@ -32,6 +32,11 @@
 #include "r_opengl.h"
 #include "r_vbo.h"
 
+#ifdef HAVE_SDL
+#include "SDL.h"
+#include "sdlmain.h"
+#endif
+
 #if defined (HWRENDER) && !defined (NOROPENGL)
 
 struct GLRGBAFloat
