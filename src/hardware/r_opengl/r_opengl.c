@@ -87,6 +87,10 @@ static boolean model_lighting = true;
 
 const GLubyte *gl_extensions = NULL;
 
+#ifdef DEBUG_TO_FILE
+FILE *gllogstream;
+#endif
+
 //Hurdler: 04/10/2000: added for the kick ass coronas as Boris wanted;-)
 static GLfloat    modelMatrix[16];
 static GLfloat    projMatrix[16];
@@ -154,18 +158,17 @@ static I_Error_t I_Error_GL = NULL;
 // -----------------+
 FUNCPRINTF void DBG_Printf(const char *lpFmt, ...)
 {
-#ifdef DEBUG_TO_FILE
 	char    str[4096] = "";
 	va_list arglist;
 
 	va_start (arglist, lpFmt);
 	vsnprintf (str, 4096, lpFmt, arglist);
 	va_end   (arglist);
+#ifdef DEBUG_TO_FILE
 	if (gllogstream)
 		fwrite(str, strlen(str), 1, gllogstream);
-#else
-	(void)lpFmt;
 #endif
+	CONS_Debug(DBG_RENDER, "%s\n", str);
 }
 
 #ifdef STATIC_OPENGL
@@ -419,6 +422,9 @@ static PFNglDeleteBuffers pglDeleteBuffers;
 
 boolean SetupGLfunc(void)
 {
+	// Open the debug log stream
+	gllogstream = fopen("ogllog.txt", "wt");
+
 #ifndef STATIC_OPENGL
 #define GETOPENGLFUNC(func, proc) \
 	func = GetGLFunc(#proc); \
