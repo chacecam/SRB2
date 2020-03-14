@@ -34,7 +34,6 @@
 
 #ifdef HAVE_SDL
 #include "SDL.h"
-#include "sdlmain.h"
 #endif
 
 #if !defined (NOROPENGL)
