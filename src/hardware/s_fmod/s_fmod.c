@@ -789,12 +789,7 @@ EXPORT void HWRAPI (StopSource) (INT32 chan)
 #endif
 }
 
-EXPORT INT32 HWRAPI (GetHW3DSVersion) (void)
-{
-	return VERSION;
-}
-
-EXPORT void HWRAPI (BeginFrameUpdate) (void)
+void HW3DS_BeginFrameUpdate(void)
 {
 	FSOUND_Update();
 }

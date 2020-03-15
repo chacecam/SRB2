@@ -858,13 +858,7 @@ EXPORT void HWRAPI ( StopSource) (INT32 handle)
 }
 
 
-EXPORT INT32 HWRAPI ( GetHW3DSVersion) (void)
-{
-	return VERSION;
-}
-
-
-EXPORT void HWRAPI (BeginFrameUpdate) (void)
+void HW3DS_BeginFrameUpdate(void)
 {
 	update_mode = DS3D_DEFERRED;
 }
