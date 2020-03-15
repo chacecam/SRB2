@@ -14,8 +14,8 @@
 // GNU General Public License for more details.
 //
 //-----------------------------------------------------------------------------
-/// \file
-/// \brief Windows specific part of the OpenGL API for Doom Legacy
+/// \file ogl_win.c
+/// \brief Windows specific part of the OpenGL API for Sonic Robo Blast 2
 ///
 ///	TODO:
 ///	- check if windowed mode works
