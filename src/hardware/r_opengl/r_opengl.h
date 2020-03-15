@@ -14,8 +14,8 @@
 // GNU General Public License for more details.
 //
 //-----------------------------------------------------------------------------
-/// \file
-/// \brief OpenGL API for Doom Legacy
+/// \file r_opengl.h
+/// \brief OpenGL API for Sonic Robo Blast 2
 
 #ifndef _R_OPENGL_H_
 #define _R_OPENGL_H_
