@@ -29,6 +29,38 @@
 #include <windows.h>
 #include <time.h>
 #undef GETTEXT
+
+#include "../doomdef.h"
+#include "../doomtype.h"
+#include "../g_state.h"
+#include "../m_swap.h"
+#include "../screen.h"
+#include "../command.h"
+#include "../am_map.h"
+#include "../d_event.h"
+#include "../d_player.h"
+#include "../p_pspr.h"
+#include "../m_fixed.h"
+#include "../tables.h"
+#include "../info.h"
+#include "../d_think.h"
+#include "../p_mobj.h"
+#include "../doomdata.h"
+#include "../d_ticcmd.h"
+#include "../r_defs.h"
+
+#include "../hardware/hw_drv.h"
+#include "../hardware/hw_data.h"
+#include "../hardware/hw_defs.h"
+#include "../hardware/hw_md2.h"
+#include "../hardware/hw_glob.h"
+#include "../hardware/hw_main.h"
+#include "../hardware/hw_clip.h"
+#include "../hardware/hw_md2load.h"
+#include "../hardware/hw_md3load.h"
+#include "../hardware/hw_model.h"
+#include "../hardware/u_list.h"
+
 #include "r_opengl.h"
 
 
