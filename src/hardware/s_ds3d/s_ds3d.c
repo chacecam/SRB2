@@ -858,12 +858,6 @@ void HW3DS_StopSource(INT32 handle)
 }
 
 
-INT32 HW3DS_GetHW3DSVersion(void)
-{
-	return VERSION;
-}
-
-
 void HW3DS_BeginFrameUpdate(void)
 {
 	update_mode = DS3D_DEFERRED;

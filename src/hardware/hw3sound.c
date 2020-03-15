@@ -44,8 +44,6 @@
 #define TPS(x) ((float)(x)/(float)TICRATE)
 #endif
 
-struct hardware3ds_s hw3ds_driver;
-
 
 typedef struct source_s
 {
@@ -713,13 +711,6 @@ INT32 HW3S_Init(I_Error_t FatalErrorFunction, snddev_t *snd_dev)
 }
 
 
-
-
-//=============================================================================
-INT32 HW3S_GetVersion(void)
-{
-	return HW3DS_GetHW3DSVersion();
-}
 
 
 //=============================================================================

@@ -34,7 +34,6 @@ u_int  HW3DS_AddSfx(sfx_data_t *sfx);
 INT32  HW3DS_AddSource(source3D_data_t *src, u_int sfxhandle);
 INT32  HW3DS_StartSource(INT32 handle);
 void   HW3DS_StopSource(INT32 handle);
-INT32  HW3DS_GetHW3DSVersion(void);
 void   HW3DS_BeginFrameUpdate(void);
 void   HW3DS_EndFrameUpdate(void);
 INT32  HW3DS_IsPlaying(INT32 handle);

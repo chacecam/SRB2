@@ -49,7 +49,6 @@ extern INT32  hws_mode;           // Current sound mode
 INT32 HW3S_Init(I_Error_t FatalErrorFunction, snddev_t *snd_dev);
 #endif
 void HW3S_Shutdown(void);
-INT32 HW3S_GetVersion(void);
 
 // Common case - start 3D or 2D source
 void HW3S_StartSound(const void *origin, sfxenum_t sfx_id);

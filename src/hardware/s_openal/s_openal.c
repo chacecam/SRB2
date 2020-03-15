@@ -629,11 +629,6 @@ INT32 HW3DS_AddSource(source3D_data_t *src, u_int sfxhandle)
 #endif
 }
 
-INT32 HW3DS_GetHW3DSVersion(void)
-{
-	return VERSION;
-}
-
 void HW3DS_BeginFrameUpdate(void)
 {
 	alcSuspendContext(ALContext);
