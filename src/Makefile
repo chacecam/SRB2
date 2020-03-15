@@ -580,8 +580,11 @@ $(OBJDIR)/depend.dep:
 	$(CC) $(CFLAGS) -MM *.c > $(OBJDIR)/depend.ped
 	$(CC) $(CFLAGS) -MM $(INTERFACE)/*.c >> $(OBJDIR)/depend.ped
 	$(CC) $(CFLAGS) -MM hardware/*.c >> $(OBJDIR)/depend.ped
+endif
+ifdef HWRBACKEND
 	$(CC) $(CFLAGS) -MM hardware/r_$(HWRBACKEND)/*.c >> $(OBJDIR)/depend.ped
-ifndef NOHS
+endif
+ifdef HWSBACKEND
 	$(CC) $(CFLAGS) -MM hardware/s_$(HWSBACKEND)/*.c >> $(OBJDIR)/depend.ped
 endif
 	$(CC) $(CFLAGS) -MM blua/*.c >> $(OBJDIR)/depend.ped
@@ -614,11 +617,13 @@ endif
 
 $(OBJDIR)/%.o: hardware/%.c
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
+endif
 
+ifdef HWRBACKEND
 $(OBJDIR)/%.o: hardware/r_$(HWRBACKEND)/%.c
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 
-ifndef NOHS
+ifdef HWSBACKEND
 $(OBJDIR)/%.o: hardware/s_$(HWSBACKEND)/%.c
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 endif
