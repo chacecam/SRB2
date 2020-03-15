@@ -588,9 +588,11 @@ $(OBJDIR)/depend.dep:
 	$(CC) $(CFLAGS) -MM $(INTERFACE)/*.c >> $(OBJDIR)/depend.ped
 ifndef NOHW
 	$(CC) $(CFLAGS) -MM hardware/*.c >> $(OBJDIR)/depend.ped
+endif
+ifdef HWRBACKEND
 	$(CC) $(CFLAGS) -MM hardware/r_$(HWRBACKEND)/*.c >> $(OBJDIR)/depend.ped
 endif
-ifndef NOHS
+ifdef HWSBACKEND
 	$(CC) $(CFLAGS) -MM hardware/s_$(HWSBACKEND)/*.c >> $(OBJDIR)/depend.ped
 endif
 ifndef NO_LUA
@@ -626,12 +628,14 @@ endif
 ifndef NOHW
 $(OBJDIR)/%.o: hardware/%.c
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
+endif
 
+ifdef HWRBACKEND
 $(OBJDIR)/%.o: hardware/r_$(HWRBACKEND)/%.c
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 endif
 
-ifndef NOHS
+ifdef HWSBACKEND
 $(OBJDIR)/%.o: hardware/s_$(HWSBACKEND)/%.c
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 endif
