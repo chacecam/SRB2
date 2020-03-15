@@ -44,7 +44,6 @@
 #     Compile a debug version, add 'DEBUGMODE=1'
 #     Compile with extra warnings, add 'WARNINGMODE=1'
 #     Compile without NASM's tmap.nas, add 'NOASM=1'
-#     Compile without 3D hardware support, add 'NOHW=1'
 #     Compile without 3D sound support, add 'NOHS=1'
 #     Compile with GDBstubs, add 'RDB=1'
 #     Compile without PNG, add 'NOPNG=1'
@@ -104,7 +103,6 @@ ifdef DUMMY
 NOPNG=1
 NOZLIB=1
 NONET=1
-NOHW=1
 NOHS=1
 NOASM=1
 NOIPX=1
@@ -126,7 +124,6 @@ endif
 
 ifdef PANDORA
 NONX86=1
-NOHW=1
 NOHS=1
 endif
 
@@ -203,12 +200,7 @@ ifdef NO_IPV6
 endif
 endif
 
-#Hurdler: not really supported and not tested recently
-#OPTS+=-DUSE_PALETTED_TEXTURE
-OBJS+=$(OBJDIR)/hw_bsp.o $(OBJDIR)/hw_draw.o $(OBJDIR)/hw_light.o \
-	 $(OBJDIR)/hw_main.o $(OBJDIR)/hw_clip.o $(OBJDIR)/hw_md2.o $(OBJDIR)/hw_cache.o $(OBJDIR)/hw_trick.o \
-	 $(OBJDIR)/hw_md2load.o $(OBJDIR)/hw_md3load.o $(OBJDIR)/hw_model.o $(OBJDIR)/u_list.o
-
+# Lactozilla: HW render files added by hardware/Makefile.cfg
 ifdef NOHS
 	OPTS+=-DNOHS
 else
@@ -318,6 +310,8 @@ endif
 CFLAGS+=-DHAVE_MINIUPNPC
 endif
 endif
+
+include hardware/Makefile.cfg
 
 include blua/Makefile.cfg
 
@@ -573,29 +567,7 @@ endif
 $(OBJDIR):
 	-$(MKDIR) $(OBJDIR)
 
-ifdef SDL
-ifdef MINGW
-$(OBJDIR)/r_opengl.o: hardware/r_opengl/r_opengl.c hardware/r_opengl/r_opengl.h \
- doomdef.h doomtype.h g_state.h m_swap.h hardware/hw_drv.h screen.h \
- command.h hardware/hw_data.h hardware/hw_glide.h hardware/hw_defs.h \
- hardware/hw_md2.h hardware/hw_glob.h hardware/hw_main.h hardware/hw_clip.h \
- hardware/hw_md2load.h hardware/hw_md3load.h hardware/hw_model.h hardware/u_list.h \
- am_map.h d_event.h d_player.h p_pspr.h m_fixed.h tables.h info.h d_think.h \
- p_mobj.h doomdata.h d_ticcmd.h r_defs.h hardware/hw_dll.h
-	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
-else
-$(OBJDIR)/r_opengl.o: hardware/r_opengl/r_opengl.c hardware/r_opengl/r_opengl.h \
- doomdef.h doomtype.h g_state.h m_swap.h hardware/hw_drv.h screen.h \
- command.h hardware/hw_data.h hardware/hw_glide.h hardware/hw_defs.h \
- hardware/hw_md2.h hardware/hw_glob.h hardware/hw_main.h hardware/hw_clip.h \
- hardware/hw_md2load.h hardware/hw_md3load.h hardware/hw_model.h hardware/u_list.h \
- am_map.h d_event.h d_player.h p_pspr.h m_fixed.h tables.h info.h d_think.h \
- p_mobj.h doomdata.h d_ticcmd.h r_defs.h hardware/hw_dll.h
-	$(CC) $(CFLAGS) $(WFLAGS) -I/usr/X11R6/include -c $< -o $@
-endif
-endif
-
-#dependecy made by gcc itself !
+#dependency made by gcc itself !
 $(OBJS):
 ifndef DUMMY
 -include $(OBJDIR)/depend.dep
@@ -607,8 +579,10 @@ $(OBJDIR)/depend.dep:
 	-$(MKDIR) $(OBJDIR)
 	$(CC) $(CFLAGS) -MM *.c > $(OBJDIR)/depend.ped
 	$(CC) $(CFLAGS) -MM $(INTERFACE)/*.c >> $(OBJDIR)/depend.ped
-ifndef NOHW
 	$(CC) $(CFLAGS) -MM hardware/*.c >> $(OBJDIR)/depend.ped
+	$(CC) $(CFLAGS) -MM hardware/r_$(HWRBACKEND)/*.c >> $(OBJDIR)/depend.ped
+ifndef NOHS
+	$(CC) $(CFLAGS) -MM hardware/s_$(HWSBACKEND)/*.c >> $(OBJDIR)/depend.ped
 endif
 	$(CC) $(CFLAGS) -MM blua/*.c >> $(OBJDIR)/depend.ped
 	@sed -e 's,\(.*\)\.o: ,$(subst /,\/,$(OBJDIR))\/&,g' < $(OBJDIR)/depend.ped > $(OBJDIR)/depend.dep
@@ -641,6 +615,14 @@ endif
 $(OBJDIR)/%.o: hardware/%.c
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 
+$(OBJDIR)/%.o: hardware/r_$(HWRBACKEND)/%.c
+	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
+
+ifndef NOHS
+$(OBJDIR)/%.o: hardware/s_$(HWSBACKEND)/%.c
+	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
+endif
+
 $(OBJDIR)/%.o: blua/%.c
 	$(CC) $(CFLAGS) $(LUA_CFLAGS) $(WFLAGS) -c $< -o $@
 
@@ -656,76 +638,15 @@ $(OBJDIR)/%.o: %.s
 $(OBJDIR)/SRB2.res: win32/Srb2win.rc win32/afxres.h win32/resource.h
 	$(WINDRES) -i $< -O rc $(WINDRESFLAGS) --include-dir=win32 -o $@ -O coff
 
-
-ifdef MINGW
-ifndef SDL
-ifndef NOHW
-$(OBJDIR)/r_opengl.o: hardware/r_opengl/r_opengl.c hardware/r_opengl/r_opengl.h \
- doomdef.h doomtype.h g_state.h m_swap.h hardware/hw_drv.h screen.h \
- command.h hardware/hw_data.h hardware/hw_glide.h hardware/hw_defs.h \
- hardware/hw_md2.h hardware/hw_glob.h hardware/hw_main.h hardware/hw_clip.h \
- hardware/hw_md2load.h hardware/hw_md3load.h hardware/hw_model.h hardware/u_list.h \
- am_map.h d_event.h d_player.h p_pspr.h m_fixed.h tables.h info.h d_think.h \
- p_mobj.h doomdata.h d_ticcmd.h r_defs.h hardware/hw_dll.h
-	$(CC) $(CFLAGS) $(WFLAGS) -D_WINDOWS -mwindows -c $< -o $@
-
-$(OBJDIR)/ogl_win.o: hardware/r_opengl/ogl_win.c hardware/r_opengl/r_opengl.h \
- doomdef.h doomtype.h g_state.h m_swap.h hardware/hw_drv.h screen.h \
- command.h hardware/hw_data.h hardware/hw_glide.h hardware/hw_defs.h \
- hardware/hw_md2.h hardware/hw_glob.h hardware/hw_main.h hardware/hw_clip.h \
- hardware/hw_md2load.h hardware/hw_md3load.h hardware/hw_model.h hardware/u_list.h \
- am_map.h d_event.h d_player.h p_pspr.h m_fixed.h tables.h info.h d_think.h \
- p_mobj.h doomdata.h d_ticcmd.h r_defs.h hardware/hw_dll.h
-	$(CC) $(CFLAGS) $(WFLAGS) -D_WINDOWS -mwindows -c $< -o $@
-endif
-
-ifndef NOHS
-$(OBJDIR)/s_ds3d.o: hardware/s_ds3d/s_ds3d.c hardware/hw3dsdrv.h \
- hardware/hw_dll.h
-	$(CC) $(ARCHOPTS) -Os -o $(OBJDIR)/s_ds3d.o $(WFLAGS) -D_WINDOWS -mwindows -c hardware/s_ds3d/s_ds3d.c
-
-$(OBJDIR)/s_fmod.o: hardware/s_openal/s_openal.c hardware/hw3dsdrv.h \
- hardware/hw_dll.h
-	$(CC) $(ARCHOPTS) -Os -o $(OBJDIR)/s_fmod.o $(WFLAGS) -D_WINDOWS -mwindows -c hardware/s_fmod/s_fmod.c
-
-$(OBJDIR)/s_openal.o: hardware/s_openal/s_openal.c hardware/hw3dsdrv.h \
- hardware/hw_dll.h
-	$(CC) $(ARCHOPTS) -Os -o $(OBJDIR)/s_openal.o $(WFLAGS) -D_WINDOWS -mwindows -c hardware/s_openal/s_openal.c
-endif
-endif
-endif
-
 ifdef SDL
-
 ifdef MINGW
 $(OBJDIR)/win_dbg.o: win32/win_dbg.c
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 endif
-
-ifdef STATICHS
-$(OBJDIR)/s_openal.o: hardware/s_openal/s_openal.c hardware/hw3dsdrv.h \
- hardware/hw_dll.h
-	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
-
-$(OBJDIR)/s_fmod.o: hardware/s_fmod/s_fmod.c hardware/hw3dsdrv.h \
- hardware/hw_dll.h
-	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
-
-ifdef MINGW
-$(OBJDIR)/s_ds3d.o: hardware/s_ds3d/s_ds3d.c hardware/hw3dsdrv.h \
- hardware/hw_dll.h
-	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 endif
-else
 
-$(OBJDIR)/s_fmod.o: hardware/s_fmod/s_fmod.c hardware/hw3dsdrv.h \
- hardware/hw_dll.h
-	$(CC) $(ARCHOPTS) -Os -o $(OBJDIR)/s_fmod.o -DHW3SOUND -DUNIXCOMMON -shared -nostartfiles -c hardware/s_fmod/s_fmod.c
-
-$(OBJDIR)/s_openal.o: hardware/s_openal/s_openal.c hardware/hw3dsdrv.h \
- hardware/hw_dll.h
-	$(CC) $(ARCHOPTS) -Os -o $(OBJDIR)/s_openal.o -DHW3SOUND -DUNIXCOMMON -shared -nostartfiles -c hardware/s_openal/s_openal.c
-endif
+ifndef NOHS
+	include hardware/Makefile.hw3sound.cfg
 endif
 
 #############################################################
