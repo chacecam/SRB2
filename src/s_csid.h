@@ -66,7 +66,6 @@ void cSID_load(UINT8 *data, size_t length);
 void cSID_play(int track);
 void cSID_mix(UINT8 *stream, int len);
 void cSID_stop(void);
-void cSID_debugview(void);
 
 #endif // HAVE_CSID
 

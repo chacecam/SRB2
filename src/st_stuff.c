@@ -626,14 +626,6 @@ static void ST_drawDebugInfo(void)
 		//height += h/2;
 	}
 
-	if (cv_debug & DBG_AUDIO)
-	{
-#ifdef HAVE_CSID
-		if (S_MusicType() == MU_SID && sid.playing)
-			cSID_debugview();
-#endif
-	}
-
 #undef V_DrawDebugFlag
 #undef V_DrawDebugLine
 #undef VFLAGS
