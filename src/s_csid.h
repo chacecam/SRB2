@@ -44,7 +44,7 @@ typedef struct
 	int subtune;
 	int subtune_amount;
 
-	// SID chip things
+	// SID chip
 	struct {
 		int amount;
 		int model[3];
@@ -55,10 +55,6 @@ typedef struct
 	// CPU memory and SID data
 	UINT8 filedata[C64_MEMORY_SIZE];
 	UINT8 memory[C64_MEMORY_SIZE];
-
-	// Mixing
-	int buffer_length;
-	INT16 *stream;
 } sidplayer_t;
 extern sidplayer_t sid;
 
