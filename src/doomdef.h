@@ -497,6 +497,7 @@ extern INT32 cv_debug;
 #define DBG_LUA         0x0800
 #define DBG_RANDOMIZER  0x1000
 #define DBG_VIEWMORPH   0x2000
+#define DBG_AUDIO       0x4000
 
 // =======================
 // Misc stuff for later...

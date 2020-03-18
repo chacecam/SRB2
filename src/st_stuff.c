@@ -25,6 +25,7 @@
 #include "hu_stuff.h"
 #include "console.h"
 #include "s_sound.h"
+#include "s_csid.h"
 #include "i_system.h"
 #include "m_menu.h"
 #include "m_cheat.h"
@@ -623,6 +624,14 @@ static void ST_drawDebugInfo(void)
 		V_DrawDebugLine(va("A: %6d", FixedInt(d)));
 
 		//height += h/2;
+	}
+
+	if (cv_debug & DBG_AUDIO)
+	{
+#ifdef HAVE_CSID
+		if (S_MusicType() == MU_SID && sid.playing)
+			cSID_debugview();
+#endif
 	}
 
 #undef V_DrawDebugFlag
@@ -1444,7 +1453,7 @@ static void ST_drawPowerupHUD(void)
 
 	if (stplyr->spectator || stplyr->playerstate != PST_LIVE)
 		return;
-	
+
 // ---------
 // Finish icon
 // ---------

@@ -154,6 +154,10 @@ ifndef NOOPENMPT
 HAVE_OPENMPT=1
 endif
 
+ifndef NOCSID
+HAVE_CSID=1
+endif
+
 ifdef MINGW
 include win32/Makefile.cfg
 endif #ifdef MINGW
@@ -288,6 +292,10 @@ LIBS+=$(PNG_LDFLAGS)
 CFLAGS+=$(PNG_CFLAGS)
 
 OBJS+=$(OBJDIR)/apng.o
+endif
+
+ifdef HAVE_CSID
+OPTS+=-DHAVE_CSID
 endif
 
 ifdef HAVE_LIBGME
@@ -477,6 +485,7 @@ OBJS:=$(i_main_o) \
 		$(OBJDIR)/screen.o   \
 		$(OBJDIR)/v_video.o  \
 		$(OBJDIR)/s_sound.o  \
+		$(OBJDIR)/s_csid.o  \
 		$(OBJDIR)/sounds.o   \
 		$(OBJDIR)/w_wad.o    \
 		$(OBJDIR)/filesrch.o \

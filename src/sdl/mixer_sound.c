@@ -79,6 +79,10 @@
 #define GME_BASS 1.0f
 #endif // HAVE_LIBGME
 
+#ifdef HAVE_CSID
+#include "../s_csid.h"
+#endif
+
 static UINT16 BUFFERSIZE = 2048;
 static UINT16 SAMPLERATE = 44100;
 
@@ -238,7 +242,7 @@ void I_StartupSound(void)
 	// EE inits audio first so we're following along.
 	if (SDL_WasInit(SDL_INIT_AUDIO) == SDL_INIT_AUDIO)
 	{
-		CONS_Debug(DBG_DETAILED, "SDL Audio already started\n");
+		CONS_Debug(DBG_AUDIO, "SDL Audio already started\n");
 		return;
 	}
 	else if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0)
@@ -301,6 +305,10 @@ void I_ShutdownSound(void)
 #ifdef HAVE_OPENMPT
 	if (openmpt_mhandle)
 		openmpt_module_destroy(openmpt_mhandle);
+#endif
+#ifdef HAVE_CSID
+	if (sid.playing)
+		cSID_stop();
 #endif
 }
 
@@ -794,6 +802,28 @@ static void mix_openmpt(void *udata, Uint8 *stream, int len)
 }
 #endif
 
+#ifdef HAVE_CSID
+static void mix_csid(void *udata, Uint8 *stream, int len) //called by SDL at samplerate pace
+{
+	int i;
+	short *p;
+
+	if (!sid.playing || songpaused)
+		return;
+
+	(void)udata;
+	cSID_mix(stream, len);
+
+	// Limiter to prevent music from being disorted with some formats
+	if (music_volume >= 18)
+		music_volume = 18;
+
+	// apply volume to stream
+	for (i = 0, p = (short *)stream; i < len/2; i++, p++)
+		*p = ((INT32)*p) * (music_volume*internal_volume/100)*2 / 40;
+}
+#endif
+
 /// ------------------------
 /// Music System
 /// ------------------------
@@ -821,6 +851,11 @@ musictype_t I_SongType(void)
 #ifdef HAVE_OPENMPT
 	if (openmpt_mhandle)
 		return MU_MOD_EX;
+	else
+#endif
+#ifdef HAVE_CSID
+	if (sid.playing)
+		return MU_SID;
 #endif
 	if (!music)
 		return MU_NONE;
@@ -849,6 +884,9 @@ boolean I_SongPlaying(void)
 #endif
 #ifdef HAVE_OPENMPT
 		(I_SongType() == MU_MOD_EX && openmpt_mhandle) ||
+#endif
+#ifdef HAVE_CSID
+		(I_SongType() == MU_SID && sid.playing) ||
 #endif
 		music != NULL
 	);
@@ -951,14 +989,14 @@ UINT32 I_GetSongLength(void)
 		// SDL mixer can't read music length itself.
 		length = (UINT32)(song_length*1000);
 		if (!length)
-			CONS_Debug(DBG_DETAILED, "Getting music length: music is missing LENGTHMS= tag. Needed for seeking.\n");
+			CONS_Debug(DBG_AUDIO, "Getting music length: music is missing LENGTHMS= tag. Needed for seeking.\n");
 		return length;
 	}
 }
 
 boolean I_SetSongLoopPoint(UINT32 looppoint)
 {
-	if (!music || I_SongType() == MU_GME || I_SongType() == MU_MOD || I_SongType() == MU_MID || !is_looping)
+	if (!music || I_SongType() == MU_GME || I_SongType() == MU_MOD || I_SongType() != MU_SID || I_SongType() == MU_MID || !is_looping)
 		return false;
 	else
 	{
@@ -1141,6 +1179,9 @@ boolean I_LoadSong(char *data, size_t len)
 #ifdef HAVE_OPENMPT
 		|| openmpt_mhandle
 #endif
+#ifdef HAVE_CSID
+		|| sid.playing
+#endif
 	)
 		I_UnloadSong();
 
@@ -1280,6 +1321,16 @@ boolean I_LoadSong(char *data, size_t len)
 	}
 #endif
 
+#ifdef HAVE_CSID
+	if (!memcmp(&data[1], "SID", 3))
+	{
+		cSID_load((UINT8 *)data, len);
+		sid.playing = true;
+		sid.subtune = 0;
+		return true;
+	}
+#endif
+
 	// Let's see if Mixer is able to load this.
 	rw = SDL_RWFromMem(data, len);
 	{
@@ -1343,6 +1394,13 @@ void I_UnloadSong(void)
 		openmpt_mhandle = NULL;
 	}
 #endif
+#ifdef HAVE_CSID
+	if (sid.playing)
+	{
+		cSID_stop();
+		sid.playing = false;
+	}
+#endif
 	if (music)
 	{
 		Mix_FreeMusic(music);
@@ -1352,6 +1410,15 @@ void I_UnloadSong(void)
 
 boolean I_PlaySong(boolean looping)
 {
+#ifdef HAVE_CSID
+	if (sid.playing)
+	{
+		cSID_play(0);
+		Mix_HookMusic(mix_csid, NULL);
+		return true;
+	}
+	else
+#endif
 #ifdef HAVE_LIBGME
 	if (gme)
 	{
@@ -1379,7 +1446,7 @@ boolean I_PlaySong(boolean looping)
 		return false;
 
 	if (fpclassify(song_length) == FP_ZERO && (I_SongType() == MU_OGG || I_SongType() == MU_MP3 || I_SongType() == MU_FLAC))
-		CONS_Debug(DBG_DETAILED, "This song is missing a LENGTHMS= tag! Required to make seeking work properly.\n");
+		CONS_Debug(DBG_AUDIO, "This song is missing a LENGTHMS= tag! Required to make seeking work properly.\n");
 
 	if (I_SongType() != MU_MOD && I_SongType() != MU_MID && Mix_PlayMusic(music, 0) == -1)
 	{
@@ -1426,6 +1493,13 @@ void I_StopSong(void)
 		current_subsong = -1;
 	}
 #endif
+#ifdef HAVE_CSID
+	if (sid.playing)
+	{
+		Mix_HookMusic(NULL, NULL);
+		sid.subtune = 0;
+	}
+#endif
 	if (music)
 	{
 		Mix_UnregisterEffect(MIX_CHANNEL_POST, count_music_bytes);
@@ -1441,7 +1515,7 @@ void I_PauseSong(void)
 	if(I_SongType() == MU_MID) // really, SDL Mixer? why can't you pause MIDI???
 		return;
 
-	if(I_SongType() != MU_GME && I_SongType() != MU_MOD && I_SongType() != MU_MID)
+	if(I_SongType() != MU_GME && I_SongType() != MU_MOD && I_SongType() != MU_SID && I_SongType() != MU_MID)
 		Mix_UnregisterEffect(MIX_CHANNEL_POST, count_music_bytes);
 
 	Mix_PauseMusic();
@@ -1453,7 +1527,7 @@ void I_ResumeSong(void)
 	if (I_SongType() == MU_MID)
 		return;
 
-	if (I_SongType() != MU_GME && I_SongType() != MU_MOD && I_SongType() != MU_MID)
+	if (I_SongType() != MU_GME && I_SongType() != MU_MOD && I_SongType() != MU_SID && I_SongType() != MU_MID)
 	{
 		while(Mix_UnregisterEffect(MIX_CHANNEL_POST, count_music_bytes) != 0) { }
 			// HACK: fixes issue of multiple effect callbacks being registered
@@ -1485,6 +1559,19 @@ void I_SetMusicVolume(UINT8 volume)
 
 boolean I_SetSongTrack(int track)
 {
+#ifdef HAVE_CSID
+	if (sid.playing)
+	{
+		if (track == sid.subtune)
+			return false;
+
+		// Change the subtune, then play it
+		sid.subtune = track;
+		cSID_play(track);
+		return true;
+	}
+	else
+#endif
 #ifdef HAVE_LIBGME
 	// If the specified track is within the number of tracks playing, then change it
 	if (gme)
