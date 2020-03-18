@@ -51,8 +51,7 @@ static float ratecnt[9], cutoff_ratio_8580, cutoff_steepness_6581, cap_6581_reci
 // player-related variables:
 static int sampleratio;
 static UINT8 timermode[0x20];
-static int samplerate = DEFAULT_SAMPLERATE;
-static float framecnt = 0, frame_sampleperiod = DEFAULT_SAMPLERATE/PAL_FRAMERATE;
+static float framecnt = 0, frame_sampleperiod = SID_SAMPLERATE/PAL_FRAMERATE;
 
 // CPU (and CIA/VIC-IRQ) emulation constants and variables - avoiding internal/automatic variables to retain speed
 static const UINT8 flagsw[] = {0x01,0x21,0x04,0x24,0x00,0x40,0x08,0x28}, branchflag[] = {0x80,0x40,0x01,0x02};
@@ -64,7 +63,7 @@ static UINT8 cycles=0;
 static boolean dynCIA = false;
 static boolean finished = false;
 
-static void cSID_init(int samplerate);
+static void cSID_init(void);
 static void InitCPU(unsigned int mempos);
 static void InitSIDChip(void);
 
@@ -83,9 +82,6 @@ void cSID_load(UINT8 *data, size_t length)
 
 	CONS_Debug(DBG_AUDIO, "cSID_load %d\n", length);
 	memcpy(&sid.filedata, data, length);
-
-	samplerate = DEFAULT_SAMPLERATE;
-	sampleratio = round(C64_PAL_CPUCLK/samplerate);
 
 	offs = sid.filedata[7];
 	sid.chip.loadaddr = sid.filedata[8] + sid.filedata[9] ? sid.filedata[8] * 256 + sid.filedata[9] : sid.filedata[offs] + sid.filedata[offs+1] * 256;
@@ -156,13 +152,14 @@ void cSID_load(UINT8 *data, size_t length)
 		sid.chip.model[i] = preferred_SID_model[i];
 	CONS_Debug(DBG_AUDIO, "SID chip count: %d\n", sid.chip.amount);
 
+	sampleratio = round(C64_PAL_CPUCLK/SID_SAMPLERATE);
 	OUTPUT_SCALEDOWN = SID_CHANNEL_AMOUNT * 16 + 26;
 	if (sid.chip.amount == 2)
 		OUTPUT_SCALEDOWN /= 0.6;
 	else if (sid.chip.amount >= 3)
 		OUTPUT_SCALEDOWN /= 0.4;
 
-	cSID_init(samplerate);
+	cSID_init();
 }
 
 void cSID_play(int track)
@@ -198,7 +195,7 @@ void cSID_play(int track)
 		frame_sampleperiod = (memory[0xDC04]+memory[0xDC05]*256)/clock_ratio;
 	}
 	else
-		frame_sampleperiod = samplerate/PAL_FRAMERATE;  // Vsync timing
+		frame_sampleperiod = SID_SAMPLERATE/PAL_FRAMERATE;  // Vsync timing
 
 	if (sid.chip.playaddf == 0)
 		sid.chip.playaddr = ((memory[1]&3)<2)? memory[0xFFFE]+memory[0xFFFF]*256 : memory[0x314]+memory[0x315]*256;
@@ -254,7 +251,7 @@ void cSID_mix(UINT8 *stream, int len) // called by SDL at samplerate pace
 					if (!dynCIA)
 					{
 						dynCIA = true;
-						CONS_Debug(DBG_AUDIO, "Dynamic CIA settings. New frame-sampleperiod: %.0f samples  (%.1fX speed)\n", round(frame_sampleperiod), samplerate/PAL_FRAMERATE/frame_sampleperiod);
+						CONS_Debug(DBG_AUDIO, "Dynamic CIA settings. New frame-sampleperiod: %.0f samples  (%.1fX speed)\n", round(frame_sampleperiod), SID_SAMPLERATE/PAL_FRAMERATE/frame_sampleperiod);
 					}
 				}
 
@@ -1026,11 +1023,11 @@ static const UINT8 ADSR_exptable[256] = {1, 30, 30, 30, 30, 30, 30, 16, 16, 16, 
 				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 
-static void cSID_init(int samplerate)
+static void cSID_init(void)
 {
 	int i;
 
-	clock_ratio = C64_PAL_CPUCLK/samplerate;
+	clock_ratio = C64_PAL_CPUCLK/SID_SAMPLERATE;
 	if (clock_ratio > 9)
 	{
 		ADSRperiods[0] = clock_ratio;
@@ -1042,7 +1039,7 @@ static void cSID_init(int samplerate)
 		ADSRstep[0] = 1;
 	}
 
-	cutoff_ratio_8580 = -2 * 3.14 * (12500 / 2048) / samplerate; // -2 * 3.14 * ((82000/6.8) / 2048) / samplerate; //approx. 30Hz..12kHz according to datasheet, but only for 6.8nF value, 22nF makes 9Hz...3.7kHz? wrong
+	cutoff_ratio_8580 = -2 * 3.14 * (12500 / 2048) / SID_SAMPLERATE; //approx. 30Hz..12kHz according to datasheet, but only for 6.8nF value, 22nF makes 9Hz...3.7kHz? wrong
 	cap_6581_reciprocal = -1000000/CAP_6581; //lighten CPU-load in sample-callback
 	cutoff_steepness_6581 = FILTER_DARKNESS_6581*(2048.0-VCR_FET_TRESHOLD); //pre-scale for 0...2048 cutoff-value range //lighten CPU-load in sample-callback
 
@@ -1351,7 +1348,7 @@ static int SIDEmulate(UINT8 num, unsigned int baseaddr) //the SID emulation itse
 		cutoff[num] += round(filtin*FILTER_DISTORTION_6581); // MOSFET-VCR control-voltage-modulation (resistance-modulation aka 6581 filter distortion) emulation
 		rDS_VCR_FET = cutoff[num]<=VCR_FET_TRESHOLD ? 100000000.0 // below Vth treshold Vgs control-voltage FET presents an open circuit
 			: cutoff_steepness_6581/(cutoff[num]-VCR_FET_TRESHOLD); // rDS ~ (-Vth*rDSon) / (Vgs-Vth)  //above Vth FET drain-source resistance is proportional to reciprocal of cutoff-control voltage
-		cutoff[num] = (1 - exp(cap_6581_reciprocal / (VCR_SHUNT_6581*rDS_VCR_FET/(VCR_SHUNT_6581+rDS_VCR_FET)) / samplerate)); //curve with 1.5MOhm VCR parallel Rshunt emulation
+		cutoff[num] = (1 - exp(cap_6581_reciprocal / (VCR_SHUNT_6581*rDS_VCR_FET/(VCR_SHUNT_6581+rDS_VCR_FET)) / SID_SAMPLERATE)); //curve with 1.5MOhm VCR parallel Rshunt emulation
 		resonance[num] = ((sReg[0x17] > 0x5F) ? 8.0 / (sReg[0x17] >> 4) : 1.41);
 	}
 

@@ -25,10 +25,10 @@
 #define SID_BASE_ADDRESS 0xD400
 #define SID_END_ADDRESS 0xD7FF
 #define SID_CHANNEL_AMOUNT 3
+#define SID_SAMPLERATE (44100.0 * 2) // Lactozilla: changed to * 2
 
 #define PAL_FRAMERATE 50.06 //50.0443427 //50.1245419 //(C64_PAL_CPUCLK/63/312.5), selected carefully otherwise some ADSR-sensitive tunes may suffer more:
-#define DEFAULT_SAMPLERATE (44100.0 * 2)         // Lactozilla: changed to * 2
-#define CLOCK_RATIO_DEFAULT C64_PAL_CPUCLK/DEFAULT_SAMPLERATE  //(50.0567520: lowest framerate where Sanxion is fine, and highest where Myth is almost fine)
+#define CLOCK_RATIO_DEFAULT C64_PAL_CPUCLK/SID_SAMPLERATE  //(50.0567520: lowest framerate where Sanxion is fine, and highest where Myth is almost fine)
 #define VCR_SHUNT_6581 1500 //kOhm //cca 1.5 MOhm Rshunt across VCR FET drain and source (causing 220Hz bottom cutoff with 470pF integrator capacitors in old C64)
 #define VCR_FET_TRESHOLD 192 //Vth (on cutoff numeric range 0..2048) for the VCR cutoff-frequency control FET below which it doesn't conduct
 #define CAP_6581 0.470 //nF //filter capacitor value for 6581
