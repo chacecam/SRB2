@@ -9,26 +9,21 @@
 /// \brief SID audio emulation
 /// based on jsSID, this version has much lower CPU-usage, as mainloop runs at samplerate
 
-#ifdef HAVE_CSID
+#ifdef HAVE_C64SID
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 
-#include "doomdef.h"
-#include "doomdata.h"
-#include "doomtype.h"
+#include "../doomdef.h"
+#include "../doomdata.h"
+#include "../doomtype.h"
 
-#include "z_zone.h"
-#include "v_video.h"
+#include "../z_zone.h"
+#include "../v_video.h"
 
-#include "s_sound.h"
+#include "../s_sound.h"
 #include "s_csid.h"
-
-//global constants and variables
-sidplayer_t sid;
-
-static UINT8 *memory;
 
 // raw output divided by this after multiplied by main volume, this also compensates for filter-resonance emphasis to avoid distotion
 static int OUTPUT_SCALEDOWN = SID_CHANNEL_AMOUNT * 16 + 26;
@@ -75,12 +70,12 @@ static void createCombinedWF(unsigned int* wfarray, float bitmul, float bitstren
 
 //----------------------------- MAIN thread ----------------------------
 
-void cSID_load(UINT8 *data, size_t length)
+void sid_load(UINT8 *data, size_t length)
 {
 	unsigned int i, offs;
 	int preferred_SID_model[3];
 
-	CONS_Debug(DBG_AUDIO, "cSID_load %s\n", sizeu1(length));
+	CONS_Debug(DBG_AUDIO, "cSID: loading %s bytes\n", sizeu1(length));
 	memcpy(&sid.filedata, data, length);
 
 	offs = sid.filedata[7];
@@ -97,15 +92,14 @@ void cSID_load(UINT8 *data, size_t length)
 	CONS_Debug(DBG_AUDIO, "\n");
 
 	// Init memory
-	memory = sid.memory;
 	for(i = 0; i < C64_MEMORY_SIZE; i++)
-		memory[i] = 0x00;
+		sid.memory[i] = 0x00;
 
 	for (i = offs+2; i < length; i++)
 	{
 		size_t offset = sid.chip.loadaddr+i-(offs+2);
 		if (offset < C64_MEMORY_SIZE)
-			memory[offset] = sid.filedata[i];
+			sid.memory[offset] = sid.filedata[i];
 	}
 
 	// Lactozilla: I love macros!
@@ -162,7 +156,7 @@ void cSID_load(UINT8 *data, size_t length)
 	cSID_init();
 }
 
-void cSID_play(int track)
+void sid_play(int track)
 {
 	static int timeout;
 
@@ -174,8 +168,8 @@ void cSID_play(int track)
 	InitSIDChip();
 
 	A = sid.subtune;
-	memory[1] = 0x37;
-	memory[0xDC05] = 0;
+	sid.memory[1] = 0x37;
+	sid.memory[0xDC05] = 0;
 
 	// Lactozilla: What is this??
 	for (timeout = 100000; timeout >= 0; timeout--)
@@ -184,27 +178,27 @@ void cSID_play(int track)
 			break;
 	}
 
-	if (timermode[sid.subtune] || memory[0xDC05]) // CIA timing
+	if (timermode[sid.subtune] || sid.memory[0xDC05]) // CIA timing
 	{
-		if (!memory[0xDC05])
+		if (!sid.memory[0xDC05])
 		{
 			// C64 startup-default
-			memory[0xDC04] = 0x24;
-			memory[0xDC05] = 0x40;
+			sid.memory[0xDC04] = 0x24;
+			sid.memory[0xDC05] = 0x40;
 		}
-		frame_sampleperiod = (memory[0xDC04]+memory[0xDC05]*256)/clock_ratio;
+		frame_sampleperiod = (sid.memory[0xDC04]+sid.memory[0xDC05]*256)/clock_ratio;
 	}
 	else
 		frame_sampleperiod = SID_SAMPLERATE/PAL_FRAMERATE;  // Vsync timing
 
 	if (sid.chip.playaddf == 0)
-		sid.chip.playaddr = ((memory[1]&3)<2)? memory[0xFFFE]+memory[0xFFFF]*256 : memory[0x314]+memory[0x315]*256;
+		sid.chip.playaddr = ((sid.memory[1]&3)<2)? sid.memory[0xFFFE]+sid.memory[0xFFFF]*256 : sid.memory[0x314]+sid.memory[0x315]*256;
 	else
 	{
 		// player under KERNAL (Crystal Kingdom Dizzy)
 		sid.chip.playaddr = sid.chip.playaddf;
-		if (sid.chip.playaddr >= 0xE000 && memory[1] == 0x37)
-			memory[1] = 0x35;
+		if (sid.chip.playaddr >= 0xE000 && sid.memory[1] == 0x37)
+			sid.memory[1] = 0x35;
 	}
 
 	InitCPU(sid.chip.playaddr);
@@ -214,7 +208,7 @@ void cSID_play(int track)
 	CPUtime = 0;
 }
 
-void cSID_mix(UINT8 *stream, int len) // called by SDL at samplerate pace
+void sid_mix(UINT8 *stream, int len) // called by SDL at samplerate pace
 {
 	static int i, output;
 
@@ -236,7 +230,7 @@ void cSID_mix(UINT8 *stream, int len) // called by SDL at samplerate pace
 			{
 				pPC = PC;
 
-				if (CPUEmulate() >= 0xFE || ((memory[1] & 3) > 1 && pPC < 0xE000 && (PC == 0xEA31 || PC == 0xEA81)))
+				if (CPUEmulate() >= 0xFE || ((sid.memory[1] & 3) > 1 && pPC < 0xE000 && (PC == 0xEA31 || PC == 0xEA81)))
 				{
 					finished = true;
 					break;
@@ -244,10 +238,10 @@ void cSID_mix(UINT8 *stream, int len) // called by SDL at samplerate pace
 				else
 					CPUtime += cycles; // RTS,RTI and IRQ player ROM return handling
 
-				if ((addr == 0xDC05 || addr == 0xDC04) && (memory[1]&3) && timermode[sid.subtune])
+				if ((addr == 0xDC05 || addr == 0xDC04) && (sid.memory[1]&3) && timermode[sid.subtune])
 				{
 					// dynamic CIA-setting (Galway/Rubicon workaround)
-					frame_sampleperiod = (memory[0xDC04] + memory[0xDC05]*256) / clock_ratio;
+					frame_sampleperiod = (sid.memory[0xDC04] + sid.memory[0xDC05]*256) / clock_ratio;
 					if (!dynCIA)
 					{
 						dynCIA = true;
@@ -256,18 +250,18 @@ void cSID_mix(UINT8 *stream, int len) // called by SDL at samplerate pace
 				}
 
 				// CJ in the USA workaround (writing above $d420, except SID2/SID3)
-				if (storadd >= 0xD420 && storadd < 0xD800 && (memory[1] & 3))
+				if (storadd >= 0xD420 && storadd < 0xD800 && (sid.memory[1] & 3))
 				{
 					// write to $D400..D41F if not in SID2/SID3 address-space
 					if (!(sid.chip.address[1] <= storadd && storadd < sid.chip.address[1]+0x1F)
 					&& !(sid.chip.address[2] <= storadd && storadd < sid.chip.address[2]+0x1F))
-						memory[storadd&0xD41F] = memory[storadd];
+						sid.memory[storadd&0xD41F] = sid.memory[storadd];
 				}
 
 				// Whittaker player workarounds (if GATE-bit triggered too fast, 0 for some cycles then 1)
-				if (addr==0xD404 && !(memory[0xD404]&GATE_BITMASK)) ADSRstate[0]&=0x3E;
-				if (addr==0xD40B && !(memory[0xD40B]&GATE_BITMASK)) ADSRstate[1]&=0x3E;
-				if (addr==0xD412 && !(memory[0xD412]&GATE_BITMASK)) ADSRstate[2]&=0x3E;
+				if (addr == 0xD404 && !(sid.memory[0xD404] & GATE_BITMASK)) ADSRstate[0] &= 0x3E;
+				if (addr == 0xD40B && !(sid.memory[0xD40B] & GATE_BITMASK)) ADSRstate[1] &= 0x3E;
+				if (addr == 0xD412 && !(sid.memory[0xD412] & GATE_BITMASK)) ADSRstate[2] &= 0x3E;
 			}
 
 			CPUtime -= clock_ratio;
@@ -285,7 +279,7 @@ void cSID_mix(UINT8 *stream, int len) // called by SDL at samplerate pace
 	}
 }
 
-void cSID_stop(void)
+void sid_stop(void)
 {
 	memset(&sid.memory, 0x00, C64_MEMORY_SIZE);
 	memset(&sid.filedata, 0x00, C64_MEMORY_SIZE);
@@ -313,11 +307,11 @@ static void InitCPU(unsigned int mempos)
 static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: CIA/VIC-IRQ/NMI/RESET vectors, BCD-mode)
 {
 	// 'IR' is the instruction-register, naming after the hardware-equivalent
-	IR = memory[PC];
+	IR = sid.memory[PC];
 	cycles = 2; // 'cycle': ensure smallest 6510 runtime (for implied/register instructions)
 	storadd = 0;
 
-	if (IR&1) // nybble2:  1/5/9/D:accu.instructions, 3/7/B/F:illegal opcodes
+	if (IR & 1) // nybble2:  1/5/9/D:accu.instructions, 3/7/B/F:illegal opcodes
 	{
 		// addressing modes (begin with more complex cases), PC wraparound not handled inside to save codespace
 		switch (IR & 0x1F)
@@ -326,77 +320,77 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 			case 1:
 			case 3:
 				PC++;
-				addr = memory[memory[PC]+X] + memory[memory[PC]+X+1]*256;
+				addr = sid.memory[sid.memory[PC]+X] + sid.memory[sid.memory[PC]+X+1]*256;
 				cycles = 6;
 				break;
 			// (zp),y (5..6 cycles, 8 for R-M-W)
 			case 0x11:
 			case 0x13:
 				PC++;
-				addr = memory[memory[PC]] + memory[memory[PC]+1]*256 + Y;
+				addr = sid.memory[sid.memory[PC]] + sid.memory[sid.memory[PC]+1]*256 + Y;
 				cycles = 6;
 				break;
 			// abs,y //(4..5 cycles, 7 cycles for R-M-W)
 			case 0x19:
 			case 0x1B:
 				PC++;
-				addr = memory[PC];
+				addr = sid.memory[PC];
 				PC++;
-				addr += memory[PC]*256 + Y;
+				addr += sid.memory[PC]*256 + Y;
 				cycles=5;
 				break;
 			//abs,x //(4..5 cycles, 7 cycles for R-M-W)
 			case 0x1D:
 				PC++;
-				addr = memory[PC];
+				addr = sid.memory[PC];
 				PC++;
-				addr += memory[PC]*256 + X;
+				addr += sid.memory[PC]*256 + X;
 				cycles = 5;
 				break;
 			// abs
 			case 0xD:
 			case 0xF:
 				PC++;
-				addr = memory[PC];
+				addr = sid.memory[PC];
 				PC++;
-				addr += memory[PC]*256;
+				addr += sid.memory[PC]*256;
 				cycles = 4;
 				break;
 			// zp,x
 			case 0x15:
 				PC++;
-				addr = memory[PC] + X;
+				addr = sid.memory[PC] + X;
 				cycles = 4;
 				break;
 			// zp
 			case 5:
 			case 7:
 				PC++;
-				addr = memory[PC];
+				addr = sid.memory[PC];
 				cycles = 3;
 				break;
 			case 0x17:
 				PC++;
 				// zp,x for illegal opcodes
-				if ((IR&0xC0)!=0x80)
+				if ((IR & 0xC0) != 0x80)
 				{
-					addr = memory[PC] + X;
+					addr = sid.memory[PC] + X;
 					cycles = 4;
 				}
 				// zp,y for LAX/SAX illegal opcodes
 				else
 				{
-					addr = memory[PC] + Y;
+					addr = sid.memory[PC] + Y;
 					cycles = 4;
 				}
 				break;
 			case 0x1F:
 				PC++;
 				// abs,x for illegal opcodes
-				if ((IR&0xC0)!=0x80)
+				if ((IR & 0xC0) != 0x80)
 				{
 					// Lactozilla: probably incorrect
-					addr = memory[PC] + memory[PC+1]*256 + X;
+					addr = sid.memory[PC] + sid.memory[PC+1]*256 + X;
 					PC++;
 					cycles = 5;
 				}
@@ -404,7 +398,7 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 				else
 				{
 					// Lactozilla: probably incorrect
-					addr = memory[PC] + memory[PC+1]*256 + Y;
+					addr = sid.memory[PC] + sid.memory[PC+1]*256 + Y;
 					PC++;
 					cycles = 5;
 				}
@@ -429,25 +423,25 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 					// ADC / RRA (ROR+ADC)
 					if ((IR & 3) == 3)
 					{
-						T = (memory[addr] >> 1) + (ST & 1) * 128;
+						T = (sid.memory[addr] >> 1) + (ST & 1) * 128;
 						ST &= 124;
 						ST |= (T & 1);
-						memory[addr] = T;
+						sid.memory[addr] = T;
 						cycles += 2;
 					}
 					T = A;
-					A += memory[addr] + (ST & 1);
+					A += sid.memory[addr] + (ST & 1);
 					ST &= 60;
 					ST |= (A & 128) | (A > 255);
 					A &= 0xFF;
-					ST |= (!A) << 1 | ((!((T ^ memory[addr]) & 0x80)) & ((T ^ A) & 0x80)) >> 1;
+					ST |= (!A) << 1 | ((!((T ^ sid.memory[addr]) & 0x80)) & ((T ^ A) & 0x80)) >> 1;
 				}
 				else
 				{
-					A &= memory[addr];
-					T += memory[addr] + (ST & 1);
+					A &= sid.memory[addr];
+					T += sid.memory[addr] + (ST & 1);
 					ST &= 60;
-					ST |= (T>255) | ((!((A ^ memory[addr]) & 0x80)) & ((T ^ A) & 0x80)) >> 1; // V-flag set by intermediate ADC mechanism: (A&mem)+mem
+					ST |= (T>255) | ((!((A ^ sid.memory[addr]) & 0x80)) & ((T ^ A) & 0x80)) >> 1; // V-flag set by intermediate ADC mechanism: (A&mem)+mem
 					T = A;
 					A = (A>>1)+(ST&1)*128;
 					ST |= (A&128) | (T>127);
@@ -456,49 +450,48 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 				break; // ARR (AND+ROR, bit0 not going to C, but C and bit7 get exchanged.)
 			case 0xE0:
 				if ((IR & 3) == 3 && ((IR & 0x1F) != 0xB))
-					memory[addr]++;
+					sid.memory[addr]++;
 				cycles += 2;
 				T = A;
-				A -= memory[addr] + !(ST & 1); // SBC / ISC(ISB)=INC+SBC
+				A -= sid.memory[addr] + !(ST & 1); // SBC / ISC(ISB)=INC+SBC
 				ST &= 60;
 				ST |= (A & 128) | (A >= 0);
 				A &= 0xFF;
-				ST |= (!A)<<1 | (((T ^ memory[addr]) & 0x80) & ((T ^ A) & 0x80)) >> 1;
+				ST |= (!A)<<1 | (((T ^ sid.memory[addr]) & 0x80) & ((T ^ A) & 0x80)) >> 1;
 				break;
 			case 0xC0:
 				// CMP / DCP(DEC+CMP)
-				if ((IR&0x1F)!=0xB)
+				if ((IR & 0x1F) != 0xB)
 				{
-					if ((IR&3)==3)
+					if ((IR & 3) == 3)
 					{
-						memory[addr]--;
+						sid.memory[addr]--;
 						cycles += 2;
 					}
-					T = A - memory[addr];
+					T = A - sid.memory[addr];
 				}
 				else // SBX(AXS)
-					X = T = (A & X) - memory[addr];
+					X = T = (A & X) - sid.memory[addr];
 				ST &= 124;
 				ST |= (!(T & 0xFF)) << 1 | (T & 128) | (T >= 0);
 				break;  // SBX (AXS) (CMP+DEX at the same time)
 			case 0x00:
 				// ORA / SLO(ASO)=ASL+ORA
-				if ((IR&0x1F)!=0xB)
+				if ((IR & 0x1F) != 0xB)
 				{
-
-					if ((IR&3)==3)
+					if ((IR & 3) == 3)
 					{
 						ST &= 124;
-						ST |= (memory[addr] > 127);
-						memory[addr] <<= 1;
+						ST |= (sid.memory[addr] > 127);
+						sid.memory[addr] <<= 1;
 						cycles += 2;
 					}
-					A |= memory[addr];
+					A |= sid.memory[addr];
 					ST &= 125;
 					ST |= (!A) << 1 | (A & 128);
 				}
 				else // ANC (AND+Carry=bit7)
-					A &= memory[addr];
+					A &= sid.memory[addr];
 				ST &= 124;
 				ST |= (!A) << 1 | (A & 128) | (A>127);
 				break;
@@ -508,21 +501,21 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 				{
 					if ((IR & 3) == 3)
 					{
-						T = (memory[addr] << 1) + (ST & 1);
+						T = (sid.memory[addr] << 1) + (ST & 1);
 						ST &= 124;
 						ST |= (T > 255);
 						T &= 0xFF;
-						memory[addr] = T;
+						sid.memory[addr] = T;
 						cycles += 2;
 					}
-					A &= memory[addr];
+					A &= sid.memory[addr];
 					ST &= 125;
 					ST |= (!A) << 1 | (A & 128);
 				}
 				// ANC (AND+Carry=bit7)
 				else
 				{
-					A &= memory[addr];
+					A &= sid.memory[addr];
 					ST &= 124;
 					ST |= (!A) << 1 | (A & 128) | (A > 127);
 				}
@@ -534,18 +527,18 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 					if ((IR & 3) == 3)
 					{
 						ST &= 124;
-						ST |= (memory[addr] & 1);
-						memory[addr] >>= 1;
+						ST |= (sid.memory[addr] & 1);
+						sid.memory[addr] >>= 1;
 						cycles += 2;
 					}
-					A ^= memory[addr];
+					A ^= sid.memory[addr];
 					ST &= 125;
 					ST |= (!A) << 1 | (A & 128);
 				}
 				// ALR(ASR)=(AND+LSR)
 				else
 				{
-					A &= memory[addr];
+					A &= sid.memory[addr];
 					ST &= 124;
 					ST |= (A & 1);
 					A >>= 1;
@@ -557,33 +550,33 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 				// LDA / LAX (illegal, used by my 1 rasterline player)
 				if ((IR & 0x1F) != 0x1B)
 				{
-					A = memory[addr];
+					A = sid.memory[addr];
 					if ((IR & 3) == 3)
 						X=A;
 				}
 				else // LAS(LAR)
-					A = X = SP = memory[addr] & SP;
+					A = X = SP = sid.memory[addr] & SP;
 				ST &= 125;
 				ST |= ((!A) << 1) | (A & 128);
 				break; // LAS (LAR)
 			case 0x80:
 				// XAA (TXA+AND), highly unstable on real 6502!
-				if ((IR&0x1F)==0xB)
+				if ((IR & 0x1F) == 0xB)
 				{
-					A = X & memory[addr];
+					A = X & sid.memory[addr];
 					ST &= 125;
 					ST |= (A & 128) | ((!A) << 1);
 				}
 				// TAS(SHS) (SP=A&X, mem=S&H} - unstable on real 6502
-				else if ((IR&0x1F)==0x1B)
+				else if ((IR & 0x1F) == 0x1B)
 				{
 					SP = A & X;
-					memory[addr] = SP & ((addr >> 8) + 1);
+					sid.memory[addr] = SP & ((addr >> 8) + 1);
 				}
 				// STA / SAX (at times same as AHX/SHX/SHY) (illegal)
 				else
 				{
-					memory[addr] = A & (((IR & 3) == 3) ? X : 0xFF);
+					sid.memory[addr] = A & (((IR & 3) == 3) ? X : 0xFF);
 					storadd = addr;
 				}
 				break;
@@ -598,29 +591,29 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 			// abs,x / abs,y
 			case 0x1E:
 				PC++;
-				addr = memory[PC];
+				addr = sid.memory[PC];
 				PC++;
-				addr += memory[PC] * 256 + (((IR & 0xC0) != 0x80) ? X : Y);
+				addr += sid.memory[PC] * 256 + (((IR & 0xC0) != 0x80) ? X : Y);
 				cycles = 5;
 				break;
 			// abs
 			case 0xE:
 				PC++;
-				addr = memory[PC];
+				addr = sid.memory[PC];
 				PC++;
-				addr += memory[PC] * 256;
+				addr += sid.memory[PC] * 256;
 				cycles = 4;
 				break;
 			// zp,x / zp,y
 			case 0x16:
 				PC++;
-				addr = memory[PC] + (((IR & 0xC0) != 0x80) ? X : Y);
+				addr = sid.memory[PC] + (((IR & 0xC0) != 0x80) ? X : Y);
 				cycles = 4;
 				break;
 			// zp
 			case 6:
 				PC++;
-				addr = memory[PC];
+				addr = sid.memory[PC];
 				cycles = 3;
 				break;
 			// imm.
@@ -653,12 +646,12 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 				// RMW (Read-Write-Modify)
 				else
 				{
-					T = (memory[addr] << 1) + (ST & 1);
+					T = (sid.memory[addr] << 1) + (ST & 1);
 					ST &= 124;
 					ST |= (T & 128) | (T > 255);
 					T &= 0xFF;
 					ST |= (!T) << 1;
-					memory[addr] = T;
+					sid.memory[addr] = T;
 					cycles += 2;
 				}
 				break;
@@ -680,22 +673,22 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 				// memory (RMW)
 				else
 				{
-					T = (memory[addr] >> 1) + (ST & 1)*128;
+					T = (sid.memory[addr] >> 1) + (ST & 1)*128;
 					ST &= 124;
-					ST |= (T & 128) | (memory[addr] & 1);
+					ST |= (T & 128) | (sid.memory[addr] & 1);
 					T &= 0xFF;
 					ST |= (!T) << 1;
-					memory[addr] = T;
+					sid.memory[addr] = T;
 					cycles += 2;
 				}
 				break;
 			case 0xC0:
 				// DEC
-				if(IR&4)
+				if (IR & 4)
 				{
-					memory[addr]--;
+					sid.memory[addr]--;
 					ST &= 125;
-					ST |= (!memory[addr]) << 1 | (memory[addr] & 128);
+					ST |= (!sid.memory[addr]) << 1 | (sid.memory[addr] & 128);
 					cycles += 2;
 				}
 				// DEX
@@ -710,8 +703,8 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 			// LDX/TSX/TAX
 			case 0xA0:
 				if ((IR & 0xF) != 0xA)
-					X = memory[addr];
-				else if(IR&0x10)
+					X = sid.memory[addr];
+				else if (IR & 0x10)
 				{
 					X = SP;
 					break;
@@ -723,12 +716,12 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 				break;
 			// STX/TXS/TXA
 			case 0x80:
-				if (IR&4)
+				if (IR & 4)
 				{
-					memory[addr] = X;
+					sid.memory[addr] = X;
 					storadd = addr;
 				}
-				else if(IR & 0x10)
+				else if (IR & 0x10)
 					SP = X;
 				else
 				{
@@ -739,11 +732,11 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 				break;
 			// INC/NOP
 			case 0xE0:
-				if(IR&4)
+				if (IR & 4)
 				{
-					memory[addr]++;
+					sid.memory[addr]++;
 					ST &= 125;
-					ST |= (!memory[addr]) << 1 | (memory[addr] & 128);
+					ST |= (!sid.memory[addr]) << 1 | (sid.memory[addr] & 128);
 					cycles += 2;
 				}
 				break;
@@ -759,7 +752,7 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 			case 0x60:
 				SP++;
 				SP &= 0xFF;
-				A = memory[0x100 + SP];
+				A = sid.memory[0x100 + SP];
 				ST &= 125;
 				ST |= (!A) << 1 | (A & 128);
 				cycles = 4;
@@ -776,7 +769,8 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 				X++;
 				X&=0xFF;
 				ST&=125;
-				ST|=(!X)<<1|(X&128); break;
+				ST|=(!X)<<1|(X&128);
+				break;
 			// DEY
 			case 0x80:
 				Y--;
@@ -786,7 +780,7 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 				break;
 			// PHP
 			case 0x00:
-				memory[0x100 + SP] = ST;
+				sid.memory[0x100 + SP] = ST;
 				SP--;
 				SP &= 0xFF;
 				cycles = 3;
@@ -795,12 +789,12 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 			case 0x20:
 				SP++;
 				SP &= 0xFF;
-				ST = memory[0x100 + SP];
+				ST = sid.memory[0x100 + SP];
 				cycles = 4;
 				break;
 			// PHA
 			case 0x40:
-				memory[0x100 + SP] = A;
+				sid.memory[0x100 + SP] = A;
 				SP--;
 				SP &= 0xFF;
 				cycles = 3;
@@ -831,7 +825,7 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 		if ((IR & 0x1F) == 0x10)
 		{
 			PC++;
-			T = memory[PC];
+			T = sid.memory[PC];
 			if (T & 0x80)
 				T -= 0x100; //BPL/BMI/BVC/BVS/BCC/BCS/BNE/BEQ  relative branch
 			if (IR & 0x20)
@@ -855,7 +849,7 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 		else
 		{
 			// addressing modes
-			switch (IR&0x1F)
+			switch (IR & 0x1F)
 			{
 				// imm. (or abs.low for JSR/BRK)
 				case 0:
@@ -866,29 +860,29 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 				// abs,x
 				case 0x1C:
 					PC++;
-					addr = memory[PC];
+					addr = sid.memory[PC];
 					PC++;
-					addr += memory[PC]*256 + X;
+					addr += sid.memory[PC]*256 + X;
 					cycles = 5;
 					break;
 				// abs
 				case 0xC:
 					PC++;
-					addr = memory[PC];
+					addr = sid.memory[PC];
 					PC++;
-					addr += memory[PC]*256;
+					addr += sid.memory[PC]*256;
 					cycles = 4;
 					break;
 				// zp,x
 				case 0x14:
 					PC++;
-					addr = memory[PC] + X;
+					addr = sid.memory[PC] + X;
 					cycles = 4;
 					break;
 				// zp
 				case 4:
 					PC++;
-					addr = memory[PC];
+					addr = sid.memory[PC];
 					cycles = 3;
 				default:
 					break;
@@ -896,20 +890,20 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 
 			addr &= 0xFFFF;
 
-			switch (IR&0xE0)
+			switch (IR & 0xE0)
 			{
 				// BRK
 				case 0x00:
-					memory[0x100 + SP] = PC % 256;
+					sid.memory[0x100 + SP] = PC % 256;
 					SP--;
 					SP &= 0xFF;
-					memory[0x100 + SP] = PC / 256;
+					sid.memory[0x100 + SP] = PC / 256;
 					SP--;
 					SP &= 0xFF;
-					memory[0x100 + SP] = ST;
+					sid.memory[0x100 + SP] = ST;
 					SP--;
 					SP &= 0xFF;
-					PC = memory[0xFFFE] + memory[0xFFFF] * 256-1;
+					PC = sid.memory[0xFFFE] + sid.memory[0xFFFF] * 256-1;
 					cycles = 7;
 					break;
 				case 0x20:
@@ -917,18 +911,18 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 					if (IR & 0xF)
 					{
 						ST &= 0x3D;
-						ST |= (memory[addr] & 0xC0) | (!(A & memory[addr])) << 1;
+						ST |= (sid.memory[addr] & 0xC0) | (!(A & sid.memory[addr])) << 1;
 					}
 					// JSR
 					else
 					{
-						memory[0x100 + SP] = (PC + 2) % 256;
+						sid.memory[0x100 + SP] = (PC + 2) % 256;
 						SP--;
 						SP &= 0xFF;
-						memory[0x100 + SP] = (PC + 2) / 256;
+						sid.memory[0x100 + SP] = (PC + 2) / 256;
 						SP--;
 						SP &= 0xFF;
-						PC = memory[addr] + memory[addr+1]*256-1;
+						PC = sid.memory[addr] + sid.memory[addr+1]*256-1;
 						cycles = 6;
 					}
 					break;
@@ -946,13 +940,13 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 							return 0xFE;
 						SP++;
 						SP &= 0xFF;
-						ST = memory[0x100 + SP];
+						ST = sid.memory[0x100 + SP];
 						SP++;
 						SP &= 0xFF;
-						T = memory[0x100 + SP];
+						T = sid.memory[0x100 + SP];
 						SP++;
 						SP &= 0xFF;
-						PC = memory[0x100 + SP] + T*256-1;
+						PC = sid.memory[0x100 + SP] + T*256-1;
 						cycles = 6;
 					}
 					break;
@@ -960,7 +954,7 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 					// JMP() (indirect)
 					if (IR & 0xF)
 					{
-						PC = memory[addr] + memory[addr+1] * 256-1;
+						PC = sid.memory[addr] + sid.memory[addr+1] * 256-1;
 						cycles = 5;
 					}
 					// RTS
@@ -970,34 +964,34 @@ static UINT8 CPUEmulate (void) // the CPU emulation for SID/PRG playback (ToDo: 
 							return 0xFF;
 						SP++;
 						SP &= 0xFF;
-						T = memory[0x100 + SP];
+						T = sid.memory[0x100 + SP];
 						SP++;
 						SP &= 0xFF;
-						PC = memory[0x100 + SP] + T*256-1;
+						PC = sid.memory[0x100 + SP] + T*256-1;
 						cycles = 6;
 					}
 					break;
 				// CPY
 				case 0xC0:
-					T = Y - memory[addr];
+					T = Y - sid.memory[addr];
 					ST &= 124;
 					ST |= (!(T & 0xFF)) <<1 | (T & 128) | (T >= 0);
 					break;
 				// CPX
 				case 0xE0:
-					T = X - memory[addr];
-					ST&=124;
-					ST|=(!(T & 0xFF)) << 1 | (T & 128) | (T >= 0);
+					T = X - sid.memory[addr];
+					ST &= 124;
+					ST |= (!(T & 0xFF)) << 1 | (T & 128) | (T >= 0);
 					break;
 				// LDY
 				case 0xA0:
-					Y = memory[addr];
+					Y = sid.memory[addr];
 					ST &= 125;
 					ST |= (!Y) << 1 | (Y & 128);
 					break;
 				// STY
 				case 0x80:
-					memory[addr] = Y;
+					sid.memory[addr] = Y;
 					storadd = addr;
 				default:
 					break;
@@ -1069,9 +1063,9 @@ static void InitSIDChip(void)
 	int i;
 
 	for (i = SID_BASE_ADDRESS; i <= SID_END_ADDRESS; i++)
-		memory[i] = 0x00;
+		sid.memory[i] = 0x00;
 	for (i = 0xDE00; i <= 0xDFFF; i++)
-		memory[i] = 0x00;
+		sid.memory[i] = 0x00;
 
 	for (i = 0; i < 9; i++)
 	{
@@ -1094,7 +1088,7 @@ static int SIDEmulate(UINT8 num, unsigned int baseaddr) //the SID emulation itse
 	static float period, steep, rDS_VCR_FET, cutoff[3], resonance[3], ftmp;
 
 	filtin = nonfilt = 0;
-	sReg = &memory[baseaddr];
+	sReg = &sid.memory[baseaddr];
 	vReg = sReg;
 
 	// treating 2SID and 3SID channels uniformly (0..5 / 0..8), this probably avoids some extra code
@@ -1295,15 +1289,15 @@ static int SIDEmulate(UINT8 num, unsigned int baseaddr) //the SID emulation itse
 			{
 				steep = (accuadd/65536.0)/288.0;
 				wfout += wfout*steep;
-				if(wfout>0xFFFF)
+				if (wfout > 0xFFFF)
 					wfout=0xFFFF-(wfout-0x10000)/steep;
 			}
 		}
 		// triangle (this waveform has no harsh edges, so it doesn't suffer from strong aliasing at high pitches)
 		else if (wf&TRI_BITMASK)
 		{
-			tmp = phaseaccu[channel]^(ctrl & RING_BITMASK ? sourceMSB[num] : 0);
-			wfout = (tmp^(tmp & 0x800000 ? 0xFFFFFF : 0)) >> 7;
+			tmp = phaseaccu[channel] ^ (ctrl & RING_BITMASK ? sourceMSB[num] : 0);
+			wfout = (tmp ^ (tmp & 0x800000 ? 0xFFFFFF : 0)) >> 7;
 		}
 
 		wfout &= 0xFFFF;
@@ -1323,8 +1317,7 @@ static int SIDEmulate(UINT8 num, unsigned int baseaddr) //the SID emulation itse
 	}
 
 	// update readable SID1-registers (some SID tunes might use 3rd channel ENV3/OSC3 value as control)
-	// Lactozilla: ?????????? "left-hand operand of comma expression has no effect"
-	if (num == 0) //, memory[1] & 3)
+	if (num == 0)
 	{
 		sReg[0x1B] = wfout >> 8;
 		sReg[0x1C] = envcnt[3]; // OSC3, ENV3 (some players rely on it)

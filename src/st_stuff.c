@@ -25,7 +25,6 @@
 #include "hu_stuff.h"
 #include "console.h"
 #include "s_sound.h"
-#include "s_csid.h"
 #include "i_system.h"
 #include "m_menu.h"
 #include "m_cheat.h"

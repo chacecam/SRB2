@@ -79,8 +79,8 @@
 #define GME_BASS 1.0f
 #endif // HAVE_LIBGME
 
-#ifdef HAVE_CSID
-#include "../s_csid.h"
+#ifdef HAVE_C64SID
+sidplayer_t sid;
 #endif
 
 static UINT16 BUFFERSIZE = 2048;
@@ -306,9 +306,9 @@ void I_ShutdownSound(void)
 	if (openmpt_mhandle)
 		openmpt_module_destroy(openmpt_mhandle);
 #endif
-#ifdef HAVE_CSID
+#ifdef HAVE_C64SID
 	if (sid.playing)
-		cSID_stop();
+		sid_stop();
 #endif
 }
 
@@ -802,8 +802,8 @@ static void mix_openmpt(void *udata, Uint8 *stream, int len)
 }
 #endif
 
-#ifdef HAVE_CSID
-static void mix_csid(void *udata, Uint8 *stream, int len) //called by SDL at samplerate pace
+#ifdef HAVE_C64SID
+static void mix_sid(void *udata, Uint8 *stream, int len)
 {
 	int i;
 	short *p;
@@ -812,7 +812,7 @@ static void mix_csid(void *udata, Uint8 *stream, int len) //called by SDL at sam
 		return;
 
 	(void)udata;
-	cSID_mix(stream, len);
+	sid_mix(stream, len);
 
 	// Limiter to prevent music from being disorted with some formats
 	if (music_volume >= 18)
@@ -853,7 +853,7 @@ musictype_t I_SongType(void)
 		return MU_MOD_EX;
 	else
 #endif
-#ifdef HAVE_CSID
+#ifdef HAVE_C64SID
 	if (sid.playing)
 		return MU_SID;
 #endif
@@ -885,7 +885,7 @@ boolean I_SongPlaying(void)
 #ifdef HAVE_OPENMPT
 		(I_SongType() == MU_MOD_EX && openmpt_mhandle) ||
 #endif
-#ifdef HAVE_CSID
+#ifdef HAVE_C64SID
 		(I_SongType() == MU_SID && sid.playing) ||
 #endif
 		music != NULL
@@ -1179,7 +1179,7 @@ boolean I_LoadSong(char *data, size_t len)
 #ifdef HAVE_OPENMPT
 		|| openmpt_mhandle
 #endif
-#ifdef HAVE_CSID
+#ifdef HAVE_C64SID
 		|| sid.playing
 #endif
 	)
@@ -1321,10 +1321,10 @@ boolean I_LoadSong(char *data, size_t len)
 	}
 #endif
 
-#ifdef HAVE_CSID
+#ifdef HAVE_C64SID
 	if (!memcmp(&data[1], "SID", 3))
 	{
-		cSID_load((UINT8 *)data, len);
+		sid_load((UINT8 *)data, len);
 		sid.playing = true;
 		sid.subtune = 0;
 		return true;
@@ -1394,10 +1394,10 @@ void I_UnloadSong(void)
 		openmpt_mhandle = NULL;
 	}
 #endif
-#ifdef HAVE_CSID
+#ifdef HAVE_C64SID
 	if (sid.playing)
 	{
-		cSID_stop();
+		sid_stop();
 		sid.playing = false;
 	}
 #endif
@@ -1410,11 +1410,11 @@ void I_UnloadSong(void)
 
 boolean I_PlaySong(boolean looping)
 {
-#ifdef HAVE_CSID
+#ifdef HAVE_C64SID
 	if (sid.playing)
 	{
-		cSID_play(0);
-		Mix_HookMusic(mix_csid, NULL);
+		sid_play(0);
+		Mix_HookMusic(mix_sid, NULL);
 		return true;
 	}
 	else
@@ -1493,7 +1493,7 @@ void I_StopSong(void)
 		current_subsong = -1;
 	}
 #endif
-#ifdef HAVE_CSID
+#ifdef HAVE_C64SID
 	if (sid.playing)
 	{
 		Mix_HookMusic(NULL, NULL);
@@ -1559,7 +1559,7 @@ void I_SetMusicVolume(UINT8 volume)
 
 boolean I_SetSongTrack(int track)
 {
-#ifdef HAVE_CSID
+#ifdef HAVE_C64SID
 	if (sid.playing)
 	{
 		if (track == sid.subtune)
@@ -1567,7 +1567,7 @@ boolean I_SetSongTrack(int track)
 
 		// Change the subtune, then play it
 		sid.subtune = track;
-		cSID_play(track);
+		sid_play(track);
 		return true;
 	}
 	else

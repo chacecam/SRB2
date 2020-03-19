@@ -335,4 +335,48 @@ void S_StopSoundByNum(sfxenum_t sfxnum);
 const char *compat_special_music_slots[16];
 #endif
 
+#ifdef HAVE_C64SID
+
+#define C64_MEMORY_SIZE 0xFFFF
+#define C64_PAL_CPUCLK 985248.0
+
+#define SID_BASE_ADDRESS 0xD400
+#define SID_END_ADDRESS 0xD7FF
+#define SID_CHANNEL_AMOUNT 3
+#define SID_SAMPLERATE (44100.0 * 2) // Lactozilla: changed to * 2
+
+#define PAL_FRAMERATE 50.06 //50.0443427 //50.1245419 //(C64_PAL_CPUCLK/63/312.5), selected carefully otherwise some ADSR-sensitive tunes may suffer more:
+#define CLOCK_RATIO_DEFAULT C64_PAL_CPUCLK/SID_SAMPLERATE  //(50.0567520: lowest framerate where Sanxion is fine, and highest where Myth is almost fine)
+
+typedef struct
+{
+	boolean playing;
+
+	// Song info
+	char title[0x20], author[0x20], info[0x20];
+	int subtune;
+	int subtune_amount;
+	UINT8 speed;
+
+	// SID chip
+	struct {
+		int amount;
+		int model[3];
+		unsigned int address[3];
+		unsigned int loadaddr, initaddr, playaddr, playaddf;
+	} chip;
+
+	// CPU memory and SID data
+	UINT8 filedata[C64_MEMORY_SIZE];
+	UINT8 memory[C64_MEMORY_SIZE];
+} sidplayer_t;
+
+extern sidplayer_t sid;
+
+void sid_load(UINT8 *data, size_t length);
+void sid_play(int track);
+void sid_mix(UINT8 *stream, int len);
+void sid_stop(void);
+#endif // HAVE_C64SID
+
 #endif

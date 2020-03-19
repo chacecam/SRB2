@@ -154,8 +154,10 @@ ifndef NOOPENMPT
 HAVE_OPENMPT=1
 endif
 
-ifndef NOCSID
-HAVE_CSID=1
+ifndef NOC64SID
+HAVE_C64SID=1
+SID_BACKEND=csid
+OBJS+=$(OBJDIR)/s_$(SID_BACKEND).o
 endif
 
 ifdef MINGW
@@ -294,8 +296,8 @@ CFLAGS+=$(PNG_CFLAGS)
 OBJS+=$(OBJDIR)/apng.o
 endif
 
-ifdef HAVE_CSID
-OPTS+=-DHAVE_CSID
+ifdef HAVE_C64SID
+OPTS+=-DHAVE_C64SID
 endif
 
 ifdef HAVE_LIBGME
@@ -485,7 +487,6 @@ OBJS:=$(i_main_o) \
 		$(OBJDIR)/screen.o   \
 		$(OBJDIR)/v_video.o  \
 		$(OBJDIR)/s_sound.o  \
-		$(OBJDIR)/s_csid.o  \
 		$(OBJDIR)/sounds.o   \
 		$(OBJDIR)/w_wad.o    \
 		$(OBJDIR)/filesrch.o \
@@ -689,6 +690,7 @@ $(OBJDIR)/depend.dep:
 	-$(MKDIR) $(OBJDIR)
 	$(CC) $(CFLAGS) -MM *.c > $(OBJDIR)/depend.ped
 	$(CC) $(CFLAGS) -MM $(INTERFACE)/*.c >> $(OBJDIR)/depend.ped
+	$(CC) $(CFLAGS) -MM sound/*.c >> $(OBJDIR)/depend.ped
 ifndef NOHW
 	$(CC) $(CFLAGS) -MM hardware/*.c >> $(OBJDIR)/depend.ped
 endif
@@ -721,6 +723,9 @@ ifdef MACOSX
 $(OBJDIR)/%.o: sdl/macosx/%.c
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 endif
+
+$(OBJDIR)/%.o: sound/%.c
+	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 
 $(OBJDIR)/%.o: hardware/%.c
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
