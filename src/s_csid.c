@@ -80,12 +80,12 @@ void cSID_load(UINT8 *data, size_t length)
 	unsigned int i, offs;
 	int preferred_SID_model[3];
 
-	CONS_Debug(DBG_AUDIO, "cSID_load %d\n", length);
+	CONS_Debug(DBG_AUDIO, "cSID_load %s\n", sizeu1(length));
 	memcpy(&sid.filedata, data, length);
 
 	offs = sid.filedata[7];
 	sid.chip.loadaddr = sid.filedata[8] + sid.filedata[9] ? sid.filedata[8] * 256 + sid.filedata[9] : sid.filedata[offs] + sid.filedata[offs+1] * 256;
-	CONS_Debug(DBG_AUDIO, "Offset: $%4.4X, load address: $%4.4X, size: $%4.4X\n", offs, sid.chip.loadaddr, length-offs);
+	CONS_Debug(DBG_AUDIO, "Offset: $%4.4X, load address: $%4.4X, size: $%4.4X\n", offs, sid.chip.loadaddr, (unsigned int)(length-offs));
 
 	CONS_Debug(DBG_AUDIO, "Timermodes:");
 	for (i = 0; i < 32; i++)
