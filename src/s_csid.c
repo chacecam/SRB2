@@ -1441,7 +1441,7 @@ static void createCombinedWF(unsigned int* wfarray, float bitmul, float bitstren
 		{
 			float bitlevel = 0;
 			for (k = 0; k < 12; k++)
-				bitlevel += (bitmul / pow(bitstrength, fabs(k-j))) * (((i>>k)&1)-0.5);
+				bitlevel += (bitmul / pow(bitstrength, fabs((float)(k-j)))) * (((i>>k)&1)-0.5);
 			wfarray[i] += (bitlevel >= treshold) ? pow(2, j) : 0;
 		}
 		wfarray[i] *= 12;
