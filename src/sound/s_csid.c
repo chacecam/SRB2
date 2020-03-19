@@ -23,7 +23,12 @@
 #include "../v_video.h"
 
 #include "../s_sound.h"
-#include "s_csid.h"
+
+#define VCR_SHUNT_6581 1500 // kOhm //cca 1.5 MOhm Rshunt across VCR FET drain and source (causing 220Hz bottom cutoff with 470pF integrator capacitors in old C64)
+#define VCR_FET_TRESHOLD 192 // Vth (on cutoff numeric range 0..2048) for the VCR cutoff-frequency control FET below which it doesn't conduct
+#define CAP_6581 0.470 // filter capacitor value for 6581
+#define FILTER_DARKNESS_6581 22.0 // the bigger the value, the darker the filter control is (that is, cutoff frequency increases less with the same cutoff-value)
+#define FILTER_DISTORTION_6581 0.0016 // the bigger the value the more of resistance-modulation (filter distortion) is applied for 6581 cutoff-control
 
 // raw output divided by this after multiplied by main volume, this also compensates for filter-resonance emphasis to avoid distotion
 static int OUTPUT_SCALEDOWN = SID_CHANNEL_AMOUNT * 16 + 26;
