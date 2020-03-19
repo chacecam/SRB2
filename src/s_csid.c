@@ -5,7 +5,7 @@
 // License: WTF - Do what the fuck you want with this code,
 // but please mention me as its original author.
 //-----------------------------------------------------------------------------
-/// \file s_csid.h
+/// \file s_csid.c
 /// \brief SID audio emulation
 /// based on jsSID, this version has much lower CPU-usage, as mainloop runs at samplerate
 
