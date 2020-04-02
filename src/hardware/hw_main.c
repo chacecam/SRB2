@@ -6178,7 +6178,7 @@ if (0)
 // ==========================================================================
 void HWR_RenderPlayerView(player_t *player)
 {
-	INT32 viewnumber = (players - player);
+	INT32 viewnumber = (player - players);
 	const float fpov = FIXED_TO_FLOAT(cv_fov.value+player->fovadd);
 	postimg_t *type;
 
