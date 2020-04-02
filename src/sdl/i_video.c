@@ -142,7 +142,7 @@ static       SDL_bool    borderlesswindow = SDL_FALSE;
 
 // SDL2 vars
 SDL_Window   *window;
-SDL_Renderer *renderer;
+SDL_Renderer *sdlrenderer;
 static SDL_Texture  *texture;
 static SDL_bool      havefocus = SDL_TRUE;
 static const char *fallback_resolution_name = "Fallback";
@@ -235,8 +235,8 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 
 	if (rendermode == render_soft)
 	{
-		SDL_RenderClear(renderer);
-		SDL_RenderSetLogicalSize(renderer, width, height);
+		SDL_RenderClear(sdlrenderer);
+		SDL_RenderSetLogicalSize(sdlrenderer, width, height);
 		// Set up Texture
 		realwidth = width;
 		realheight = height;
@@ -255,7 +255,7 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 			sw_texture_format = SDL_PIXELFORMAT_RGBA8888;
 		}
 
-		texture = SDL_CreateTexture(renderer, sw_texture_format, SDL_TEXTUREACCESS_STREAMING, width, height);
+		texture = SDL_CreateTexture(sdlrenderer, sw_texture_format, SDL_TEXTUREACCESS_STREAMING, width, height);
 
 		// Set up SW surface
 		if (vidSurface != NULL)
@@ -1154,8 +1154,8 @@ void I_UpdateNoBlit(void)
 #endif
 		if (rendermode == render_soft)
 		{
-			SDL_RenderCopy(renderer, texture, NULL, NULL);
-			SDL_RenderPresent(renderer);
+			SDL_RenderCopy(sdlrenderer, texture, NULL, NULL);
+			SDL_RenderPresent(sdlrenderer);
 		}
 	}
 	exposevideo = SDL_FALSE;
@@ -1233,9 +1233,9 @@ void I_FinishUpdate(void)
 			SDL_UpdateTexture(texture, &rect, vidSurface->pixels, vidSurface->pitch);
 			SDL_UnlockSurface(vidSurface);
 		}
-		SDL_RenderClear(renderer);
-		SDL_RenderCopy(renderer, texture, NULL, NULL);
-		SDL_RenderPresent(renderer);
+		SDL_RenderClear(sdlrenderer);
+		SDL_RenderCopy(sdlrenderer, texture, NULL, NULL);
+		SDL_RenderPresent(sdlrenderer);
 	}
 #ifdef HWRENDER
 	else if (rendermode == render_opengl)
@@ -1461,14 +1461,14 @@ static SDL_bool Impl_CreateContext(void)
 		else if (cv_vidwait.value)
 			flags |= SDL_RENDERER_PRESENTVSYNC;
 
-		if (!renderer)
-			renderer = SDL_CreateRenderer(window, -1, flags);
-		if (renderer == NULL)
+		if (!sdlrenderer)
+			sdlrenderer = SDL_CreateRenderer(window, -1, flags);
+		if (sdlrenderer == NULL)
 		{
 			CONS_Printf(M_GetText("Couldn't create rendering context: %s\n"), SDL_GetError());
 			return SDL_FALSE;
 		}
-		SDL_RenderSetLogicalSize(renderer, BASEVIDWIDTH, BASEVIDHEIGHT);
+		SDL_RenderSetLogicalSize(sdlrenderer, BASEVIDWIDTH, BASEVIDHEIGHT);
 	}
 	return SDL_TRUE;
 }
@@ -1508,6 +1508,7 @@ void VID_CheckRenderer(void)
 	{
 		rendermode = setrenderneeded;
 		rendererchanged = SDL_TRUE;
+		R_SetupRenderer();
 
 #ifdef HWRENDER
 		if (rendermode == render_opengl)
@@ -1524,6 +1525,7 @@ void VID_CheckRenderer(void)
 		Impl_CreateContext();
 	}
 
+	R_SetupRenderer();
 	SDLSetMode(vid.width, vid.height, USE_FULLSCREEN, (rendererchanged ? SDL_FALSE : SDL_TRUE));
 	Impl_VideoSetupBuffer();
 
@@ -1715,6 +1717,7 @@ void I_StartupGraphics(void)
 #endif
 		chosenrendermode = rendermode = render_soft;
 
+	R_SetupRenderer();
 	usesdl2soft = M_CheckParm("-softblit");
 	borderlesswindow = M_CheckParm("-borderless");
 

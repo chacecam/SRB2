@@ -6176,8 +6176,9 @@ if (0)
 // ==========================================================================
 //
 // ==========================================================================
-void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
+void HWR_RenderPlayerView(player_t *player)
 {
+	INT32 viewnumber = (players - player);
 	const float fpov = FIXED_TO_FLOAT(cv_fov.value+player->fovadd);
 	postimg_t *type;
 
@@ -6956,14 +6957,18 @@ void HWR_DoPostProcessor(player_t *player)
 
 void HWR_StartScreenWipe(void)
 {
+#ifndef NOWIPE
 	//CONS_Debug(DBG_RENDER, "In HWR_StartScreenWipe()\n");
 	HWD.pfnStartScreenWipe();
+#endif
 }
 
 void HWR_EndScreenWipe(void)
 {
+#ifndef NOWIPE
 	//CONS_Debug(DBG_RENDER, "In HWR_EndScreenWipe()\n");
 	HWD.pfnEndScreenWipe();
+#endif
 }
 
 void HWR_DrawIntermissionBG(void)

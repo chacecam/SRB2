@@ -1919,7 +1919,7 @@ static void P_LoadSegs(UINT8 *data)
 
 		seg->length = P_SegLength(seg);
 #ifdef HWRENDER
-		seg->flength = (rendermode == render_opengl) ? P_SegLengthFloat(seg) : 0;
+		seg->flength = P_SegLengthFloat(seg);
 #endif
 
 		seg->glseg = false;
@@ -3226,7 +3226,7 @@ static void P_RunSpecialStageWipe(void)
 		(mapmusflags & MUSIC_RELOADRESET) ? mapheaderinfo[gamemap - 1]->musname : mapmusname, 7))
 		S_FadeOutStopMusic(MUSICRATE/4); //FixedMul(FixedDiv(F_GetWipeLength(wipedefs[wipe_speclevel_towhite])*NEWTICRATERATIO, NEWTICRATE), MUSICRATE)
 
-	F_WipeStartScreen();
+	renderer->WipeStartScreen();
 	wipestyleflags |= (WSF_FADEOUT|WSF_TOWHITE);
 
 #ifdef HWRENDER
@@ -3235,7 +3235,7 @@ static void P_RunSpecialStageWipe(void)
 		F_WipeColorFill(0);
 #endif
 
-	F_WipeEndScreen();
+	renderer->WipeEndScreen();
 	F_RunWipe(wipedefs[wipe_speclevel_towhite], false);
 
 	I_OsPolling();
@@ -3259,7 +3259,7 @@ static void P_RunSpecialStageWipe(void)
 
 static void P_RunLevelWipe(void)
 {
-	F_WipeStartScreen();
+	renderer->WipeStartScreen();
 	wipestyleflags |= WSF_FADEOUT;
 
 #ifdef HWRENDER
@@ -3268,7 +3268,7 @@ static void P_RunLevelWipe(void)
 		F_WipeColorFill(31);
 #endif
 
-	F_WipeEndScreen();
+	renderer->WipeEndScreen();
 	// for titlemap: run a specific wipe if specified
 	// needed for exiting time attack
 	if (wipetypepre != INT16_MAX)

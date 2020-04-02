@@ -1956,7 +1956,7 @@ static inline void HU_DrawCrosshair(void)
 		return;
 
 #ifdef HWRENDER
-	if (rendermode != render_soft)
+	if (rendermode == render_opengl)
 		y = (INT32)gr_basewindowcentery;
 	else
 #endif
@@ -1977,7 +1977,7 @@ static inline void HU_DrawCrosshair2(void)
 		return;
 
 #ifdef HWRENDER
-	if (rendermode != render_soft)
+	if (rendermode == render_opengl)
 		y = (INT32)gr_basewindowcentery;
 	else
 #endif
@@ -1986,7 +1986,7 @@ static inline void HU_DrawCrosshair2(void)
 	if (splitscreen)
 	{
 #ifdef HWRENDER
-		if (rendermode != render_soft)
+		if (rendermode == render_opengl)
 			y += (INT32)gr_viewheight;
 		else
 #endif

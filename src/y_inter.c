@@ -315,6 +315,27 @@ void Y_CleanupScreenBuffer(void)
 }
 
 //
+// Y_IntermissionBackgroundDrawer
+//
+// Draws the intermission screen's background.
+//
+void Y_IntermissionBackgroundDrawer(void)
+{
+	// no y_buffer
+	if (y_buffer == NULL)
+		VID_BlitLinearScreen(screens[1], screens[0], vid.width*vid.bpp, vid.height, vid.width*vid.bpp, vid.rowbytes);
+	else
+	{
+		// Maybe the resolution changed?
+		if ((y_buffer->target_width != vid.width) || (y_buffer->target_height != vid.height))
+			Y_RescaleScreenBuffer();
+
+		// Blit the already-scaled screen buffer to the current screen
+		VID_BlitLinearScreen(y_buffer->target_picture, screens[0], vid.width*vid.bpp, vid.height, vid.width*vid.bpp, vid.rowbytes);
+	}
+}
+
+//
 // Y_IntermissionDrawer
 //
 // Called by D_Display. Nothing is modified here; all it does is draw.
@@ -354,25 +375,8 @@ void Y_IntermissionDrawer(void)
 		V_DrawScaledPatch(0, 0, 0, interpic);
 	else if (!usetile)
 	{
-		if (rendermode == render_soft && usebuffer)
-		{
-			// no y_buffer
-			if (y_buffer == NULL)
-				VID_BlitLinearScreen(screens[1], screens[0], vid.width*vid.bpp, vid.height, vid.width*vid.bpp, vid.rowbytes);
-			else
-			{
-				// Maybe the resolution changed?
-				if ((y_buffer->target_width != vid.width) || (y_buffer->target_height != vid.height))
-					Y_RescaleScreenBuffer();
-
-				// Blit the already-scaled screen buffer to the current screen
-				VID_BlitLinearScreen(y_buffer->target_picture, screens[0], vid.width*vid.bpp, vid.height, vid.width*vid.bpp, vid.rowbytes);
-			}
-		}
-#ifdef HWRENDER
-		else if (rendermode != render_soft && usebuffer)
-			HWR_DrawIntermissionBG();
-#endif
+		if (usebuffer)
+			renderer->DrawIntermissionBG();
 		else
 		{
 			if (widebgpatch && rendermode == render_soft && vid.width / vid.dupx == 400)

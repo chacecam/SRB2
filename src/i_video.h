@@ -22,14 +22,10 @@
 
 typedef enum
 {
-	/// Software
-	render_soft = 1,
-
-	/// OpenGL
-	render_opengl = 2,
-
-	/// Dedicated
-	render_none = 3  // for dedicated server
+	render_none   = 0,
+	render_soft   = 1, // Software
+	render_opengl = 2, // OpenGL
+	num_renderers
 } rendermode_t;
 
 /**	\brief current render mode

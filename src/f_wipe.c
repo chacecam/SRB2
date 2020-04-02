@@ -432,13 +432,6 @@ static void F_DoColormapWipe(fademask_t *fademask, UINT8 *colormap)
 void F_WipeStartScreen(void)
 {
 #ifndef NOWIPE
-#ifdef HWRENDER
-	if(rendermode != render_soft)
-	{
-		HWR_StartScreenWipe();
-		return;
-	}
-#endif
 	wipe_scr_start = screens[3];
 	I_ReadScreen(wipe_scr_start);
 #endif
@@ -449,13 +442,6 @@ void F_WipeStartScreen(void)
 void F_WipeEndScreen(void)
 {
 #ifndef NOWIPE
-#ifdef HWRENDER
-	if(rendermode != render_soft)
-	{
-		HWR_EndScreenWipe();
-		return;
-	}
-#endif
 	wipe_scr_end = screens[4];
 	I_ReadScreen(wipe_scr_end);
 	V_DrawBlock(0, 0, 0, vid.width, vid.height, wipe_scr_start);

@@ -225,6 +225,8 @@ static void D_Display(void)
 	if (nodrawers)
 		return; // for comparative timing/profiling
 
+	R_SetupRenderer();
+
 	// Lactozilla: Switching renderers works by checking
 	// if the game has to do it right when the frame
 	// needs to render. If so, five things will happen:
@@ -309,16 +311,16 @@ static void D_Display(void)
 					) // fades to black on its own timing, always
 			 && wipetypepre != UINT8_MAX)
 			{
-				F_WipeStartScreen();
+				renderer->WipeStartScreen();
 				// Check for Mega Genesis fade
 				wipestyleflags = WSF_FADEOUT;
 				if (F_TryColormapFade(31))
 					wipetypepost = -1; // Don't run the fade below this one
-				F_WipeEndScreen();
+				renderer->WipeEndScreen();
 				F_RunWipe(wipetypepre, gamestate != GS_TIMEATTACK && gamestate != GS_TITLESCREEN);
 			}
 
-			F_WipeStartScreen();
+			renderer->WipeStartScreen();
 		}
 
 		wipetypepre = -1;
@@ -415,31 +417,22 @@ static void D_Display(void)
 				{
 					topleft = screens[0] + viewwindowy*vid.width + viewwindowx;
 					objectsdrawn = 0;
-	#ifdef HWRENDER
-					if (rendermode != render_soft)
-						HWR_RenderPlayerView(0, &players[displayplayer]);
-					else
-	#endif
-					if (rendermode != render_none)
-						R_RenderPlayerView(&players[displayplayer]);
+					renderer->RenderPlayerView(&players[displayplayer]);
 				}
 
 				// render the second screen
 				if (splitscreen && players[secondarydisplayplayer].mo)
 				{
-	#ifdef HWRENDER
 					if (rendermode != render_soft)
-						HWR_RenderPlayerView(1, &players[secondarydisplayplayer]);
+						renderer->RenderPlayerView(&players[secondarydisplayplayer]);
 					else
-	#endif
-					if (rendermode != render_none)
 					{
 						viewwindowy = vid.height / 2;
 						M_Memcpy(ylookup, ylookup2, viewheight*sizeof (ylookup[0]));
 
 						topleft = screens[0] + viewwindowy*vid.width + viewwindowx;
 
-						R_RenderPlayerView(&players[secondarydisplayplayer]);
+						renderer->RenderPlayerView(&players[secondarydisplayplayer]);
 
 						viewwindowy = 0;
 						M_Memcpy(ylookup, ylookup1, viewheight*sizeof (ylookup[0]));
@@ -527,7 +520,7 @@ static void D_Display(void)
 
 		if (rendermode != render_none)
 		{
-			F_WipeEndScreen();
+			renderer->WipeEndScreen();
 
 			// Funny.
 			if (WipeStageTitle && st_overlay)
@@ -536,7 +529,7 @@ static void D_Display(void)
 				lt_lasttic = lt_ticker;
 				ST_preLevelTitleCardDrawer();
 				V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, levelfadecol);
-				F_WipeStartScreen();
+				renderer->WipeStartScreen();
 			}
 
 			// Check for Mega Genesis fade

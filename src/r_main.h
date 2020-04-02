@@ -14,8 +14,24 @@
 #ifndef __R_MAIN__
 #define __R_MAIN__
 
+#include "i_video.h"
 #include "d_player.h"
 #include "r_data.h"
+
+typedef struct
+{
+	boolean hardware;
+
+	void (*RenderPlayerView)(player_t *player);
+	void (*InitTextureMapping)(void);
+
+	void (*WipeStartScreen)(void);
+	void (*WipeEndScreen)(void);
+
+	void (*DrawIntermissionBG)(void);
+} renderer_t;
+extern renderer_t *renderer;
+extern renderer_t renderer_list[num_renderers];
 
 //
 // POV related.
@@ -93,6 +109,9 @@ void R_Init(void);
 void R_InitHardwareMode(void);
 #endif
 void R_ReloadHUDGraphics(void);
+
+void R_InitRenderers(void);
+void R_SetupRenderer(void);
 
 void R_CheckViewMorph(void);
 void R_ApplyViewMorph(void);

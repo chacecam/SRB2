@@ -918,9 +918,9 @@ void F_IntroDrawer(void)
 			if (rendermode != render_none)
 			{
 				wipestyleflags = WSF_FADEOUT;
-				F_WipeStartScreen();
+				renderer->WipeStartScreen();
 				F_TryColormapFade(31);
-				F_WipeEndScreen();
+				renderer->WipeEndScreen();
 				F_RunWipe(99,true);
 			}
 
@@ -931,9 +931,9 @@ void F_IntroDrawer(void)
 			if (rendermode != render_none)
 			{
 				wipestyleflags = (WSF_FADEOUT|WSF_TOWHITE);
-				F_WipeStartScreen();
+				renderer->WipeStartScreen();
 				F_TryColormapFade(0);
-				F_WipeEndScreen();
+				renderer->WipeEndScreen();
 				F_RunWipe(99,true);
 			}
 		}
@@ -942,9 +942,9 @@ void F_IntroDrawer(void)
 			if (rendermode != render_none)
 			{
 				wipestyleflags = WSF_FADEOUT;
-				F_WipeStartScreen();
+				renderer->WipeStartScreen();
 				F_TryColormapFade(31);
-				F_WipeEndScreen();
+				renderer->WipeEndScreen();
 				F_RunWipe(99,true);
 			}
 
@@ -976,7 +976,7 @@ void F_IntroDrawer(void)
 		F_NewCutscene(introtext[++intro_scenenum]);
 		timetonext = introscenetime[intro_scenenum];
 
-		F_WipeStartScreen();
+		renderer->WipeStartScreen();
 		wipegamestate = -1;
 		wipestyleflags = WSF_CROSSFADE;
 		animtimer = stoptimer = 0;
@@ -990,52 +990,52 @@ void F_IntroDrawer(void)
 		{
 			patch_t *radar = W_CachePatchName("RADAR", PU_PATCH);
 
-			F_WipeStartScreen();
+			renderer->WipeStartScreen();
 			F_WipeColorFill(31);
 			V_DrawSmallScaledPatch(0, 0, 0, radar);
 			W_UnlockCachedPatch(radar);
 			V_DrawString(8, 128, V_ALLOWLOWERCASE, cutscene_disptext);
 
-			F_WipeEndScreen();
+			renderer->WipeEndScreen();
 			F_RunWipe(99,true);
 		}
 		else if (intro_scenenum == 7 && intro_curtime == 6*TICRATE) // Force a wipe here
 		{
 			patch_t *grass = W_CachePatchName("SGRASS2", PU_PATCH);
 
-			F_WipeStartScreen();
+			renderer->WipeStartScreen();
 			F_WipeColorFill(31);
 			V_DrawSmallScaledPatch(0, 0, 0, grass);
 			W_UnlockCachedPatch(grass);
 			V_DrawString(8, 128, V_ALLOWLOWERCASE, cutscene_disptext);
 
-			F_WipeEndScreen();
+			renderer->WipeEndScreen();
 			F_RunWipe(99,true);
 		}
 		/*else if (intro_scenenum == 12 && intro_curtime == 7*TICRATE)
 		{
 			patch_t *confront = W_CachePatchName("CONFRONT", PU_PATCH);
 
-			F_WipeStartScreen();
+			renderer->WipeStartScreen();
 			F_WipeColorFill(31);
 			V_DrawSmallScaledPatch(0, 0, 0, confront);
 			W_UnlockCachedPatch(confront);
 			V_DrawString(8, 128, V_ALLOWLOWERCASE, cutscene_disptext);
 
-			F_WipeEndScreen();
+			renderer->WipeEndScreen();
 			F_RunWipe(99,true);
 		}*/
 		if (intro_scenenum == 15 && intro_curtime == 7*TICRATE)
 		{
 			patch_t *sdo = W_CachePatchName("SONICDO2", PU_PATCH);
 
-			F_WipeStartScreen();
+			renderer->WipeStartScreen();
 			F_WipeColorFill(31);
 			V_DrawSmallScaledPatch(0, 0, 0, sdo);
 			W_UnlockCachedPatch(sdo);
 			V_DrawString(224, 8, V_ALLOWLOWERCASE, cutscene_disptext);
 
-			F_WipeEndScreen();
+			renderer->WipeEndScreen();
 			F_RunWipe(99,true);
 		}
 	}
@@ -4038,17 +4038,17 @@ void F_CutsceneDrawer(void)
 {
 	if (dofadenow && rendermode != render_none)
 	{
-		F_WipeStartScreen();
+		renderer->WipeStartScreen();
 
 		// Fade to any palette color you want.
 		if (cutscenes[cutnum]->scene[scenenum].fadecolor)
 		{
 			V_DrawFill(0,0,BASEVIDWIDTH,BASEVIDHEIGHT,cutscenes[cutnum]->scene[scenenum].fadecolor);
 
-			F_WipeEndScreen();
+			renderer->WipeEndScreen();
 			F_RunWipe(cutscenes[cutnum]->scene[scenenum].fadeinid, true);
 
-			F_WipeStartScreen();
+			renderer->WipeStartScreen();
 		}
 	}
 	V_DrawFill(0,0, BASEVIDWIDTH, BASEVIDHEIGHT, 31);
@@ -4065,7 +4065,7 @@ void F_CutsceneDrawer(void)
 
 	if (dofadenow && rendermode != render_none)
 	{
-		F_WipeEndScreen();
+		renderer->WipeEndScreen();
 		F_RunWipe(cutscenes[cutnum]->scene[scenenum].fadeoutid, true);
 	}
 

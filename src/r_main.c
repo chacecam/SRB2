@@ -33,6 +33,7 @@
 #include "z_zone.h"
 #include "m_random.h" // quake camera shake
 #include "r_portal.h"
+#include "y_inter.h"
 
 #ifdef HWRENDER
 #include "hardware/hw_main.h"
@@ -47,6 +48,9 @@ INT64 mytotal = 0;
 //unsigned long  nombre = 100000;
 #endif
 //profile stuff ---------------------------------------------------------
+
+renderer_t *renderer;
+renderer_t renderer_list[num_renderers];
 
 // Fineangles in the SCREENWIDTH wide window.
 #define FIELDOFVIEW 2048
@@ -900,12 +904,7 @@ void R_ExecuteSetViewSize(void)
 
 	R_InitViewBuffer(scaledviewwidth, viewheight);
 
-	R_InitTextureMapping();
-
-#ifdef HWRENDER
-	if (rendermode != render_soft)
-		HWR_InitTextureMapping();
-#endif
+	renderer->InitTextureMapping();
 
 	// thing clipping
 	for (i = 0; i < viewwidth; i++)
@@ -962,6 +961,9 @@ void R_ExecuteSetViewSize(void)
 
 void R_Init(void)
 {
+	R_InitRenderers();
+	R_SetupRenderer();
+
 	// screensize independent
 	//I_OutputMsg("\nR_InitData");
 	R_InitData();
@@ -983,6 +985,48 @@ void R_Init(void)
 	R_InitDrawNodes();
 
 	framecount = 0;
+}
+
+//
+// R_InitRenderers
+//
+void R_InitRenderers(void)
+{
+	renderer_t *r = NULL;
+
+	// Software renderer
+	r = &renderer_list[render_soft];
+	r->hardware = false;
+
+	r->RenderPlayerView = &R_RenderPlayerView;
+	r->InitTextureMapping = &R_InitTextureMapping;
+
+	r->WipeStartScreen = &F_WipeStartScreen;
+	r->WipeEndScreen = &F_WipeEndScreen;
+
+	r->DrawIntermissionBG = &Y_IntermissionBackgroundDrawer;
+
+#ifdef HWRENDER
+	// OpenGL
+	r = &renderer_list[render_opengl];
+	r->hardware = true;
+
+	r->RenderPlayerView = &HWR_RenderPlayerView;
+	r->InitTextureMapping = &HWR_InitTextureMapping;
+
+	r->WipeStartScreen = &HWR_StartScreenWipe;
+	r->WipeEndScreen = &HWR_EndScreenWipe;
+
+	r->DrawIntermissionBG = &HWR_DrawIntermissionBG;
+#endif
+}
+
+//
+// R_SetupRenderer
+//
+void R_SetupRenderer(void)
+{
+	renderer = &renderer_list[rendermode];
 }
 
 //
