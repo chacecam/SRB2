@@ -256,7 +256,7 @@ static void D_Display(void)
 		SCR_SetMode(); // change video mode
 	}
 
-	if (vid.recalc || setrenderstillneeded)
+	if (vid.recalc || recalcneeded || setrenderstillneeded)
 	{
 		SCR_Recalc(); // NOTE! setsizeneeded is set by SCR_Recalc()
 #ifdef HWRENDER
@@ -264,9 +264,10 @@ static void D_Display(void)
 		if ((rendermode == render_opengl) && (gamestate == GS_INTERMISSION))
 			usebuffer = false;
 #endif
+		recalcneeded = false;
 	}
 
-	if (rendermode == render_soft && !splitscreen)
+	if (softwareview && !multipleviews)
 		R_CheckViewMorph();
 
 	// change the view size if needed
@@ -408,38 +409,38 @@ static void D_Display(void)
 		if (gamestate == GS_LEVEL || (gamestate == GS_TITLESCREEN && titlemapinaction && curbghide && (!hidetitlemap)))
 		{
 			// draw the view directly
-
 			if (!automapactive && !dedicated && cv_renderview.value)
 			{
 				if (players[displayplayer].mo || players[displayplayer].playerstate == PST_DEAD)
 				{
 					topleft = screens[0] + viewwindowy*vid.width + viewwindowx;
 					objectsdrawn = 0;
-	#ifdef HWRENDER
-					if (rendermode != render_soft)
-						HWR_RenderPlayerView(0, &players[displayplayer]);
-					else
-	#endif
-					if (rendermode != render_none)
-						R_RenderPlayerView(&players[displayplayer]);
+#ifdef HWRENDER
+					if (cv_viewrenderer.value == render_opengl)
+						HWR_RenderPlayerView(&players[displayplayer], 0);
+					else if (cv_viewrenderer.value == render_soft)
+#endif
+						R_RenderPlayerView(&players[displayplayer], 0);
 				}
 
 				// render the second screen
-				if (splitscreen && players[secondarydisplayplayer].mo)
+				if (!splitscreen)
+					secondarydisplayplayer = displayplayer;
+
+				if (multipleviews && players[secondarydisplayplayer].mo)
 				{
-	#ifdef HWRENDER
-					if (rendermode != render_soft)
-						HWR_RenderPlayerView(1, &players[secondarydisplayplayer]);
-					else
-	#endif
-					if (rendermode != render_none)
+#ifdef HWRENDER
+					if (cv_viewrenderer2.value == render_opengl)
+						HWR_RenderPlayerView(&players[secondarydisplayplayer], 1);
+					else if (cv_viewrenderer2.value == render_soft)
+#endif
 					{
 						viewwindowy = vid.height / 2;
 						M_Memcpy(ylookup, ylookup2, viewheight*sizeof (ylookup[0]));
 
 						topleft = screens[0] + viewwindowy*vid.width + viewwindowx;
 
-						R_RenderPlayerView(&players[secondarydisplayplayer]);
+						R_RenderPlayerView(&players[secondarydisplayplayer], 1);
 
 						viewwindowy = 0;
 						M_Memcpy(ylookup, ylookup1, viewheight*sizeof (ylookup[0]));
@@ -447,9 +448,9 @@ static void D_Display(void)
 				}
 
 				// Image postprocessing effect
-				if (rendermode == render_soft)
+				if (softwareview)
 				{
-					if (!splitscreen)
+					if (!multipleviews)
 						R_ApplyViewMorph();
 
 					if (postimgtype)
@@ -461,7 +462,7 @@ static void D_Display(void)
 
 			if (lastdraw)
 			{
-				if (rendermode == render_soft)
+				if (softwareview)
 				{
 					VID_BlitLinearScreen(screens[0], screens[1], vid.width*vid.bpp, vid.height, vid.width*vid.bpp, vid.rowbytes);
 					Y_ConsiderScreenBuffer();
@@ -643,6 +644,9 @@ void D_SRB2Loop(void)
 	// make sure to do a d_display to init mode _before_ load a level
 	SCR_SetMode(); // change video mode
 	SCR_Recalc();
+
+	CV_StealthSetValue(&cv_viewrenderer, cv_renderer.value);
+	CV_StealthSetValue(&cv_viewrenderer2, cv_renderer.value);
 
 	// Check and print which version is executed.
 	// Use this as the border between setup and the main game loop being entered.

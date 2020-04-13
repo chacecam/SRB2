@@ -36,8 +36,8 @@ void HWR_drawAMline(const fline_t *fl, INT32 color);
 void HWR_FadeScreenMenuBack(UINT16 color, UINT8 strength);
 void HWR_DrawConsoleBack(UINT32 color, INT32 height);
 void HWR_DrawTutorialBack(UINT32 color, INT32 boxheight);
-void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player);
-void HWR_RenderPlayerView(INT32 viewnumber, player_t *player);
+void HWR_RenderPlayerView(player_t *player, INT32 viewnumber);
+void HWR_RenderSkyboxView(player_t *player, INT32 viewnumber);
 void HWR_DrawViewBorder(INT32 clearlines);
 void HWR_DrawFlatFill(INT32 x, INT32 y, INT32 w, INT32 h, lumpnum_t flatlumpnum);
 void HWR_InitTextureMapping(void);
@@ -71,6 +71,8 @@ void HWR_DoWipe(UINT8 wipenum, UINT8 scrnnum);
 void HWR_DoTintedWipe(UINT8 wipenum, UINT8 scrnnum);
 void HWR_MakeScreenFinalTexture(void);
 void HWR_DrawScreenFinalTexture(int width, int height);
+void HWR_MakeSoftwareScreenTexture(int width, int height, UINT8 *screen);
+void HWR_DrawSoftwareScreenTexture(int x, int y, int width, int height);
 
 // This stuff is put here so MD2's can use them
 UINT32 HWR_Lighting(INT32 light, UINT32 color, UINT32 fadecolor, boolean fogblockpoly, boolean plane);

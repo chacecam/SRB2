@@ -5902,7 +5902,7 @@ static void HWR_DrawSkyBackground(player_t *player)
 		angle = aimingangle;
 		dimensionmultiply = ((float)textures[texturetranslation[skytexture]]->height/(128.0f*aspectratio));
 
-		if (splitscreen)
+		if (multipleviews)
 		{
 			dimensionmultiply *= 2;
 			angle *= 2;
@@ -5975,7 +5975,7 @@ void HWR_SetViewSize(void)
 	gr_viewwidth = (float)vid.width;
 	gr_viewheight = (float)vid.height;
 
-	if (splitscreen)
+	if (multipleviews)
 		gr_viewheight /= 2;
 
 	gr_centerx = gr_viewwidth / 2;
@@ -6003,7 +6003,7 @@ void HWR_SetViewSize(void)
 // ==========================================================================
 // Same as rendering the player view, but from the skybox object
 // ==========================================================================
-void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
+void HWR_RenderSkyboxView(player_t *player, INT32 viewnumber)
 {
 	const float fpov = FIXED_TO_FLOAT(cv_fov.value+player->fovadd);
 	postimg_t *type;
@@ -6037,7 +6037,7 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 	gr_centery = gr_basecentery;
 	gr_viewwindowy = gr_baseviewwindowy;
 	gr_windowcentery = gr_basewindowcentery;
-	if (splitscreen && viewnumber == 1)
+	if (multipleviews && viewnumber == 1)
 	{
 		gr_viewwindowy += (vid.height/2);
 		gr_windowcentery += (vid.height/2);
@@ -6081,7 +6081,7 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 		atransform.rollangle = FIXED_TO_FLOAT(rol);
 		atransform.roll = true;
 	}
-	atransform.splitscreen = splitscreen;
+	atransform.splitscreen = multipleviews;
 
 	gr_fovlud = (float)(1.0l/tan((double)(fpov*M_PIl/360l)));
 
@@ -6100,7 +6100,7 @@ if (0)
 		HWR_DrawSkyBackground(player);
 
 	//Hurdler: it doesn't work in splitscreen mode
-	drawsky = splitscreen;
+	drawsky = multipleviews;
 
 	HWR_ClearSprites();
 
@@ -6213,7 +6213,7 @@ if (0)
 // ==========================================================================
 //
 // ==========================================================================
-void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
+void HWR_RenderPlayerView(player_t *player, INT32 viewnumber)
 {
 	const float fpov = FIXED_TO_FLOAT(cv_fov.value+player->fovadd);
 	postimg_t *type;
@@ -6236,7 +6236,7 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 		HWD.pfnClearBuffer(true, false, &ClearColor); // Clear the Color Buffer, stops HOMs. Also seems to fix the skybox issue on Intel GPUs.
 
 	if (skybox && drawsky) // If there's a skybox and we should be drawing the sky, draw the skybox
-		HWR_RenderSkyboxView(viewnumber, player); // This is drawn before everything else so it is placed behind
+		HWR_RenderSkyboxView(player, viewnumber); // This is drawn before everything else so it is placed behind
 
 	{
 		// do we really need to save player (is it not the same)?
@@ -6263,7 +6263,7 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 	gr_centery = gr_basecentery;
 	gr_viewwindowy = gr_baseviewwindowy;
 	gr_windowcentery = gr_basewindowcentery;
-	if (splitscreen && viewnumber == 1)
+	if (multipleviews && viewnumber == 1)
 	{
 		gr_viewwindowy += (vid.height/2);
 		gr_windowcentery += (vid.height/2);
@@ -6307,7 +6307,7 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 		atransform.rollangle = FIXED_TO_FLOAT(rol);
 		atransform.roll = true;
 	}
-	atransform.splitscreen = splitscreen;
+	atransform.splitscreen = multipleviews;
 
 	gr_fovlud = (float)(1.0l/tan((double)(fpov*M_PIl/360l)));
 
@@ -6326,7 +6326,7 @@ if (0)
 		HWR_DrawSkyBackground(player);
 
 	//Hurdler: it doesn't work in splitscreen mode
-	drawsky = splitscreen;
+	drawsky = multipleviews;
 
 	HWR_ClearSprites();
 
@@ -6943,7 +6943,7 @@ void HWR_DoPostProcessor(player_t *player)
 	if(gamestate != GS_INTERMISSION)
 		HWD.pfnMakeScreenTexture();
 
-	if (splitscreen) // Not supported in splitscreen - someone want to add support?
+	if (multipleviews) // Not supported in splitscreen - someone want to add support?
 		return;
 
 	// Drunken vision! WooOOooo~
@@ -7066,6 +7066,17 @@ void HWR_MakeScreenFinalTexture(void)
 void HWR_DrawScreenFinalTexture(int width, int height)
 {
     HWD.pfnDrawScreenFinalTexture(width, height);
+}
+
+void HWR_MakeSoftwareScreenTexture(int width, int height, UINT8 *screen)
+{
+	HWD.pfnMakeSoftwareScreenTexture(width, height, screen);
+}
+
+void HWR_DrawSoftwareScreenTexture(int x, int y, int width, int height)
+{
+	HWD.pfnDrawSoftwareScreenTexture(x, y, width, height);
+	HWD.pfnGClipRect(0, 0, vid.width, vid.height, NZCLIP_PLANE);
 }
 
 #endif // HWRENDER

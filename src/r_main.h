@@ -17,6 +17,9 @@
 #include "d_player.h"
 #include "r_data.h"
 
+extern boolean softwareview;
+extern boolean multipleviews, splitrendering;
+
 //
 // POV related.
 //
@@ -108,7 +111,7 @@ void R_SkyboxFrame(player_t *player);
 
 void R_SetupFrame(player_t *player);
 // Called by G_Drawer.
-void R_RenderPlayerView(player_t *player);
+void R_RenderPlayerView(player_t *player, INT32 viewnumber);
 
 // add commands related to engine, at game startup
 void R_RegisterEngineStuff(void);

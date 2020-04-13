@@ -63,7 +63,6 @@ consvar_t cv_scr_height = {"scr_height", "800", CV_SAVE, CV_Unsigned, NULL, 0, N
 consvar_t cv_scr_depth = {"scr_depth", "16 bits", CV_SAVE, scr_depth_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_renderview = {"renderview", "On", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
-static void SCR_ActuallyChangeRenderer(void);
 CV_PossibleValue_t cv_renderer_t[] = {
 	{1, "Software"},
 #ifdef HWRENDER
@@ -71,11 +70,18 @@ CV_PossibleValue_t cv_renderer_t[] = {
 #endif
 	{0, NULL}
 };
+
 consvar_t cv_renderer = {"renderer", "Software", CV_SAVE|CV_NOLUA|CV_CALL, cv_renderer_t, SCR_ChangeRenderer, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_viewrenderer = {"viewrenderer", "Software", CV_NOLUA|CV_CALL|CV_NOINIT, cv_renderer_t, SCR_ChangeViewRenderer, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_viewrenderer2 = {"viewrenderer2", "Software", CV_NOLUA|CV_CALL|CV_NOINIT, cv_renderer_t, SCR_ChangeViewRenderer, 0, NULL, NULL, 0, 0, NULL};
 
 static void SCR_ChangeFullscreen(void);
-
 consvar_t cv_fullscreen = {"fullscreen", "Yes", CV_SAVE|CV_CALL, CV_YesNo, SCR_ChangeFullscreen, 0, NULL, NULL, 0, 0, NULL};
+
+static void SCR_ToggleSplitRendering(void);
+consvar_t cv_splitrendering = {"splitrendering", "Off", CV_CALL, CV_YesNo, SCR_ToggleSplitRendering, 0, NULL, NULL, 0, 0, NULL};
+
+static void SCR_ActuallyChangeRenderer(void);
 
 // =========================================================================
 //                           SCREEN VARIABLES
@@ -317,8 +323,11 @@ void SCR_Startup(void)
 	V_SetPalette(0);
 }
 
+//
 // Called at new frame, if the video mode has changed
 //
+boolean recalcneeded;
+
 void SCR_Recalc(void)
 {
 	if (dedicated)
@@ -445,6 +454,11 @@ void SCR_ChangeFullscreen(void)
 #endif
 }
 
+void SCR_ToggleSplitRendering(void)
+{
+	recalcneeded = true;
+}
+
 static int target_renderer = 0;
 
 void SCR_ActuallyChangeRenderer(void)
@@ -493,16 +507,41 @@ void SCR_ChangeRenderer(void)
 		target_renderer = render_soft;
 	else if (cv_renderer.value == 2)
 		target_renderer = render_opengl;
+
 	SCR_ActuallyChangeRenderer();
+
+	if (target_renderer == render_soft && (setrenderneeded == render_soft))
+	{
+		CV_StealthSetValue(&cv_viewrenderer, render_soft);
+		CV_StealthSetValue(&cv_viewrenderer2, render_soft);
+	}
+}
+
+void SCR_ChangeViewRenderer(void)
+{
+	if (!(splitscreen || cv_splitrendering.value))
+	{
+		CV_StealthSetValue(&cv_viewrenderer, rendermode);
+		CV_StealthSetValue(&cv_viewrenderer2, rendermode);
+		return;
+	}
+
+	recalcneeded = true;
+
+	if ((cv_viewrenderer.value == render_opengl || cv_viewrenderer2.value == render_opengl)
+	&& (vid_opengl_state != -1))
+		target_renderer = render_opengl;
+	else if (cv_viewrenderer.value == render_soft && cv_viewrenderer2.value == render_soft)
+		target_renderer = render_soft;
+
+	SCR_ActuallyChangeRenderer();
+	SCR_ChangeRendererCVars(target_renderer);
 }
 
 void SCR_ChangeRendererCVars(INT32 mode)
 {
 	// set cv_renderer back
-	if (mode == render_soft)
-		CV_StealthSetValue(&cv_renderer, 1);
-	else if (mode == render_opengl)
-		CV_StealthSetValue(&cv_renderer, 2);
+	CV_StealthSetValue(&cv_renderer, mode);
 #ifdef HWRENDER
 	CV_StealthSetValue(&cv_newrenderer, cv_renderer.value);
 #endif

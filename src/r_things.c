@@ -1234,7 +1234,7 @@ static void R_ProjectDropShadow(mobj_t *thing, vissprite_t *vis, fixed_t scale, 
 
 	scalemul = FixedMul(FRACUNIT - floordiff/640, scale);
 
-	patch = W_CachePatchName("DSHADOW", PU_CACHE);
+	patch = W_CacheSoftwarePatchName("DSHADOW", PU_CACHE);
 	xscale = FixedDiv(projection, tz);
 	yscale = FixedDiv(projectiony, tz);
 	shadowxscale = FixedMul(thing->radius*2, scalemul);
@@ -1835,7 +1835,7 @@ static void R_ProjectSprite(mobj_t *thing)
 		vis->patch = rotsprite;
 	else
 #endif
-		vis->patch = W_CachePatchNum(sprframe->lumppat[rot], PU_CACHE);
+		vis->patch = W_CacheSoftwarePatchNum(sprframe->lumppat[rot], PU_CACHE);
 
 //
 // determine the colormap (lightlevel & special effects)
@@ -2024,7 +2024,7 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 
 	//Fab: lumppat is the lump number of the patch to use, this is different
 	//     than lumpid for sprites-in-pwad : the graphics are patched
-	vis->patch = W_CachePatchNum(sprframe->lumppat[0], PU_CACHE);
+	vis->patch = W_CacheSoftwarePatchNum(sprframe->lumppat[0], PU_CACHE);
 
 	// specific translucency
 	if (thing->frame & FF_TRANSMASK)
@@ -2063,7 +2063,7 @@ void R_AddSprites(sector_t *sec, INT32 lightlevel)
 	INT32 lightnum;
 	fixed_t limit_dist, hoop_limit_dist;
 
-	if (rendermode != render_soft)
+	if (!softwareview)
 		return;
 
 	// BSP is traversed by subsector.

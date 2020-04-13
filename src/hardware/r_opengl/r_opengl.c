@@ -100,6 +100,7 @@ static GLuint screentexture = 0;
 static GLuint startScreenWipe = 0;
 static GLuint endScreenWipe = 0;
 static GLuint finalScreenTexture = 0;
+static GLuint softwareScreenTexture = 0;
 #if 0
 GLuint screentexture = FIRST_TEX_AVAIL;
 #endif
@@ -228,6 +229,7 @@ FUNCPRINTF void DBG_Printf(const char *lpFmt, ...)
 #define pglTexEnvi glTexEnvi
 #define pglTexParameteri glTexParameteri
 #define pglTexImage2D glTexImage2D
+#define pglTexSubImage2D glTexSubImage2D
 
 /* Fog */
 #define pglFogf glFogf
@@ -343,6 +345,8 @@ typedef void (APIENTRY * PFNglTexParameteri) (GLenum target, GLenum pname, GLint
 static PFNglTexParameteri pglTexParameteri;
 typedef void (APIENTRY * PFNglTexImage2D) (GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels);
 static PFNglTexImage2D pglTexImage2D;
+typedef void (APIENTRY * PFNglTexSubImage2D) (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
+static PFNglTexSubImage2D pglTexSubImage2D;
 
 /* Fog */
 typedef void (APIENTRY * PFNglFogf) (GLenum pname, GLfloat param);
@@ -478,6 +482,7 @@ boolean SetupGLfunc(void)
 	GETOPENGLFUNC(pglTexEnvi , glTexEnvi)
 	GETOPENGLFUNC(pglTexParameteri , glTexParameteri)
 	GETOPENGLFUNC(pglTexImage2D , glTexImage2D)
+	GETOPENGLFUNC(pglTexSubImage2D, glTexSubImage2D)
 
 	GETOPENGLFUNC(pglFogf , glFogf)
 	GETOPENGLFUNC(pglFogfv , glFogfv)
@@ -2366,10 +2371,12 @@ EXPORT void HWRAPI(FlushScreenTextures) (void)
 	pglDeleteTextures(1, &startScreenWipe);
 	pglDeleteTextures(1, &endScreenWipe);
 	pglDeleteTextures(1, &finalScreenTexture);
+	pglDeleteTextures(1, &softwareScreenTexture);
 	screentexture = 0;
 	startScreenWipe = 0;
 	endScreenWipe = 0;
 	finalScreenTexture = 0;
+	softwareScreenTexture = 0;
 }
 
 // Create Screen to fade from
@@ -2705,6 +2712,81 @@ EXPORT void HWRAPI(DrawScreenFinalTexture)(int width, int height)
 
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	tex_downloaded = finalScreenTexture;
+}
+
+EXPORT void HWRAPI(MakeSoftwareScreenTexture) (int width, int height, UINT8 *screen)
+{
+	static RGBA_t   tex[2048*2048];
+	const GLvoid   *ptex = tex;
+	const GLubyte *pImgData = (const GLubyte *)screen;
+	INT32 i, j;
+
+	// Create screen texture
+	boolean firstTime = (softwareScreenTexture == 0);
+	if (firstTime)
+		pglGenTextures(1, &softwareScreenTexture);
+	pglBindTexture(GL_TEXTURE_2D, softwareScreenTexture);
+
+	for (j = 0; j < height; j++)
+	{
+		for (i = 0; i < width; i++)
+		{
+			tex[width*j+i].s.red   = myPaletteData[*pImgData].s.red;
+			tex[width*j+i].s.green = myPaletteData[*pImgData].s.green;
+			tex[width*j+i].s.blue  = myPaletteData[*pImgData].s.blue;
+			tex[width*j+i].s.alpha = myPaletteData[*pImgData].s.alpha;
+			pImgData++;
+		}
+	}
+
+	if (firstTime)
+	{
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		Clamp2D(GL_TEXTURE_WRAP_S);
+		Clamp2D(GL_TEXTURE_WRAP_T);
+		pglTexImage2D(GL_TEXTURE_2D, 0, textureformatGL, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+	}
+	else
+		pglTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, ptex);
+
+	tex_downloaded = softwareScreenTexture;
+}
+
+EXPORT void HWRAPI(DrawSoftwareScreenTexture)(int x, int y, int width, int height)
+{
+	FOutVector v[4];
+
+	float cx = (float)x;
+	float cy = (float)y;
+	float fwidth = (float)width;
+	float fheight = (float)height;
+
+	// positions of the cx, cy, are between 0 and vid.width/vid.height now, we need them to be between -1 and 1
+	cx = -1 + (cx / (screen_width/2));
+	cy = 1 - (cy / (screen_height/2));
+
+	// fwidth and fheight are similar
+	fwidth /= screen_width / 2;
+	fheight /= screen_height / 2;
+
+	// set the polygon vertices to the right positions
+	v[0].x = v[3].x = cx;
+	v[2].x = v[1].x = cx + fwidth;
+
+	v[0].y = v[1].y = cy;
+	v[2].y = v[3].y = cy - fheight;
+
+	v[0].z = v[1].z = v[2].z = v[3].z = 1.0f;
+
+	v[0].tow = v[1].tow = 0.0f;
+	v[2].tow = v[3].tow = 1.0f;
+	v[0].sow = v[3].sow = 0.0f;
+	v[2].sow = v[1].sow = 1.0f;
+
+	pglBindTexture(GL_TEXTURE_2D, softwareScreenTexture);
+	tex_downloaded = softwareScreenTexture;
+	DrawPolygon(NULL, v, 4, PF_Clip|PF_NoZClip|PF_NoDepthTest);
 }
 
 #endif //HWRENDER

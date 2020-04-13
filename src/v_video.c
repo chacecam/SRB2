@@ -3499,7 +3499,7 @@ void V_DoPostProcessor(INT32 view, postimg_t type, INT32 param)
 	if (view < 0 || view >= 2 || (view == 1 && !splitscreen))
 		return;
 
-	if (splitscreen)
+	if (multipleviews)
 		height = vid.height/2;
 	else
 		height = vid.height;

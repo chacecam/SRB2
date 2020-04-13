@@ -125,6 +125,8 @@ static loadfunc_t hwdFuncTable[] = {
 	{"MakeScreenTexture@0", &hwdriver.pfnMakeScreenTexture},
 	{"MakeScreenFinalTexture@0", &hwdriver.pfnMakeScreenFinalTexture},
 	{"DrawScreenFinalTexture@8", &hwdriver.pfnDrawScreenFinalTexture},
+	{"MakeSoftwareScreenTexture@12", &hwdriver.pfnMakeSoftwareScreenTexture},
+	{"DrawSoftwareScreenTexture@16", &hwdriver.pfnDrawSoftwareScreenTexture},
 #else
 	{"Init",                &hwdriver.pfnInit},
 	{"Shutdown",            &hwdriver.pfnShutdown},
@@ -156,6 +158,8 @@ static loadfunc_t hwdFuncTable[] = {
 	{"MakeScreenTexture",   &hwdriver.pfnMakeScreenTexture},
 	{"MakeScreenFinalTexture", &hwdriver.pfnMakeScreenFinalTexture},
 	{"DrawScreenFinalTexture", &hwdriver.pfnDrawScreenFinalTexture},
+	{"MakeSoftwareScreenTexture", &hwdriver.pfnMakeSoftwareScreenTexture},
+	{"DrawSoftwareScreenTexture", &hwdriver.pfnDrawSoftwareScreenTexture},
 #endif
 	{NULL,NULL}
 };

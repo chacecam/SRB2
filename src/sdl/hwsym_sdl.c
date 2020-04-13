@@ -101,6 +101,8 @@ void *hwSym(const char *funcName,void *handle)
 	GETFUNC(MakeScreenTexture);
 	GETFUNC(MakeScreenFinalTexture);
 	GETFUNC(DrawScreenFinalTexture);
+	GETFUNC(MakeSoftwareScreenTexture);
+	GETFUNC(DrawSoftwareScreenTexture);
 #else //HWRENDER
 	if (0 == strcmp("FinishUpdate", funcName))
 		return funcPointer; //&FinishUpdate;

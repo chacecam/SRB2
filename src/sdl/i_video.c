@@ -1553,6 +1553,14 @@ void VID_CheckRenderer(void)
 	SDLSetMode(vid.width, vid.height, USE_FULLSCREEN, (rendererchanged ? SDL_FALSE : SDL_TRUE));
 	Impl_VideoSetupBuffer();
 
+	SCR_SetDrawFuncs();
+
+	if (rendererchanged && (!multipleviews))
+	{
+		CV_StealthSetValue(&cv_viewrenderer, rendermode);
+		CV_StealthSetValue(&cv_viewrenderer2, rendermode);
+	}
+
 	if (rendermode == render_soft)
 	{
 		if (bufSurface)
@@ -1567,7 +1575,6 @@ void VID_CheckRenderer(void)
 			if (vid_opengl_state == 1) // Only if OpenGL ever loaded!
 				HWR_FreeTextureCache();
 #endif
-			SCR_SetDrawFuncs();
 		}
 	}
 #ifdef HWRENDER
@@ -1850,6 +1857,8 @@ void VID_StartupOpenGL(void)
 		HWD.pfnMakeScreenTexture= hwSym("MakeScreenTexture",NULL);
 		HWD.pfnMakeScreenFinalTexture=hwSym("MakeScreenFinalTexture",NULL);
 		HWD.pfnDrawScreenFinalTexture=hwSym("DrawScreenFinalTexture",NULL);
+		HWD.pfnMakeSoftwareScreenTexture=hwSym("MakeSoftwareScreenTexture",NULL);
+		HWD.pfnDrawSoftwareScreenTexture=hwSym("DrawSoftwareScreenTexture",NULL);
 
 		// check gl renderer lib
 		if (HWD.pfnGetRenderVersion() != VERSION)

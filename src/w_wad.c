@@ -1636,6 +1636,18 @@ void *W_CachePatchName(const char *name, INT32 tag)
 		return W_CachePatchNum(W_GetNumForName("MISSING"), tag);
 	return W_CachePatchNum(num, tag);
 }
+
+void *W_CacheSoftwarePatchName(const char *name, INT32 tag)
+{
+	lumpnum_t num;
+
+	num = W_CheckNumForName(name);
+
+	if (num == LUMPERROR)
+		return W_CacheSoftwarePatchNum(W_GetNumForName("MISSING"), tag);
+	return W_CacheSoftwarePatchNum(num, tag);
+}
+
 #ifndef NOMD5
 #define MD5_LEN 16
 

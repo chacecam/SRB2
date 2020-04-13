@@ -868,10 +868,16 @@ void D_RegisterClientCommands(void)
 	// screen.c
 	CV_RegisterVar(&cv_fullscreen);
 	CV_RegisterVar(&cv_renderview);
+
 	CV_RegisterVar(&cv_renderer);
 #ifdef HWRENDER
 	CV_RegisterVar(&cv_newrenderer);
 #endif
+
+	CV_RegisterVar(&cv_viewrenderer2);
+	CV_RegisterVar(&cv_viewrenderer);
+	CV_RegisterVar(&cv_splitrendering);
+
 	CV_RegisterVar(&cv_scr_depth);
 	CV_RegisterVar(&cv_scr_width);
 	CV_RegisterVar(&cv_scr_height);
@@ -3753,11 +3759,11 @@ static void ExitMove_OnChange(void)
 			{
 				if (players[i].mo->target && players[i].mo->target->type == MT_SIGN)
 					P_SetTarget(&players[i].mo->target, NULL);
-				
+
 				if (players[i].pflags & PF_FINISHED)
 					P_GiveFinishFlags(&players[i]);
 			}
-			
+
 		CONS_Printf(M_GetText("Players can now move after completing the level.\n"));
 	}
 	else

@@ -86,6 +86,7 @@ extern fixed_t viewx, viewy, viewz;
 extern angle_t viewangle, aimingangle;
 extern sector_t *viewsector;
 extern player_t *viewplayer;
+extern INT32 viewplayernumber;
 extern mobj_t *r_viewmobj;
 
 extern consvar_t cv_allowmlook;

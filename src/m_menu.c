@@ -1355,7 +1355,10 @@ static menuitem_t OP_VideoOptionsMenu[] =
 
 #ifdef HWRENDER
 	{IT_HEADER, NULL, "Renderer", NULL, 208},
-	{IT_CALL | IT_STRING, NULL, "OpenGL Options...",         M_OpenGLOptionsMenu, 214},
+	{IT_STRING | IT_CVAR, NULL, "View Renderer",             &cv_viewrenderer,    214},
+	{IT_STRING | IT_CVAR, NULL, "Second View Renderer",      &cv_viewrenderer2,   219},
+	{IT_STRING | IT_CVAR, NULL, "Split View Rendering",      &cv_splitrendering,  224},
+	{IT_CALL | IT_STRING, NULL, "OpenGL Options...",         M_OpenGLOptionsMenu, 229},
 #endif
 };
 

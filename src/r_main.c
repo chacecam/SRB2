@@ -71,7 +71,11 @@ angle_t viewangle, aimingangle;
 fixed_t viewcos, viewsin;
 sector_t *viewsector;
 player_t *viewplayer;
+INT32 viewplayernumber;
 mobj_t *r_viewmobj;
+
+boolean softwareview;
+boolean multipleviews, splitrendering;
 
 //
 // precalculated math tables
@@ -160,6 +164,7 @@ void SplitScreen_OnChange(void)
 	}
 
 	// recompute screen size
+	SCR_ChangeViewRenderer();
 	R_ExecuteSetViewSize();
 
 	if (!demoplayback && !botingame)
@@ -875,13 +880,17 @@ void R_ExecuteSetViewSize(void)
 	if (rendermode == render_none)
 		return;
 
+	softwareview = (cv_viewrenderer.value == render_soft || cv_viewrenderer2.value == render_soft);
+	splitrendering = cv_splitrendering.value; //(cv_splitrendering.value && (cv_viewrenderer.value != cv_viewrenderer2.value));
+	multipleviews = (splitscreen || splitrendering);
+
 	// status bar overlay
 	st_overlay = cv_showhud.value;
 
 	scaledviewwidth = vid.width;
 	viewheight = vid.height;
 
-	if (splitscreen)
+	if (multipleviews)
 		viewheight >>= 1;
 
 	viewwidth = scaledviewwidth;
@@ -893,7 +902,7 @@ void R_ExecuteSetViewSize(void)
 
 	fov = FixedAngle(cv_fov.value/2) + ANGLE_90;
 	fovtan = FixedMul(FINETANGENT(fov >> ANGLETOFINESHIFT), viewmorph.zoomneeded);
-	if (splitscreen == 1) // Splitscreen FOV should be adjusted to maintain expected vertical view
+	if ((splitscreen == 1) || splitrendering) // Splitscreen FOV should be adjusted to maintain expected vertical view
 		fovtan = 17*fovtan/10;
 
 	projection = projectiony = FixedDiv(centerxfrac, fovtan);
@@ -915,7 +924,7 @@ void R_ExecuteSetViewSize(void)
 	R_SetSkyScale();
 
 	// planes
-	if (rendermode == render_soft)
+	if (softwareview)
 	{
 		// this is only used for planes rendering in software mode
 		j = viewheight*16;
@@ -1049,7 +1058,7 @@ subsector_t *R_PointInSubsectorOrNull(fixed_t x, fixed_t y)
 static void R_SetupFreelook(void)
 {
 	INT32 dy = 0;
-	if (rendermode == render_soft)
+	if (softwareview)
 	{
 		// clip it in the case we are looking a hardware 90 degrees full aiming
 		// (lmps, network and use F12...)
@@ -1360,12 +1369,14 @@ static void Mask_Post (maskcount_t* m)
 // I mean, there is a win16lock() or something that lasts all the rendering,
 // so maybe we should release screen lock before each netupdate below..?
 
-void R_RenderPlayerView(player_t *player)
+void R_RenderPlayerView(player_t *player, INT32 viewnumber)
 {
 	UINT8			nummasks	= 1;
 	maskcount_t*	masks		= malloc(sizeof(maskcount_t));
 
-	if (cv_homremoval.value && player == &players[displayplayer]) // if this is display player 1
+	viewplayernumber = viewnumber;
+
+	if (cv_homremoval.value && viewnumber == 0) // if this is display player 1
 	{
 		if (cv_homremoval.value == 1)
 			V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, 31); // No HOM effect!
@@ -1480,6 +1491,14 @@ void R_RenderPlayerView(player_t *player)
 	R_DrawMasked(masks, nummasks);
 
 	free(masks);
+
+#ifdef HWRENDER
+	if (rendermode == render_opengl)
+	{
+		HWR_MakeSoftwareScreenTexture(viewwidth, viewheight, topleft);
+		HWR_DrawSoftwareScreenTexture(viewwindowx, viewwindowy, viewwidth, viewheight);
+	}
+#endif
 }
 
 // Lactozilla: Renderer switching

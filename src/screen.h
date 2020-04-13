@@ -175,6 +175,7 @@ extern viddef_t vid;
 extern INT32 setmodeneeded; // mode number to set if needed, or 0
 
 void SCR_ChangeRenderer(void);
+void SCR_ChangeViewRenderer(void);
 void SCR_ChangeRendererCVars(INT32 mode);
 extern UINT8 setrenderneeded;
 
@@ -183,10 +184,16 @@ extern UINT8 *scr_borderpatch; // patch used to fill the view borders
 
 extern CV_PossibleValue_t cv_renderer_t[];
 
-extern consvar_t cv_scr_width, cv_scr_height, cv_scr_depth, cv_renderview, cv_renderer, cv_fullscreen;
+extern consvar_t cv_scr_width, cv_scr_height, cv_scr_depth, cv_renderview, cv_fullscreen;
+
+extern consvar_t cv_renderer;
 #ifdef HWRENDER
 extern consvar_t cv_newrenderer;
 #endif
+
+extern consvar_t cv_splitrendering;
+extern consvar_t cv_viewrenderer, cv_viewrenderer2;
+
 // wait for page flipping to end or not
 extern consvar_t cv_vidwait;
 
@@ -195,6 +202,7 @@ void SCR_SetMode(void);
 void SCR_SetDrawFuncs(void);
 // Recalc screen size dependent stuff
 void SCR_Recalc(void);
+extern boolean recalcneeded;
 // Check parms once at startup
 void SCR_CheckDefaultMode(void);
 // Set the mode number which is saved in the config
