@@ -424,14 +424,12 @@ static void D_Display(void)
 				}
 
 				// render the second screen
-				if (!splitscreen)
-					secondarydisplayplayer = displayplayer;
-
 				if (multipleviews && players[secondarydisplayplayer].mo)
 				{
+					INT32 secondview = (splitscreen ? secondarydisplayplayer : displayplayer);
 #ifdef HWRENDER
 					if (cv_viewrenderer2.value == render_opengl)
-						HWR_RenderPlayerView(&players[secondarydisplayplayer], 1);
+						HWR_RenderPlayerView(&players[secondview], 1);
 					else if (cv_viewrenderer2.value == render_soft)
 #endif
 					{
@@ -440,7 +438,7 @@ static void D_Display(void)
 
 						topleft = screens[0] + viewwindowy*vid.width + viewwindowx;
 
-						R_RenderPlayerView(&players[secondarydisplayplayer], 1);
+						R_RenderPlayerView(&players[secondview], 1);
 
 						viewwindowy = 0;
 						M_Memcpy(ylookup, ylookup1, viewheight*sizeof (ylookup[0]));
