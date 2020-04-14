@@ -2716,8 +2716,9 @@ EXPORT void HWRAPI(DrawScreenFinalTexture)(int width, int height)
 
 EXPORT void HWRAPI(MakeSoftwareScreenTexture) (int width, int height, UINT8 *screen)
 {
-	static RGBA_t   tex[2048*2048];
-	const GLvoid   *ptex = tex;
+	// Taken mostly from SetTexture
+	static RGBA_t  tex[2048*2048];
+	const GLvoid  *ptex = tex;
 	const GLubyte *pImgData = (const GLubyte *)screen;
 	INT32 i, j;
 
@@ -2727,17 +2728,11 @@ EXPORT void HWRAPI(MakeSoftwareScreenTexture) (int width, int height, UINT8 *scr
 		pglGenTextures(1, &softwareScreenTexture);
 	pglBindTexture(GL_TEXTURE_2D, softwareScreenTexture);
 
+	// Update the texture with the screen's pixels
+	// This converts palette indices to RGBA colours.
 	for (j = 0; j < height; j++)
-	{
 		for (i = 0; i < width; i++)
-		{
-			tex[width*j+i].s.red   = myPaletteData[*pImgData].s.red;
-			tex[width*j+i].s.green = myPaletteData[*pImgData].s.green;
-			tex[width*j+i].s.blue  = myPaletteData[*pImgData].s.blue;
-			tex[width*j+i].s.alpha = myPaletteData[*pImgData].s.alpha;
-			pImgData++;
-		}
-	}
+			tex[width*j+i].rgba = myPaletteData[*pImgData++].rgba;
 
 	if (firstTime)
 	{
@@ -2756,15 +2751,12 @@ EXPORT void HWRAPI(MakeSoftwareScreenTexture) (int width, int height, UINT8 *scr
 EXPORT void HWRAPI(DrawSoftwareScreenTexture)(int x, int y, int width, int height)
 {
 	FOutVector v[4];
-
-	float cx = (float)x;
-	float cy = (float)y;
 	float fwidth = (float)width;
 	float fheight = (float)height;
 
-	// positions of the cx, cy, are between 0 and vid.width/vid.height now, we need them to be between -1 and 1
-	cx = -1 + (cx / (screen_width/2));
-	cy = 1 - (cy / (screen_height/2));
+	// positions of the cx, cy, are between 0 and vid.width/vid.height, we need them to be between -1 and 1
+	float cx = -1 + ((float)x / (screen_width/2));
+	float cy = 1 - ((float)y / (screen_height/2));
 
 	// fwidth and fheight are similar
 	fwidth /= screen_width / 2;
