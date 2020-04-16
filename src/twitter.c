@@ -51,6 +51,7 @@ void openssl_init(void)
 		OpenSSL_add_all_algorithms();
 		ENGINE_load_builtin_engines();
 		ENGINE_register_all_complete();
+		init = true;
 	}
 }
 

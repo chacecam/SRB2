@@ -165,20 +165,20 @@ static void Command_Archivetest_f(void);
 #ifdef HAVE_TWITTER
 
 #include "twitter.h"
-#include "twitterconf.h"
+//#include "twitterconf.h"
 
 // Lactozilla: Create a twitterconf.h header file and fill in those strings
 // with your app's Consumer API keys + access token and secret.
 // https://developer.twitter.com/en/apps
 
-/*
+#ifndef TWITTERCONF
 // Consumer API keys
 const char *twitter_consumerkey = "CONSUMERKEY";
 const char *twitter_consumersecret = "CONSUMERSECRET";
 // Access token & access token secret
 const char *twitter_authtoken = "AUTHTOKEN";
 const char *twitter_authsecret = "AUTHSECRET";
-*/
+#endif
 
 static void Command_Twitterupdate_f(void);
 #endif
