@@ -324,6 +324,19 @@ else
 NOPNG=1
 endif
 
+ifndef NOTWITTER
+OPTS+=-DHAVE_TWITTER
+LIBOPENSSL_CFLAGS=-I../libs/openssl/include
+ifdef MINGW64
+LIBOPENSSL_LDFLAGS=-L../libs/openssl/lib64 -lssl -lcrypto
+else
+LIBOPENSSL_LDFLAGS=-L../libs/openssl/lib -lssl -lcrypto
+endif
+
+LIBS+=$(LIBOPENSSL_LDFLAGS)
+CFLAGS+=$(LIBOPENSSL_CFLAGS)
+endif
+
 ifdef STATIC
 LIBS:=-static $(LIBS)
 endif
@@ -348,6 +361,10 @@ ifdef NOMD5
 	OPTS+=-DNOMD5
 else
 	OBJS:=$(OBJDIR)/md5.o $(OBJS)
+endif
+
+ifndef NOTWITTER
+	OBJS+=$(OBJDIR)/twitter.o
 endif
 
 ifdef NOPOSTPROCESSING

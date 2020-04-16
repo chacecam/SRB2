@@ -162,6 +162,27 @@ static void Command_Archivetest_f(void);
 #endif
 #endif
 
+#ifdef HAVE_TWITTER
+
+#include "twitter.h"
+#include "twitterconf.h"
+
+// Lactozilla: Create a twitterconf.h header file and fill in those strings
+// with your app's Consumer API keys + access token and secret.
+// https://developer.twitter.com/en/apps
+
+/*
+// Consumer API keys
+const char *twitter_consumerkey = "CONSUMERKEY";
+const char *twitter_consumersecret = "CONSUMERSECRET";
+// Access token & access token secret
+const char *twitter_authtoken = "AUTHTOKEN";
+const char *twitter_authsecret = "AUTHSECRET";
+*/
+
+static void Command_Twitterupdate_f(void);
+#endif
+
 // =========================================================================
 //                           CLIENT VARIABLES
 // =========================================================================
@@ -505,6 +526,10 @@ void D_RegisterServerCommands(void)
 #ifdef HAVE_BLUA
 	COM_AddCommand("archivetest", Command_Archivetest_f);
 #endif
+#endif
+
+#ifdef HAVE_TWITTER
+	COM_AddCommand("twitterupdate", Command_Twitterupdate_f);
 #endif
 
 	// for master server connection
@@ -3753,11 +3778,11 @@ static void ExitMove_OnChange(void)
 			{
 				if (players[i].mo->target && players[i].mo->target->type == MT_SIGN)
 					P_SetTarget(&players[i].mo->target, NULL);
-				
+
 				if (players[i].pflags & PF_FINISHED)
 					P_GiveFinishFlags(&players[i]);
 			}
-			
+
 		CONS_Printf(M_GetText("Players can now move after completing the level.\n"));
 	}
 	else
@@ -4379,6 +4404,24 @@ static void Command_Archivetest_f(void)
 	CONS_Printf("Done. No crash.\n");
 }
 #endif
+#endif
+
+#ifdef HAVE_TWITTER
+static void Command_Twitterupdate_f(void)
+{
+	int ret;
+
+	if (COM_Argc() != 2)
+	{
+		CONS_Printf(M_GetText("twitterupdate <message>: post a status update to Twitter\n"));
+		return;
+	}
+
+	openssl_init();
+
+	ret = TwitterStatusUpdate(COM_Argv(1), twitter_consumerkey, twitter_consumersecret, twitter_authtoken, twitter_authsecret);
+	CONS_Printf("Sending to Twitter %s\n", (ret == 0) ? "succeeded" : "failed");
+}
 #endif
 
 /** Makes a change to ::cv_forceskin take effect immediately.
