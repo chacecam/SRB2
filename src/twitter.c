@@ -69,9 +69,6 @@ void Twitter_Init(void)
 
 	// Add Twitter variables
 	CV_RegisterVar(&cv_twusehashtag);
-
-	// Set hostname
-	strcpy(tw_hostname, "api.twitter.com:https");
 }
 
 // Base64 encode the given string.
@@ -344,6 +341,78 @@ static char *CreateTweet(const char *timestamp, const char *nonce, const char *s
 	return post;
 }
 
+// Handle HTTP response
+static int HandleHTTPResponse(char *buf)
+{
+	if (strstr(buf, "HTTP/1.1 200 OK") != NULL)
+	{
+		CONS_Printf("HTTP OK\n");
+		return 0;
+	}
+	else if (strstr(buf, "HTTP/1.1 403 Forbidden") != NULL)
+	{
+		// Twitter doesn't allow consecutive duplicates and will respond with 403 in such case.
+		CONS_Alert(CONS_ERROR, "Twitter responded with HTTP 403\n");
+		return -2;
+	}
+
+	CONS_Printf("Error occurred! Received:\n%s\n", buf);
+	return -1;
+}
+
+// Setup a connection to Twitter. Does not set hostname.
+static int Twitter_SetupConnection(SSL_CTX **ctx, BIO **bio, SSL **ssl)
+{
+	(*ctx) = SSL_CTX_new(SSLv23_client_method());
+	if ((*ctx) == NULL)
+	{
+		CONS_Alert(CONS_ERROR, "SetupConnection: Error creating SSL_CTX\n");
+		return -1;
+	}
+
+	(*bio) = BIO_new_ssl_connect(*ctx);
+	if ((*bio) == NULL)
+	{
+		CONS_Alert(CONS_ERROR, "SetupConnection: Error creating BIO\n");
+		SSL_CTX_free(*ctx);
+		return -1;
+	}
+
+	BIO_get_ssl(*bio, ssl);
+	if ((*ssl) == NULL)
+	{
+		CONS_Alert(CONS_ERROR, "SetupConnection: BIO_get_ssl failed\n");
+		BIO_free_all(*bio);
+		SSL_CTX_free(*ctx);
+		return -1;
+	}
+
+	SSL_set_mode((*ssl), SSL_MODE_AUTO_RETRY);
+	return 0;
+}
+
+// Performs both a connection and a handshake.
+static int Twitter_DoConnectionAndHandshake(SSL_CTX **ctx, BIO **bio)
+{
+	if (BIO_do_connect(*bio) <= 0)
+	{
+		CONS_Alert(CONS_ERROR, "Twitter_DoConnectionAndHandshake: Failed to connect! %s\n", ERR_error_string(ERR_get_error(), NULL));
+		BIO_free_all(*bio);
+		SSL_CTX_free(*ctx);
+		return -1;
+	}
+
+	if (BIO_do_handshake(*bio) <= 0)
+	{
+		CONS_Alert(CONS_ERROR, "Twitter_DoConnectionAndHandshake: Failed to do SSL handshake!\n");
+		BIO_free_all(*bio);
+		SSL_CTX_free(*ctx);
+		return -1;
+	}
+
+	return 0;
+}
+
 /**
  * Posts given POST to api.twitter.com.
  *
@@ -364,48 +433,14 @@ static int SendTweet(const char *post)
 
 	buf[0] = '\0';
 
-	ctx = SSL_CTX_new(SSLv23_client_method());
-	if (ctx == NULL)
-	{
-		CONS_Alert(CONS_ERROR, "Error creating SSL_CTX\n");
+	if (Twitter_SetupConnection(&ctx, &bio, &ssl) != 0)
 		return -1;
-	}
 
-	bio = BIO_new_ssl_connect(ctx);
-	if (bio == NULL)
-	{
-		CONS_Alert(CONS_ERROR, "Error creating BIO!\n");
-		SSL_CTX_free(ctx);
-		return -1;
-	}
-
-	BIO_get_ssl(bio, &ssl);
-	if (ssl == NULL)
-	{
-		CONS_Alert(CONS_ERROR, "BIO_get_ssl failed\n");
-		BIO_free_all(bio);
-		SSL_CTX_free(ctx);
-		return -1;
-	}
-
-	SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+	strcpy(tw_hostname, TW_ENDPOINT_API);
 	BIO_set_conn_hostname(bio, tw_hostname);
 
-	if (BIO_do_connect(bio) <= 0)
-	{
-		CONS_Alert(CONS_ERROR, "Failed to connect! %s\n", ERR_error_string(ERR_get_error(), NULL));
-		BIO_free_all(bio);
-		SSL_CTX_free(ctx);
+	if (Twitter_DoConnectionAndHandshake(&ctx, &bio) != 0)
 		return -1;
-	}
-
-	if (BIO_do_handshake(bio) <= 0)
-	{
-		CONS_Alert(CONS_ERROR, "Failed to do SSL handshake!\n");
-		BIO_free_all(bio);
-		SSL_CTX_free(ctx);
-		return -1;
-	}
 
 	BIO_puts(bio, post);
 	read_bytes = BIO_read(bio, buf, sizeof(buf) - 1);
@@ -413,22 +448,9 @@ static int SendTweet(const char *post)
 	{
 		CONS_Printf("Read %d bytes\n", read_bytes);
 		buf[read_bytes] = '\0';
-
-		if (strstr(buf, "HTTP/1.1 200 OK") != NULL)
+		if (HandleHTTPResponse(buf) == -1)
 		{
-			CONS_Printf("HTTP OK\n");
-			ret = 0;
-		}
-		else if (strstr(buf, "HTTP/1.1 403 Forbidden") != NULL)
-		{
-			// Twitter doesn't allow consecutive duplicates and will respond with 403 in such case.
-			CONS_Alert(CONS_ERROR, "Twitter responded with HTTP 403\n");
-			ret = -2;
-		}
-		else
-		{
-			CONS_Printf("Error occurred! Received:\n%s\n", buf);
-			// also read JSON error
+			// read JSON error
 			read_bytes = BIO_read(bio, buf, sizeof(buf) - 1);
 			if (read_bytes > 0)
 			{
@@ -436,7 +458,6 @@ static int SendTweet(const char *post)
 				buf[read_bytes] = '\0';
 				CONS_Printf("%s\n", buf);
 			}
-			ret = -1;
 		}
 	}
 	else

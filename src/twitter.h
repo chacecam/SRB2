@@ -12,6 +12,10 @@
 #ifndef TWITTER_H
 #define TWITTER_H
 
+// API and media upload endpoints
+#define TW_ENDPOINT_API        "api.twitter.com:https"
+#define TW_ENDPOINT_UPLOAD     "upload.twitter.com:https"
+
 #define TW_HASHTAG             "#srb2"    // Tweet hashtag
 #define TW_STATUSLENGTH        280        // 280 characters in a Tweet
 
