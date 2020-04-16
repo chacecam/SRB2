@@ -12,10 +12,16 @@
 #ifndef TWITTER_H
 #define TWITTER_H
 
-void openssl_init(void);
+#define TW_HASHTAG             "#srb2"    // Tweet hashtag
+#define TW_STATUSLENGTH        280        // 280 characters in a Tweet
 
-int TwitterStatusUpdate(const char *message,
-					const char *consumer_key, const char *consumer_secret,
-					const char *auth_token, const char *auth_secret);
+#define TW_APIKEYLENGTH        25         // API key length
+#define TW_APISECRETLENGTH     50         // API secret length
+#define TW_AUTHTOKENLENGTH     50         // Auth token length
+#define TW_AUTHSECRETLENGTH    45         // Auth secret length
+
+void Twitter_Init(void);
+
+void Twitter_StatusUpdate(const char *message);
 
 #endif

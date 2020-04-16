@@ -95,6 +95,10 @@ int	snprintf(char *str, size_t n, const char *fmt, ...);
 #include "lua_script.h"
 #endif
 
+#ifdef HAVE_TWITTER
+#include "twitter.h"
+#endif
+
 // platform independant focus loss
 UINT8 window_notinfocus = false;
 
@@ -1390,6 +1394,10 @@ void D_SRB2Main(void)
 	CONS_Printf("D_CheckNetGame(): Checking network game status.\n");
 	if (D_CheckNetGame())
 		autostart = true;
+
+#ifdef HAVE_TWITTER
+	Twitter_Init();
+#endif
 
 	// check for a driver that wants intermission stats
 	// start the apropriate game based on parms
