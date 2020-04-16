@@ -23,8 +23,15 @@
 #include "console.h"
 #include "command.h"
 
+static char tw_hostname[22];
+
 static char tw_consumer_key[TW_APIKEYLENGTH + 1], tw_consumer_secret[TW_APISECRETLENGTH + 1];
 static char tw_auth_token[TW_AUTHTOKENLENGTH + 1], tw_auth_secret[TW_AUTHSECRETLENGTH + 1];
+
+static boolean Twitter_LoadAuth(void);
+static void Twitter_ClearAuth(void);
+
+static void Twitter_Dealloc(void *ptr, size_t len);
 
 static void Command_Twitterupdate_f(void);
 
@@ -62,6 +69,9 @@ void Twitter_Init(void)
 
 	// Add Twitter variables
 	CV_RegisterVar(&cv_twusehashtag);
+
+	// Set hostname
+	strcpy(tw_hostname, "api.twitter.com:https");
 }
 
 // Base64 encode the given string.
@@ -204,10 +214,10 @@ static char *compute_signature(const char *timestamp, const char *nonce, const c
 					   encoded_ckey, encoded_nonce, timestamp, encoded_auth, encoded_status);
 
 	// Free encoded strings
-	Z_Free(encoded_status);
-	Z_Free(encoded_ckey);
-	Z_Free(encoded_nonce);
-	Z_Free(encoded_auth);
+	Twitter_Dealloc(encoded_status, encoded_size);
+	Twitter_Dealloc(encoded_ckey, PERCENT_ENCODED_LENGTH(TW_APIKEYLENGTH) + 1);
+	Twitter_Dealloc(encoded_auth, PERCENT_ENCODED_LENGTH(TW_AUTHTOKENLENGTH) + 1);
+	Twitter_Dealloc(encoded_nonce, PERCENT_ENCODED_LENGTH(NONCE_LENGTH) + 1);
 
 	if (ret < 0 || (size_t)ret > sigbufsize)
 	{
@@ -230,19 +240,20 @@ static char *compute_signature(const char *timestamp, const char *nonce, const c
 	hmac_key = ZZ_Alloc(hmac_size);
 	snprintf(hmac_key, hmac_size, "%s&%s", encoded_csecret, encoded_asecret);
 
-	Z_Free(encoded_csecret);
-	Z_Free(encoded_asecret);
+	Twitter_Dealloc(encoded_csecret, PERCENT_ENCODED_LENGTH(TW_APISECRETLENGTH) + 1);
+	Twitter_Dealloc(encoded_asecret, PERCENT_ENCODED_LENGTH(TW_AUTHSECRETLENGTH) + 1);
 
 	// encode signature
 	hmac_encoded = (char *)hmac_sha1_encode(signature_base, hmac_key, &encoded_len);
-	Z_Free(signature_base);
+	Twitter_Dealloc(signature_base, sigbufsize);
 
 	// base64 encode hmac
 	encoded = base64_encode(hmac_encoded, encoded_len);
 	z_encoded = Z_StrDup(encoded);
 
+	memset(encoded, 0x00, strlen(encoded) + 1);
 	free(encoded);
-	Z_Free(hmac_encoded);
+	Twitter_Dealloc(hmac_encoded, strlen(hmac_encoded) + 1);
 
 	return percent_encode(z_encoded);
 }
@@ -260,6 +271,7 @@ static boolean Twitter_LoadAuth(void)
 	if (!f)
 	{
 		CONS_Printf("%s %s\n", M_GetText("Twitter_LoadAuth: error loading twitterauth.cfg:"), strerror(errno));
+		Twitter_ClearAuth();
 		return false;
 	}
 
@@ -277,7 +289,10 @@ static boolean Twitter_LoadAuth(void)
 			strncpy(tw_auth_secret, key, TW_AUTHSECRETLENGTH);
 	}
 
+	memset(type, 0x00, 11);
+	memset(key, 0x00, 50);
 	fclose(f);
+
 	return true;
 }
 
@@ -287,6 +302,12 @@ static void Twitter_ClearAuth(void)
 	memset(tw_consumer_secret, 0x00, (TW_APISECRETLENGTH + 1));
 	memset(tw_auth_token, 0x00, (TW_AUTHTOKENLENGTH + 1));
 	memset(tw_auth_secret, 0x00, (TW_AUTHSECRETLENGTH + 1));
+}
+
+static void Twitter_Dealloc(void *buf, size_t len)
+{
+	memset(buf, 0x00, len);
+	Z_Free(buf);
 }
 
 //
@@ -316,7 +337,7 @@ static char *CreateTweet(const char *timestamp, const char *nonce, const char *s
 
 	if (ret < 0 || (size_t)ret >= postbufsize)
 	{
-		Z_Free(post);
+		Twitter_Dealloc(post, postbufsize);
 		return NULL;
 	}
 
@@ -338,7 +359,6 @@ static int SendTweet(const char *post)
 	BIO *bio;
 	SSL *ssl;
 
-	char hostname[22];
 	char buf[1024];
 	int ret, read_bytes;
 
@@ -369,9 +389,7 @@ static int SendTweet(const char *post)
 	}
 
 	SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
-
-	strcpy(hostname, "api.twitter.com:https");
-	BIO_set_conn_hostname(bio, hostname);
+	BIO_set_conn_hostname(bio, tw_hostname);
 
 	if (BIO_do_connect(bio) <= 0)
 	{
@@ -466,10 +484,12 @@ void Twitter_StatusUpdate(const char *message)
 		return;
 	}
 
+	Twitter_ClearAuth();
+
 	// Create Tweet
 	post = CreateTweet(timestamp, nonce, status, sig, tw_consumer_key, tw_auth_token);
-	Z_Free(sig);
-	Z_Free(nonce);
+	Twitter_Dealloc(sig, strlen(sig) + 1);
+	Twitter_Dealloc(nonce, NONCE_LENGTH + 1);
 
 	if (post == NULL)
 	{
@@ -478,7 +498,7 @@ void Twitter_StatusUpdate(const char *message)
 	}
 
 	SendTweet(post);
-	Z_Free(post);
+	Twitter_Dealloc(post, strlen(post) + 1);
 }
 
 static void Command_Twitterupdate_f(void)
