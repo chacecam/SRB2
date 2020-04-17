@@ -36,9 +36,13 @@ static char tw_auth_token[TW_AUTHTOKENLENGTH + 1], tw_auth_secret[TW_AUTHSECRETL
 static boolean Twitter_LoadAuth(void);
 static void Twitter_ClearAuth(void);
 
+static char *tw_replytouser = NULL;
+static char *tw_replytotweet = NULL;
+
 static void Twitter_Dealloc(void *ptr, size_t len);
 
-static void Command_Twitterupdate_f(void);
+static void Command_TwStatusUpdate_f(void);
+static void Command_TwEndThread_f(void);
 
 static void AttachmentChange(char *attachment, consvar_t *cvar)
 {
@@ -108,7 +112,8 @@ void Twitter_Init(void)
 	ENGINE_register_all_complete();
 
 	// Add Twitter commands
-	COM_AddCommand("tw_statusupdate", Command_Twitterupdate_f);
+	COM_AddCommand("tw_statusupdate", Command_TwStatusUpdate_f);
+	COM_AddCommand("tw_endthread", Command_TwEndThread_f);
 
 	// Add Twitter variables
 	CV_RegisterVar(&cv_twusehashtag);
@@ -678,25 +683,40 @@ static char *Twitter_SendAttachment(const char *attachment, size_t attachlen)
 // Sending tweets
 //
 
-static char *CreateTweet(const char *status, const char *media_id, boolean hasmessage,
+#define APPENDPARAM(paramname, paramvar) \
+	strncat(append, paramname, BUFSIZE); \
+	strncat(append, "=", BUFSIZE); \
+	strncat(append, paramvar, BUFSIZE);
+
+#define AMPERSAND strncat(append, "&", BUFSIZE);
+
+static char *CreateTweet(const char *status, const char *media_id,
 						 const char *timestamp, const char *nonce,
 						 const char *signature, const char *consumer_key,
 						 const char *auth_token)
 {
-	char append[BUFSIZE];
+	char append[(BUFSIZE + 1)];
 	size_t postbufsize = BUFSIZE;
 	char *post = ZZ_Alloc(postbufsize);
 	int ret;
 
+	append[0] = '\0';
+
+	// media id
 	if (media_id)
 	{
-		if (hasmessage)
-			snprintf(append, BUFSIZE, "media_ids=%s&status=%s", media_id, status);
-		else
-			snprintf(append, BUFSIZE, "media_ids=%s", media_id);
+		APPENDPARAM("media_ids", media_id);
+		AMPERSAND
 	}
-	else
-		snprintf(append, BUFSIZE, "status=%s", status);
+
+	// reply
+	if (tw_replytouser)
+	{
+		APPENDPARAM("in_reply_to_status_id", tw_replytotweet); AMPERSAND
+		APPENDPARAM("auto_populate_reply_metadata", "true"); AMPERSAND
+	}
+
+	APPENDPARAM("status", status);
 
 	ret = snprintf(post, postbufsize,
 		"POST /1.1/statuses/update.json?include_entities=true HTTP/1.1\r\n"
@@ -754,7 +774,36 @@ static int Twitter_SendTweet(const char *post)
 	{
 		CONS_Printf("Twitter_SendTweet: Read %d bytes\n", read_bytes);
 		buf[read_bytes] = '\0';
-		if (Twitter_HandleHTTPResponse(buf) == -1)
+		if (Twitter_HandleHTTPResponse(buf) == 0)
+		{
+			// Read JSON response
+			JSON_VARS
+
+			read_bytes = BIO_read(bio, buf, sizeof(buf) - 1);
+			if (read_bytes > 0)
+			{
+				CONS_Printf("Twitter_SendTweet: Read %d JSON bytes\n", read_bytes);
+				buf[read_bytes] = '\0';
+
+				JSON_START_PARSE
+				if (jsoneq(buf, &t[i], "in_reply_to_screen_name") == 0)
+				{
+					if (tw_replytouser)
+						Z_Free(tw_replytouser);
+					tw_replytouser = Z_StrDup(parsed);
+				}
+				else if (jsoneq(buf, &t[i], "id_str") == 0)
+				{
+					if (tw_replytotweet)
+						Z_Free(tw_replytotweet);
+					tw_replytotweet = Z_StrDup(parsed);
+				}
+				JSON_END_PARSE
+			}
+			else
+				CONS_Alert(CONS_ERROR, "Twitter_SendAttachment: Failed to read JSON response!\n");
+		}
+		else
 		{
 			// Read JSON error
 			read_bytes = BIO_read(bio, buf, sizeof(buf) - 1);
@@ -781,6 +830,7 @@ static int Twitter_SendTweet(const char *post)
 static void Twitter_StatusUpdate(const char *message, boolean has_media)
 {
 	char status[(TW_STATUSLENGTH * 3) + strlen(TW_HASHTAG) + 2];
+	char replyto[TW_STATUSLENGTH + 1];
 	char *nonce;
 	char *sig;
 	char *post, *attachment;
@@ -791,19 +841,24 @@ static void Twitter_StatusUpdate(const char *message, boolean has_media)
 
 	boolean empty = (strlen(message) < 1);
 
+	if (tw_replytouser)
+		snprintf(replyto, (TW_STATUSLENGTH + 1), "@%s ", tw_replytouser);
+	else
+		replyto[0] = '\0';
+
 	// Copy tweet
 	if (cv_twusehashtag.value)
 	{
 		size_t msglen = (TW_STATUSLENGTH + strlen(TW_HASHTAG) + 2);
 		if (!empty)
-			snprintf(status, msglen, "%s %s", message, TW_HASHTAG);
+			snprintf(status, msglen, "%s%s %s", replyto, message, TW_HASHTAG);
 		else
-			snprintf(status, msglen, "%s", TW_HASHTAG);
+			snprintf(status, msglen, "%s%s", replyto, TW_HASHTAG);
 	}
 	else if (!empty)
-		snprintf(status, (TW_STATUSLENGTH + 1), "%s", message);
+		snprintf(status, (TW_STATUSLENGTH + 1), "%s%s", replyto, message);
 	else
-		status[0] = ' ';
+		snprintf(status, (TW_STATUSLENGTH + 1), "%s", replyto);
 
 	// Percent encode tweet
 	percent_encode(status);
@@ -856,7 +911,7 @@ static void Twitter_StatusUpdate(const char *message, boolean has_media)
 	}
 
 	// Create tweet
-	post = CreateTweet(status, media_id, (!empty), timestamp, nonce, sig, tw_consumer_key, tw_auth_token);
+	post = CreateTweet(status, media_id, timestamp, nonce, sig, tw_consumer_key, tw_auth_token);
 	Twitter_Dealloc(sig, strlen(sig) + 1);
 	Twitter_Dealloc(nonce, NONCE_LENGTH + 1);
 
@@ -881,7 +936,7 @@ static void Twitter_StatusUpdate(const char *message, boolean has_media)
 	}
 }
 
-static void Command_Twitterupdate_f(void)
+static void Command_TwStatusUpdate_f(void)
 {
 	size_t msglen = (TW_STATUSLENGTH * 4) + 1;
 	char msg[msglen];
@@ -912,4 +967,16 @@ static void Command_Twitterupdate_f(void)
 
 	Twitter_StatusUpdate(msg, has_media);
 	Twitter_ClearAuth();
+}
+
+static void Command_TwEndThread_f(void)
+{
+	if (!tw_replytouser)
+	{
+		CONS_Alert(CONS_NOTICE, "No thread to end\n");
+		return;
+	}
+	Twitter_Dealloc(tw_replytouser, strlen(tw_replytouser) + 1);
+	Twitter_Dealloc(tw_replytotweet, strlen(tw_replytotweet) + 1);
+	CONS_Alert(CONS_NOTICE, "Ended thread\n");
 }
