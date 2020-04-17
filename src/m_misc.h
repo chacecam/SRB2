@@ -21,6 +21,8 @@
 #include "d_event.h" // Screenshot responder
 #include "command.h"
 
+#include "w_wad.h" // MAX_WADPATH
+
 typedef enum {
 	MM_OFF = 0,
 	MM_APNG,
@@ -38,6 +40,9 @@ extern consvar_t cv_apng_delay;
 void M_StartMovie(void);
 void M_SaveFrame(void);
 void M_StopMovie(void);
+
+extern char lastsshot[MAX_WADPATH];
+extern char lastmovie[MAX_WADPATH];
 
 // the file where game vars and settings are saved
 #define CONFIGFILENAME "config.cfg"
@@ -118,7 +123,6 @@ const char * M_Ftrim (double);
 // counting bits, for weapon ammo code, usually
 FUNCMATH UINT8 M_CountBits(UINT32 num, UINT8 size);
 
-#include "w_wad.h"
 extern char configfile[MAX_WADPATH];
 
 #endif

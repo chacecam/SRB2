@@ -168,6 +168,9 @@ boolean takescreenshot = false; // Take a screenshot this tic
 
 moviemode_t moviemode = MM_OFF;
 
+char lastsshot[MAX_WADPATH];
+char lastmovie[MAX_WADPATH];
+
 /** Returns the map number for a map identified by the last two characters in
   * its name.
   *
@@ -1097,6 +1100,8 @@ static inline moviemode_t M_StartMovieAPNG(const char *pathname)
 		CONS_Alert(CONS_ERROR, "Couldn't create aPNG: error creating %s in %s\n", freename, pathname);
 		return MM_OFF;
 	}
+
+	strcpy(lastmovie, va(pandf,pathname,freename));
 	return MM_APNG;
 #else
 	// no APNG support exists
@@ -1122,6 +1127,8 @@ static inline moviemode_t M_StartMovieGIF(const char *pathname)
 		CONS_Alert(CONS_ERROR, "Couldn't create GIF: error creating %s in %s\n", freename, pathname);
 		return MM_OFF;
 	}
+
+	strcpy(lastmovie, va(pandf,pathname,freename));
 	return MM_GIF;
 #else
 	// no GIF support exists
@@ -1552,7 +1559,10 @@ failure:
 	if (ret)
 	{
 		if (moviemode != MM_SCREENSHOT)
+		{
 			CONS_Printf(M_GetText("Screen shot %s saved in %s\n"), freename, pathname);
+			strcpy(lastsshot, va(pandf,pathname,freename));
+		}
 	}
 	else
 	{

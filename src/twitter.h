@@ -13,8 +13,8 @@
 #define TWITTER_H
 
 // API and media upload endpoints
-#define TW_ENDPOINT_API        "api.twitter.com:https"
-#define TW_ENDPOINT_UPLOAD     "upload.twitter.com:https"
+#define TW_ENDPOINT_API        "api.twitter.com"
+#define TW_ENDPOINT_UPLOAD     "upload.twitter.com"
 
 #define TW_HASHTAG             "#srb2"    // Tweet hashtag
 #define TW_STATUSLENGTH        280        // 280 characters in a Tweet
@@ -25,7 +25,5 @@
 #define TW_AUTHSECRETLENGTH    45         // Auth secret length
 
 void Twitter_Init(void);
-
-void Twitter_StatusUpdate(const char *message);
 
 #endif

@@ -12,18 +12,23 @@
 // Lactozilla: Based on http://www.aatosjalo.com/blog/2015/02/01/using-twitter-api-with-c/
 
 #include "twitter.h"
+#include "jsmn.h"
 
 #include "doomdef.h"
 #include "doomtype.h"
 
 #include "d_main.h"
+#include "d_netfil.h" // nameonly
+#include "m_misc.h" // screenshots
 #include "m_random.h"
 #include "z_zone.h"
 
 #include "console.h"
 #include "command.h"
 
-static char tw_hostname[22];
+#define BUFSIZE 8192
+
+static char tw_hostname[64];
 
 static char tw_consumer_key[TW_APIKEYLENGTH + 1], tw_consumer_secret[TW_APISECRETLENGTH + 1];
 static char tw_auth_token[TW_AUTHTOKENLENGTH + 1], tw_auth_secret[TW_AUTHSECRETLENGTH + 1];
@@ -35,7 +40,45 @@ static void Twitter_Dealloc(void *ptr, size_t len);
 
 static void Command_Twitterupdate_f(void);
 
+static void AttachmentChange(char *attachment, consvar_t *cvar)
+{
+	char lastfile[MAX_WADPATH];
+	if (strlen(attachment))
+		nameonly(strcpy(lastfile, attachment));
+
+	if (!cvar->value)
+	{
+		if (strlen(attachment))
+			CONS_Printf("Not attaching %s anymore\n", lastfile);
+		return;
+	}
+
+	if (strlen(attachment) == 0)
+	{
+		CV_StealthSetValue(cvar, 0);
+		CONS_Alert(CONS_NOTICE, "Nothing to attach\n");
+		return;
+	}
+
+	CONS_Printf("Attaching %s\n", lastfile);
+}
+
+static void TwAttachScreenshot_OnChange(void);
+static void TwAttachMovie_OnChange(void);
+
 static consvar_t cv_twusehashtag = {"tw_usehashtag", "No", 0, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+static consvar_t cv_twsendsshots = {"tw_attachscreenshot", "No", CV_CALL | CV_NOINIT, CV_OnOff, TwAttachScreenshot_OnChange, 0, NULL, NULL, 0, 0, NULL};
+static consvar_t cv_twsendmovies = {"tw_attachmovie", "No", CV_CALL | CV_NOINIT, CV_OnOff, TwAttachMovie_OnChange, 0, NULL, NULL, 0, 0, NULL};
+
+static void TwAttachScreenshot_OnChange(void)
+{
+	AttachmentChange(lastsshot, &cv_twsendsshots);
+}
+
+static void TwAttachMovie_OnChange(void)
+{
+	AttachmentChange(lastmovie, &cv_twsendmovies);
+}
 
 #include "openssl/ossl_typ.h"
 #include "openssl/bio.h"
@@ -65,10 +108,12 @@ void Twitter_Init(void)
 	ENGINE_register_all_complete();
 
 	// Add Twitter commands
-	COM_AddCommand("twitterupdate", Command_Twitterupdate_f);
+	COM_AddCommand("tw_statusupdate", Command_Twitterupdate_f);
 
 	// Add Twitter variables
 	CV_RegisterVar(&cv_twusehashtag);
+	CV_RegisterVar(&cv_twsendsshots);
+	CV_RegisterVar(&cv_twsendmovies);
 }
 
 // Base64 encode the given string.
@@ -165,11 +210,11 @@ static unsigned char *hmac_sha1_encode(const char *data, const char *hmac_key, u
 }
 
 // Compute the signature from given parameters as required by the OAuth.
-static char *compute_signature(const char *timestamp, const char *nonce, const char *status,
+static char *compute_signature(const char *timestamp, const char *nonce, const char *status, boolean use_status,
 							   const char *consumer_key, const char *consumer_secret,
 							   const char *auth_token, const char *auth_secret)
 {
-	size_t sigbufsize = 8192;
+	size_t sigbufsize = BUFSIZE;
 	char *signature_base = ZZ_Alloc(sigbufsize);
 	size_t encoded_size;
 	char *encoded_status;
@@ -183,15 +228,18 @@ static char *compute_signature(const char *timestamp, const char *nonce, const c
 	int ret;
 
 	// Encode the status again.
-	encoded_size = PERCENT_ENCODED_LENGTH(strlen(status)) + 1;
-	encoded_status = ZZ_Alloc(encoded_size);
+	if (use_status)
+	{
+		encoded_size = PERCENT_ENCODED_LENGTH(strlen(status)) + 1;
+		encoded_status = ZZ_Alloc(encoded_size);
 
-	snprintf(encoded_status, encoded_size, "%s", status);
-	percent_encode(encoded_status);
+		snprintf(encoded_status, encoded_size, "%s", status);
+		percent_encode(encoded_status);
+	}
 
 #define ENCODE(encstr, encbuf, enclen) \
 	encbuf = ZZ_Alloc(PERCENT_ENCODED_LENGTH(enclen) + 1); \
-	snprintf(encbuf, enclen, "%s", encstr); \
+	snprintf(encbuf, enclen + 1, "%s", encstr); \
 	percent_encode(encbuf);
 
 	// encode consumer key / auth token / nonce
@@ -199,26 +247,31 @@ static char *compute_signature(const char *timestamp, const char *nonce, const c
 	ENCODE(auth_token, encoded_auth, TW_AUTHTOKENLENGTH);
 	ENCODE(nonce, encoded_nonce, NONCE_LENGTH);
 
+#define BASESIG \
+	"POST&https%%3A%%2F%%2Fapi.twitter.com" \
+	"%%2F1.1%%2Fstatuses%%2Fupdate.json&" \
+	"include_entities%%3Dtrue%%26" \
+	"oauth_consumer_key%%3D%s%%26oauth_nonce%%3D%s" \
+	"%%26oauth_signature_method%%3DHMAC-SHA1" \
+	"%%26oauth_timestamp%%3D%s%%26oauth_token%%3D%s" \
+	"%%26oauth_version%%3D1.0"
+
 	// Create base signature string
-	ret = snprintf(signature_base, sigbufsize, "POST&https%%3A%%2F%%2Fapi.twitter.com"
-					   "%%2F1.1%%2Fstatuses%%2Fupdate.json&"
-					   "include_entities%%3Dtrue%%26"
-					   "oauth_consumer_key%%3D%s%%26oauth_nonce%%3D%s"
-					   "%%26oauth_signature_method%%3DHMAC-SHA1"
-					   "%%26oauth_timestamp%%3D%s%%26oauth_token%%3D%s"
-					   "%%26oauth_version%%3D1.0"
-					   "%%26status%%3D%s",
-					   encoded_ckey, encoded_nonce, timestamp, encoded_auth, encoded_status);
+	if (use_status)
+		ret = snprintf(signature_base, sigbufsize, BASESIG "%%26status%%3D%s", encoded_ckey, encoded_nonce, timestamp, encoded_auth, encoded_status);
+	else
+		ret = snprintf(signature_base, sigbufsize, BASESIG, encoded_ckey, encoded_nonce, timestamp, encoded_auth);
 
 	// Free encoded strings
-	Twitter_Dealloc(encoded_status, encoded_size);
+	if (use_status)
+		Twitter_Dealloc(encoded_status, encoded_size);
 	Twitter_Dealloc(encoded_ckey, PERCENT_ENCODED_LENGTH(TW_APIKEYLENGTH) + 1);
 	Twitter_Dealloc(encoded_auth, PERCENT_ENCODED_LENGTH(TW_AUTHTOKENLENGTH) + 1);
 	Twitter_Dealloc(encoded_nonce, PERCENT_ENCODED_LENGTH(NONCE_LENGTH) + 1);
 
 	if (ret < 0 || (size_t)ret > sigbufsize)
 	{
-		Z_Free(signature_base);
+		Twitter_Dealloc(signature_base, sigbufsize);
 		return NULL;
 	}
 
@@ -226,8 +279,8 @@ static char *compute_signature(const char *timestamp, const char *nonce, const c
 	encoded_csecret = ZZ_Alloc(PERCENT_ENCODED_LENGTH(TW_APISECRETLENGTH) + 1);
 	encoded_asecret = ZZ_Alloc(PERCENT_ENCODED_LENGTH(TW_AUTHSECRETLENGTH) + 1);
 
-	snprintf(encoded_csecret, TW_APISECRETLENGTH, "%s", consumer_secret);
-	snprintf(encoded_asecret, TW_AUTHSECRETLENGTH, "%s", auth_secret);
+	snprintf(encoded_csecret, TW_APISECRETLENGTH + 1, "%s", consumer_secret);
+	snprintf(encoded_asecret, TW_AUTHSECRETLENGTH + 1, "%s", auth_secret);
 
 	percent_encode(encoded_csecret);
 	percent_encode(encoded_asecret);
@@ -307,42 +360,13 @@ static void Twitter_Dealloc(void *buf, size_t len)
 	Z_Free(buf);
 }
 
-//
-// Sending tweets
-//
-
-static char *CreateTweet(const char *timestamp, const char *nonce, const char *status,
-						 const char *signature, const char *consumer_key,
-						 const char *auth_token)
-{
-	size_t postbufsize = 8192;
-	char *post = ZZ_Alloc(postbufsize);
-	int ret = snprintf(post, postbufsize,
-		"POST /1.1/statuses/update.json?include_entities=true HTTP/1.1\r\n"
-		"Accept: */*\r\n"
-		"Connection: close\r\n"
-		"User-Agent: OAuth gem v0.4.4\r\n"
-		"Host: api.twitter.com\r\n"
-		"Content-Type: application/x-www-form-urlencoded\r\n"
-		"Authorization: OAuth oauth_consumer_key=\"%s\", oauth_nonce=\"%s\", "
-		"oauth_signature=\"%s\", oauth_signature_method=\"HMAC-SHA1\", "
-		"oauth_timestamp=\"%s\", oauth_token=\"%s\", oauth_version=\"1.0\"\r\n"
-		"Content-Length: %s\r\n\r\n"
-		"status=%s",
-		consumer_key, nonce, signature, timestamp, auth_token,
-		sizeu1(strlen("status=") + strlen(status)), status);
-
-	if (ret < 0 || (size_t)ret >= postbufsize)
-	{
-		Twitter_Dealloc(post, postbufsize);
-		return NULL;
-	}
-
-	return post;
-}
+#define AUTH_HEADER \
+	"Authorization: OAuth oauth_consumer_key=\"%s\", oauth_nonce=\"%s\", " \
+	"oauth_signature=\"%s\", oauth_signature_method=\"HMAC-SHA1\", " \
+	"oauth_timestamp=\"%s\", oauth_token=\"%s\", oauth_version=\"1.0\"\r\n"
 
 // Handle HTTP response
-static int HandleHTTPResponse(char *buf)
+static int Twitter_HandleHTTPResponse(char *buf)
 {
 	if (strstr(buf, "HTTP/1.1 200 OK") != NULL)
 	{
@@ -352,11 +376,11 @@ static int HandleHTTPResponse(char *buf)
 	else if (strstr(buf, "HTTP/1.1 403 Forbidden") != NULL)
 	{
 		// Twitter doesn't allow consecutive duplicates and will respond with 403 in such case.
-		CONS_Alert(CONS_ERROR, "Twitter responded with HTTP 403\n");
+		CONS_Alert(CONS_ERROR, "Twitter_HandleHTTPResponse: Twitter responded with HTTP 403\n");
 		return -2;
 	}
 
-	CONS_Printf("Error occurred! Received:\n%s\n", buf);
+	CONS_Alert(CONS_ERROR, "Twitter_HandleHTTPResponse: Error occurred! Received:\n%s\n", buf);
 	return -1;
 }
 
@@ -366,14 +390,14 @@ static int Twitter_SetupConnection(SSL_CTX **ctx, BIO **bio, SSL **ssl)
 	(*ctx) = SSL_CTX_new(SSLv23_client_method());
 	if ((*ctx) == NULL)
 	{
-		CONS_Alert(CONS_ERROR, "SetupConnection: Error creating SSL_CTX\n");
+		CONS_Alert(CONS_ERROR, "Twitter_SetupConnection: Error creating SSL_CTX\n");
 		return -1;
 	}
 
 	(*bio) = BIO_new_ssl_connect(*ctx);
 	if ((*bio) == NULL)
 	{
-		CONS_Alert(CONS_ERROR, "SetupConnection: Error creating BIO\n");
+		CONS_Alert(CONS_ERROR, "Twitter_SetupConnection: Error creating BIO\n");
 		SSL_CTX_free(*ctx);
 		return -1;
 	}
@@ -381,7 +405,7 @@ static int Twitter_SetupConnection(SSL_CTX **ctx, BIO **bio, SSL **ssl)
 	BIO_get_ssl(*bio, ssl);
 	if ((*ssl) == NULL)
 	{
-		CONS_Alert(CONS_ERROR, "SetupConnection: BIO_get_ssl failed\n");
+		CONS_Alert(CONS_ERROR, "Twitter_SetupConnection: BIO_get_ssl failed\n");
 		BIO_free_all(*bio);
 		SSL_CTX_free(*ctx);
 		return -1;
@@ -413,6 +437,288 @@ static int Twitter_DoConnectionAndHandshake(SSL_CTX **ctx, BIO **bio)
 	return 0;
 }
 
+#define HEADER_ACCEPT_DEFAULT \
+	"Accept: */*\r\n" \
+
+#define HEADER_CONTENT_TYPE_DEFAULT \
+	"Content-Type: application/x-www-form-urlencoded\r\n"
+
+#define HEADER_BASE(host) \
+	"Connection: close\r\n" \
+	"User-Agent: OAuth gem v0.4.4\r\n" \
+	"Host: " host "\r\n"
+
+// Generate multipart HTTP request boundary.
+#define MULTIPART_BOUNDARY_LENGTH 48
+static char *generate_multipart_request_boundary(void)
+{
+	size_t i;
+	char *boundary = ZZ_Alloc(MULTIPART_BOUNDARY_LENGTH + 1);
+
+	for (i = 0; i < MULTIPART_BOUNDARY_LENGTH; i++)
+	{
+		const char a = M_RandomKey(26*2);
+		if (a < 26) // uppercase
+			boundary[i] = 'A'+a;
+		else // lowercase
+			boundary[i] = 'a'+(a-26);
+	}
+
+	boundary[MULTIPART_BOUNDARY_LENGTH] = '\0';
+	return boundary;
+}
+
+//
+// Attachments
+//
+
+static char *CreateAttachment(const char *type, const char *file, int sizelimit, size_t *retlen,
+						 const char *timestamp, const char *nonce,
+						 const char *signature, const char *consumer_key,
+						 const char *auth_token)
+{
+	UINT8 *filedata, *attachdata;
+	size_t postbufsize = BUFSIZE, length, baselength, endlength;
+	char *post;
+	char *boundary;
+	char *end;
+	int ret;
+
+	FILE *f;
+	long filesize;
+
+	// attachment name only (srb2xxxx.png)
+	char attachname[MAX_WADPATH];
+	strcpy(attachname, file);
+	nameonly(attachname);
+
+	// open file (with full path)
+	f = fopen(file, "rb");
+	if (!f)
+	{
+		CONS_Alert(CONS_ERROR, "CreateAttachment: could not open attachment %s for sending\n", attachname);
+		return NULL;
+	}
+
+	fseek(f, 0, SEEK_END);
+	filesize = ftell(f);
+
+	// file too big
+	if (filesize > (sizelimit<<20))
+	{
+		CONS_Alert(CONS_ERROR, "CreateAttachment: attachment exceeds filesize limit of %dMB", sizelimit);
+		fclose(f);
+		return NULL;
+	}
+
+	fseek(f, 0, SEEK_SET);
+	filedata = ZZ_Alloc(filesize);
+	fread(filedata, 1, filesize, f);
+	fclose(f);
+
+	length = postbufsize + (filesize + 1);
+	post = ZZ_Alloc(length);
+	memset(post, 0x00, length);
+
+	boundary = generate_multipart_request_boundary();
+
+	ret = snprintf(post, postbufsize,
+		"POST /1.1/media/upload.json?media_category=%s HTTP/1.1\r\n"
+		HEADER_BASE(TW_ENDPOINT_UPLOAD)
+		HEADER_ACCEPT_DEFAULT
+		AUTH_HEADER
+		"Content-Type: multipart/form-data; boundary=%s\r\n"
+		"Content-Length: %s\r\n\r\n"
+		"--%s\r\n"
+		"Content-Disposition: form-data; name=\"%s\"; filename=\"%s\"\r\n"
+		"Content-Type: application/octet-stream\r\n\r\n",
+		type, consumer_key, nonce, signature, timestamp, auth_token,
+		boundary, sizeu1(strlen("media=") + filesize),
+		boundary, "sshot", attachname);
+
+	if (ret < 0 || (size_t)ret >= postbufsize)
+	{
+		CONS_Alert(CONS_ERROR, "CreateAttachment: too large!");
+		Z_Free(filedata);
+		Twitter_Dealloc(post, length);
+		return NULL;
+	}
+
+	baselength = strlen(post);
+	attachdata = (UINT8 *)(post + baselength);
+	memcpy(attachdata, filedata, filesize);
+
+	// total length
+	length = (size_t)(baselength + filesize);
+
+	// append last boundary
+	endlength = (2 + 2 + strlen(boundary) + 2); // \r\n--(boundary)--\r\n
+	end = ZZ_Alloc(endlength + 1);
+	snprintf(end, (endlength + 1), "\r\n--%s--\r\n", boundary);
+
+	// copy string
+	memcpy(attachdata + filesize, end, endlength);
+	(*retlen) = (length + endlength);
+	Z_Free(filedata);
+	free(end);
+
+	// return POST request
+	return post;
+}
+
+#define PRINTJSONERROR(err) CONS_Alert(CONS_ERROR, "Twitter_SendAttachment: JSON read error (" err ")\n")
+
+#define JSON_VARS \
+	jsmn_parser p; \
+	jsmntok_t t[9]; \
+	int r, i;\
+
+#define JSON_START_PARSE \
+	jsmn_init(&p); \
+	r = jsmn_parse(&p, buf, (read_bytes - 1), t, sizeof(t) / sizeof(t[0])); \
+	if (r < 1 || t[0].type != JSMN_OBJECT) \
+		PRINTJSONERROR("expected object"); \
+	else \
+	{ \
+		char parsed[BUFSIZE]; \
+		size_t parselen; \
+		for (i = 1; i < r; i++) \
+		{ \
+			parselen = (t[i + 1].end - t[i + 1].start); \
+			memcpy(parsed, buf + t[i + 1].start, parselen); \
+			parsed[parselen] = '\0';
+
+#define JSON_END_PARSE \
+		} \
+	}
+
+static int jsoneq(const char *json, jsmntok_t *tok, const char *s)
+{
+	if (tok->type == JSMN_STRING
+	&& (int)strlen(s) == tok->end - tok->start
+	&& strncmp(json + tok->start, s, tok->end - tok->start) == 0)
+		return 0;
+	return -1;
+}
+
+static char *Twitter_SendAttachment(const char *attachment, size_t attachlen)
+{
+	SSL_CTX *ctx;
+	BIO *bio;
+	SSL *ssl;
+
+	char buf[1024];
+	char *ret = NULL;
+	int read_bytes;
+
+	buf[0] = '\0';
+
+	if (Twitter_SetupConnection(&ctx, &bio, &ssl) != 0)
+		return NULL;
+
+	strcpy(tw_hostname, TW_ENDPOINT_UPLOAD ":https");
+	BIO_set_conn_hostname(bio, tw_hostname);
+
+	if (Twitter_DoConnectionAndHandshake(&ctx, &bio) != 0)
+		return NULL;
+
+	BIO_write(bio, attachment, attachlen);
+	read_bytes = BIO_read(bio, buf, sizeof(buf) - 1);
+	if (read_bytes > 0)
+	{
+		CONS_Printf("Twitter_SendAttachment: Read %d bytes\n", read_bytes);
+		buf[read_bytes] = '\0';
+		if (Twitter_HandleHTTPResponse(buf) == 0)
+		{
+			// Read JSON response
+			JSON_VARS
+
+			read_bytes = BIO_read(bio, buf, sizeof(buf) - 1);
+			if (read_bytes > 0)
+			{
+				CONS_Printf("Twitter_SendAttachment: Read %d JSON bytes\n", read_bytes);
+				buf[read_bytes] = '\0';
+
+				JSON_START_PARSE
+				if (jsoneq(buf, &t[i], "media_id_string") == 0)
+				{
+					ret = Z_StrDup(parsed);
+					break;
+				}
+				JSON_END_PARSE
+
+				if (ret == NULL)
+					PRINTJSONERROR("Could not find the media id");
+			}
+			else
+				CONS_Alert(CONS_ERROR, "Twitter_SendAttachment: Failed to read JSON response!\n");
+		}
+		else
+		{
+			// Read JSON error
+			read_bytes = BIO_read(bio, buf, sizeof(buf) - 1);
+			if (read_bytes > 0)
+			{
+				CONS_Printf("Twitter_SendAttachment: Read %d bytes\n", read_bytes);
+				buf[read_bytes] = '\0';
+				CONS_Printf("%s\n", buf);
+			}
+		}
+	}
+	else
+		CONS_Alert(CONS_ERROR, "Twitter_SendAttachment: Read failed! %s\n", ERR_error_string(ERR_get_error(), NULL));
+
+	BIO_free_all(bio);
+	SSL_CTX_free(ctx);
+
+	return ret;
+}
+
+//
+// Sending tweets
+//
+
+static char *CreateTweet(const char *status, const char *media_id, boolean hasmessage,
+						 const char *timestamp, const char *nonce,
+						 const char *signature, const char *consumer_key,
+						 const char *auth_token)
+{
+	char append[BUFSIZE];
+	size_t postbufsize = BUFSIZE;
+	char *post = ZZ_Alloc(postbufsize);
+	int ret;
+
+	if (media_id)
+	{
+		if (hasmessage)
+			snprintf(append, BUFSIZE, "media_ids=%s&status=%s", media_id, status);
+		else
+			snprintf(append, BUFSIZE, "media_ids=%s", media_id);
+	}
+	else
+		snprintf(append, BUFSIZE, "status=%s", status);
+
+	ret = snprintf(post, postbufsize,
+		"POST /1.1/statuses/update.json?include_entities=true HTTP/1.1\r\n"
+		HEADER_BASE(TW_ENDPOINT_API)
+		HEADER_ACCEPT_DEFAULT
+		HEADER_CONTENT_TYPE_DEFAULT
+		AUTH_HEADER
+		"Content-Length: %s\r\n\r\n"
+		"%s",
+		consumer_key, nonce, signature, timestamp, auth_token,
+		sizeu1(strlen(append)), append);
+
+	if (ret < 0 || (size_t)ret >= postbufsize)
+	{
+		Twitter_Dealloc(post, postbufsize);
+		return NULL;
+	}
+
+	// return POST request
+	return post;
+}
+
 /**
  * Posts given POST to api.twitter.com.
  *
@@ -422,21 +728,21 @@ static int Twitter_DoConnectionAndHandshake(SSL_CTX **ctx, BIO **bio)
  * This doesn't verify the server certificate, i.e. it will accept certificates
  * signed by any CA.
  */
-static int SendTweet(const char *post)
+static int Twitter_SendTweet(const char *post)
 {
 	SSL_CTX *ctx;
 	BIO *bio;
 	SSL *ssl;
 
 	char buf[1024];
-	int ret, read_bytes;
+	int ret = 0, read_bytes;
 
 	buf[0] = '\0';
 
 	if (Twitter_SetupConnection(&ctx, &bio, &ssl) != 0)
 		return -1;
 
-	strcpy(tw_hostname, TW_ENDPOINT_API);
+	strcpy(tw_hostname, TW_ENDPOINT_API ":https");
 	BIO_set_conn_hostname(bio, tw_hostname);
 
 	if (Twitter_DoConnectionAndHandshake(&ctx, &bio) != 0)
@@ -446,15 +752,15 @@ static int SendTweet(const char *post)
 	read_bytes = BIO_read(bio, buf, sizeof(buf) - 1);
 	if (read_bytes > 0)
 	{
-		CONS_Printf("Read %d bytes\n", read_bytes);
+		CONS_Printf("Twitter_SendTweet: Read %d bytes\n", read_bytes);
 		buf[read_bytes] = '\0';
-		if (HandleHTTPResponse(buf) == -1)
+		if (Twitter_HandleHTTPResponse(buf) == -1)
 		{
-			// read JSON error
+			// Read JSON error
 			read_bytes = BIO_read(bio, buf, sizeof(buf) - 1);
 			if (read_bytes > 0)
 			{
-				CONS_Printf("Read %d bytes\n", read_bytes);
+				CONS_Printf("Twitter_SendTweet: Read %d bytes\n", read_bytes);
 				buf[read_bytes] = '\0';
 				CONS_Printf("%s\n", buf);
 			}
@@ -462,7 +768,7 @@ static int SendTweet(const char *post)
 	}
 	else
 	{
-		CONS_Alert(CONS_ERROR, "Read failed!\n");
+		CONS_Alert(CONS_ERROR, "Twitter_SendTweet: Read failed! %s\n", ERR_error_string(ERR_get_error(), NULL));
 		ret = -1;
 	}
 
@@ -472,21 +778,34 @@ static int SendTweet(const char *post)
 	return ret;
 }
 
-void Twitter_StatusUpdate(const char *message)
+static void Twitter_StatusUpdate(const char *message, boolean has_media)
 {
 	char status[(TW_STATUSLENGTH * 3) + strlen(TW_HASHTAG) + 2];
 	char *nonce;
 	char *sig;
-	char *post;
+	char *post, *attachment;
+	char *media_id = NULL;
 
 	time_t t;
 	char timestamp[11];
 
-	// Copy tweet and percent encode
+	boolean empty = (strlen(message) < 1);
+
+	// Copy tweet
 	if (cv_twusehashtag.value)
-		snprintf(status, (TW_STATUSLENGTH + strlen(TW_HASHTAG) + 2), "%s %s", message, TW_HASHTAG);
-	else
+	{
+		size_t msglen = (TW_STATUSLENGTH + strlen(TW_HASHTAG) + 2);
+		if (!empty)
+			snprintf(status, msglen, "%s %s", message, TW_HASHTAG);
+		else
+			snprintf(status, msglen, "%s", TW_HASHTAG);
+	}
+	else if (!empty)
 		snprintf(status, (TW_STATUSLENGTH + 1), "%s", message);
+	else
+		status[0] = ' ';
+
+	// Percent encode tweet
 	percent_encode(status);
 
 	// Generate nonce
@@ -497,7 +816,8 @@ void Twitter_StatusUpdate(const char *message)
 	snprintf(timestamp, sizeof(timestamp), "%s", sizeu1((size_t)t));
 
 	// Compute signature
-	sig = compute_signature(timestamp, nonce, status, tw_consumer_key, tw_consumer_secret, tw_auth_token, tw_auth_secret);
+	sig = compute_signature(timestamp, nonce, status, (!has_media),
+							tw_consumer_key, tw_consumer_secret, tw_auth_token, tw_auth_secret);
 	if (sig == NULL)
 	{
 		CONS_Alert(CONS_ERROR, "Twitter_StatusUpdate: could not compute signature\n");
@@ -505,10 +825,38 @@ void Twitter_StatusUpdate(const char *message)
 		return;
 	}
 
-	Twitter_ClearAuth();
+	// Send last movie / screenshot
+	if (cv_twsendmovies.value)
+	{
+		size_t length;
+		attachment = CreateAttachment("tweet_gif", lastmovie, 15, &length, timestamp, nonce, sig, tw_consumer_key, tw_auth_token);
+		if (!attachment)
+			return;
 
-	// Create Tweet
-	post = CreateTweet(timestamp, nonce, status, sig, tw_consumer_key, tw_auth_token);
+		media_id = Twitter_SendAttachment(attachment, length);
+		if (media_id == NULL)
+		{
+			Twitter_Dealloc(attachment, length);
+			return;
+		}
+	}
+	else if (cv_twsendsshots.value)
+	{
+		size_t length;
+		attachment = CreateAttachment("tweet_image", lastsshot, 5, &length, timestamp, nonce, sig, tw_consumer_key, tw_auth_token);
+		if (!attachment)
+			return;
+
+		media_id = Twitter_SendAttachment(attachment, length);
+		if (media_id == NULL)
+		{
+			Twitter_Dealloc(attachment, length);
+			return;
+		}
+	}
+
+	// Create tweet
+	post = CreateTweet(status, media_id, (!empty), timestamp, nonce, sig, tw_consumer_key, tw_auth_token);
 	Twitter_Dealloc(sig, strlen(sig) + 1);
 	Twitter_Dealloc(nonce, NONCE_LENGTH + 1);
 
@@ -518,21 +866,50 @@ void Twitter_StatusUpdate(const char *message)
 		return;
 	}
 
-	SendTweet(post);
+	Twitter_SendTweet(post);
 	Twitter_Dealloc(post, strlen(post) + 1);
+
+	if (media_id)
+	{
+		Twitter_Dealloc(media_id, strlen(media_id) + 1);
+
+		CV_StealthSetValue(&cv_twsendsshots, 0);
+		CV_StealthSetValue(&cv_twsendmovies, 0);
+
+		lastsshot[0] = '\0';
+		lastmovie[0] = '\0';
+	}
 }
 
 static void Command_Twitterupdate_f(void)
 {
-	if (COM_Argc() < 2)
+	size_t msglen = (TW_STATUSLENGTH * 4) + 1;
+	char msg[msglen];
+	size_t i;
+	boolean has_media = false; // (cv_twsendmovies.value || cv_twsendsshots.value);
+	boolean needs_text = (!has_media);
+
+	if (needs_text && (COM_Argc() < 2))
 	{
-		CONS_Printf(M_GetText("twitterupdate <message>: post a status update to Twitter\n"));
+		CONS_Printf(M_GetText("tw_statusupdate <message>: post a status update to Twitter\n"));
 		return;
 	}
 
 	if (!Twitter_LoadAuth())
 		return;
 
-	Twitter_StatusUpdate(COM_Argv(1));
+	if (COM_Argc() >= 2)
+	{
+		for (i = 0; i < COM_Argc() - 1; i++)
+		{
+			if (i > 0)
+				strlcat(msg, " ", msglen);
+			strlcat(msg, COM_Argv(i + 1), msglen);
+		}
+	}
+	else
+		msg[0] = '\0';
+
+	Twitter_StatusUpdate(msg, has_media);
 	Twitter_ClearAuth();
 }
