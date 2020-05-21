@@ -635,12 +635,17 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 		// draw the columns
 		for (dc_x = x1; dc_x <= x2; dc_x++)
 		{
-			dc_texturemid = FLOAT_TO_FIXED(ds->maskedtextureheight[dc_x]);
+			float midtex = ds->maskedtextureheight[dc_x];
+			fixed_t midtexoffs = 0;
 
 			if (!!(curline->linedef->flags & ML_DONTPEGBOTTOM) ^ !!(curline->linedef->flags & ML_EFFECT3))
-				dc_texturemid += (textureheight[texnum])*times + textureheight[texnum];
+				midtexoffs += (textureheight[texnum])*times + textureheight[texnum];
 			else
-				dc_texturemid -= (textureheight[texnum])*times;
+				midtexoffs -= (textureheight[texnum])*times;
+
+			dc_texturemid = FLOAT_TO_FIXED(midtex) + midtexoffs;
+			midtex += FIXED_TO_FLOAT(midtexoffs);
+
 			// calculate lighting
 			if (maskedtexturecol[dc_x] != INT16_MAX)
 			{
@@ -667,7 +672,7 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 					lighttable_t **xwalllights;
 
 					sprbotscreen = INT32_MAX;
-					maskedtopscreen = centeryfloat - (FIXED_TO_FLOAT(dc_texturemid)*maskedscale);
+					maskedtopscreen = centeryfloat - (midtex*maskedscale);
 					sprtopscreen = windowtop = FLOAT_TO_FIXED(maskedtopscreen);
 
 					realbot = windowbottom = FixedMul(textureheight[texnum], FLOAT_TO_FIXED(maskedscale)) + sprtopscreen;
@@ -746,7 +751,7 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 				if (frontsector->extra_colormap)
 					dc_colormap = frontsector->extra_colormap->colormap + (dc_colormap - colormaps);
 
-				maskedtopscreen = centeryfloat - (FIXED_TO_FLOAT(dc_texturemid)*maskedscale);
+				maskedtopscreen = centeryfloat - (midtex*maskedscale);
 				sprtopscreen = FLOAT_TO_FIXED(maskedtopscreen);
 				dc_iscale = FLOAT_TO_FIXED(1.0f / maskedscale);
 
@@ -2653,7 +2658,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 	if (linedef->special == HORIZONSPECIAL) { // HORIZON LINES
 		topstep = bottomstep = 0.0f;
 		topfrac = bottomfrac = centeryfloat;
-		topfrac++; // Prevent 1px HOM
+		topfrac = (1.0f / 65536.0f); // Prevent 1px HOM
 	} else {
 		topstep = -(rw_scalestep*worldtop);
 		topfrac = centeryfloat - (worldtop*rw_scale);
@@ -2757,7 +2762,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			{
 				ffloor[i].f_step = 0.0f;
 				ffloor[i].f_frac = centeryfloat;
-				topfrac++; // Prevent 1px HOM
+				topfrac = (1.0f / 65536.0f); // Prevent 1px HOM
 			}
 			else
 			{
