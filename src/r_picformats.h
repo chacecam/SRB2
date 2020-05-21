@@ -107,7 +107,11 @@ typedef struct
 {
 	INT16 width;
 	INT16 height;
-	UINT16 *data;
+	UINT8 *data_u8;
+	UINT16 *data_u16;
+#ifdef TRUECOLOR
+	UINT32 *data_u32;
+#endif
 } rsp_texture_t;
 #endif
 
@@ -125,7 +129,7 @@ void *Picture_PNGConvert(
 boolean Picture_PNGDimensions(UINT8 *png, INT16 *width, INT16 *height, size_t size);
 #endif
 
-void Picture_GenerateSpriteTexture(patch_t *patch, UINT16 *buffer, INT32 x, INT32 y, INT32 maxwidth, INT32 maxheight, boolean flip, UINT8 *colormap, UINT8 *translation);
+void Picture_GenerateSpriteTexture(patch_t *patch, void *buffer, INT32 format, INT32 x, INT32 y, INT32 maxwidth, INT32 maxheight, boolean flip, UINT8 *colormap, UINT8 *translation);
 
 // SpriteInfo
 extern spriteinfo_t spriteinfo[NUMSPRITES];

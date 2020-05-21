@@ -27,11 +27,7 @@ consvar_t cv_rspdebugdepth = {"rsp_debugdepth", "Off", 0, CV_OnOff, NULL, 0, NUL
 // init the polygon renderer
 void RSP_Init(void)
 {
-	// set pixel functions
-	rsp_basepixelfunc = RSP_DrawPixel;
-	rsp_transpixelfunc = RSP_DrawTranslucentPixel;
-
-	// run other initialisation code
+	RSP_SetBaseDrawerFunctions();
 	RSP_SetDrawerFunctions();
 
 #ifdef RSP_DEBUGGING
@@ -107,6 +103,22 @@ void RSP_ModelView(void)
 	// Clear the depth buffer, and setup the matrixes.
 	RSP_ClearDepthBuffer();
 	RSP_SetupFrame(viewx, viewy, viewz, viewangle);
+}
+
+void RSP_SetBaseDrawerFunctions(void)
+{
+	// set pixel functions
+	rsp_basepixelfunc = RSP_DrawPixel_8;
+	rsp_transpixelfunc = RSP_DrawTranslucentPixel_8;
+
+#ifdef TRUECOLOR
+	// Lactozilla: Truecolor
+	if (truecolor)
+	{
+		rsp_basepixelfunc = RSP_DrawPixel_32;
+		rsp_transpixelfunc = RSP_DrawTranslucentPixel_32;
+	}
+#endif
 }
 
 void RSP_SetDrawerFunctions(void)

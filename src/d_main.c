@@ -635,6 +635,12 @@ void D_CheckColorDepth(INT32 newbitdepth, INT32 oldbitdepth)
 
 		// Also free levelflat pictures.
 		R_ClearLevelFlats();
+
+#ifdef POLYRENDERER
+		// Set drawer functions
+		RSP_SetBaseDrawerFunctions();
+		RSP_SetDrawerFunctions();
+#endif
 	}
 #else
 	(void)newbitdepth;

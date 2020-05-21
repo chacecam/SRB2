@@ -1146,6 +1146,7 @@ boolean Picture_PNGDimensions(UINT8 *png, INT16 *width, INT16 *height, size_t si
   *
   * \param patch The source patch.
   * \param buffer The destination texture.
+  * \param format The destination texture's format.
   * \param x The destination texture's horizontal offset.
   * \param y The destination texture's vertical offset.
   * \param maxwidth The destination texture's width.
@@ -1154,25 +1155,26 @@ boolean Picture_PNGDimensions(UINT8 *png, INT16 *width, INT16 *height, size_t si
   * \param colormap The source patch's colormap.
   * \param translation The source patch's translation.
   */
-void Picture_GenerateSpriteTexture(patch_t *patch, UINT16 *buffer, INT32 x, INT32 y, INT32 maxwidth, INT32 maxheight, boolean flip, UINT8 *colormap, UINT8 *translation)
+void Picture_GenerateSpriteTexture(patch_t *patch, void *buffer, INT32 format, INT32 x, INT32 y, INT32 maxwidth, INT32 maxheight, boolean flip, UINT8 *colormap, UINT8 *translation)
 {
 	fixed_t col, ofs;
 	column_t *column;
-	UINT16 *desttop, *dest, *deststop;
+	UINT8 *desttop, *dest, *deststop;
 	UINT8 *source;
+	INT32 fmtbpp = (Picture_FormatBPP(format) / 8);
 
 	if (x >= maxwidth)
 		return;
 	if (y >= maxheight)
 		return;
 
-	desttop = buffer + ((y*maxwidth) + x);
-	deststop = desttop + (maxwidth * maxheight);
+	desttop = ((UINT8 *)buffer) + (((y*maxwidth) + x) * fmtbpp);
+	deststop = desttop + (maxwidth * maxheight * fmtbpp);
 
 	if (!colormap) colormap = colormaps;
 	if (!translation) translation = colormap;
 
-	for (col = 0; col < SHORT(patch->width); col++, desttop++)
+	for (col = 0; col < SHORT(patch->width); col++, desttop += fmtbpp)
 	{
 		INT32 topdelta, prevdelta = -1;
 		if (x+col < 0) // don't draw off the left of the buffer (WRAP PREVENTION)
@@ -1188,12 +1190,12 @@ void Picture_GenerateSpriteTexture(patch_t *patch, UINT16 *buffer, INT32 x, INT3
 				topdelta += prevdelta;
 			prevdelta = topdelta;
 
-			dest = desttop + (topdelta * maxwidth);
+			dest = desttop + (topdelta * maxwidth * fmtbpp);
 			source = (UINT8 *)column+3;
 
 			for (ofs = 0; dest < deststop && ofs < column->length; ofs++)
 			{
-				if (dest >= buffer && source[ofs] != TRANSPARENTPIXEL)
+				if (dest >= ((UINT8 *)buffer) && source[ofs] != TRANSPARENTPIXEL)
 				{
 					UINT16 mappx = 0xFF00;
 					UINT8 pixel = source[ofs];
@@ -1205,9 +1207,24 @@ void Picture_GenerateSpriteTexture(patch_t *patch, UINT16 *buffer, INT32 x, INT3
 						mappx |= translation[pixel];
 					else
 						mappx |= pixel;
-					*dest = mappx;
+
+					if (Picture_FormatBPP(format) == PICDEPTH_32BPP)
+					{
+						UINT32 *dest_u32 = (UINT32 *)dest;
+						*dest_u32 = V_GetColor(mappx).rgba;
+					}
+					else if (Picture_FormatBPP(format) == PICDEPTH_16BPP)
+					{
+						UINT16 *dest_u16 = (UINT16 *)dest;
+						*dest_u16 = mappx;
+					}
+					else // PICDEPTH_8BPP
+					{
+						UINT8 *dest_u8 = (UINT8 *)dest;
+						*dest_u8 = (mappx & 0xFF);
+					}
 				}
-				dest += maxwidth;
+				dest += (maxwidth * fmtbpp);
 			}
 			column = (column_t *)((UINT8 *)column + column->length + 4);
 		}

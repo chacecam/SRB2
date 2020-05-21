@@ -122,7 +122,7 @@ static void R_InstallSpriteLump(UINT16 wad,            // graphics patch
 		{
 			lumpcache = wadfiles[wad]->patchcache->software;
 			if (!lumpcache[lump])
-				Z_Malloc(sizeof(rsp_spritetexture_t) * 16, PU_SOFTPOLY, &lumpcache[lump]);
+				Z_Calloc(sizeof(rsp_spritetexture_t) * 16, PU_SOFTPOLY, &lumpcache[lump]);
 			tex = lumpcache[lump];
 			tex += rot;
 
@@ -130,7 +130,6 @@ static void R_InstallSpriteLump(UINT16 wad,            // graphics patch
 			tex->width = SHORT(patch->width);
 			tex->height = SHORT(patch->height);
 			tex->lumpnum = lumppat;
-			tex->data = NULL;
 			Z_Free(patch);
 		}
 	}

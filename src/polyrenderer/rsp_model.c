@@ -80,8 +80,10 @@ boolean RSP_RenderModel(vissprite_t *spr)
 	// Look at R_ProjectSprite for more
 	{
 		fpvector4_t modelvec;
-		rsp_texture_t *texture, sprtex;
+		rsp_texture_t *texture = NULL, sprtex;
+		rsp_texture_t *basemodeltex = NULL, *blendmodeltex = NULL;
 		rsp_spritetexture_t *sprtexp;
+		boolean texexists, texdataexists;
 		INT32 durs = mobj->state->tics;
 		INT32 tics = mobj->tics;
 		boolean vflip = (!(mobj->eflags & MFE_VERTICALFLIP) != !(mobj->frame & FF_VERTICALFLIP));
@@ -99,6 +101,11 @@ boolean RSP_RenderModel(vissprite_t *spr)
 		float pol = 0.0f;
 		INT32 skinnum = 0;
 		INT32 tc = 0, textc = 0;
+		INT32 format = PICFMT_FLAT16;
+#ifdef TRUECOLOR
+		if (truecolor)
+			format = PICFMT_FLAT32;
+#endif
 
 		skincolors_t skincolor = SKINCOLOR_NONE;
 		UINT8 *translation = NULL;
@@ -129,11 +136,20 @@ boolean RSP_RenderModel(vissprite_t *spr)
 			skincolor = (skincolors_t)skins[0].prefcolor;
 
 		// load normal texture
-		if (!md2->texture->rsp_tex.data)
+		basemodeltex = &md2->texture->rsp_tex;
+
+#ifdef TRUECOLOR
+		if (truecolor)
+			texexists = (basemodeltex->data_u32 != NULL);
+		else
+#endif
+			texexists = (basemodeltex->data_u16 != NULL);
+
+		if (!texexists)
 		{
 			if (mobj->skin)
 				skinnum = (skin_t*)mobj->skin-skins;
-			Model_LoadTexture(md2);
+			Model_LoadTexture(md2, format);
 			Model_LoadBlendTexture(md2);
 		}
 
@@ -164,16 +180,44 @@ boolean RSP_RenderModel(vissprite_t *spr)
 				tc = TC_DEFAULT; // intentional
 		}
 
-		// load translated texture
+		// If no blend texture exists, generate a normal texture.
 		textc = -tc;
-		if (textc && md2->texture->rsp_blendtex[textc][skincolor].data == NULL)
-			RSP_CreateModelTexture(md2, textc, skincolor);
+		blendmodeltex = &md2->texture->rsp_blendtex[textc][skincolor];
+		if (textc)
+		{
+#ifdef TRUECOLOR
+			if (truecolor)
+			{
+				if (blendmodeltex->data_u32 == NULL)
+					RSP_CreateModelTexture(md2, textc, skincolor, format);
+			}
+#endif
+			else if (blendmodeltex->data_u16 == NULL)
+				RSP_CreateModelTexture(md2, textc, skincolor, format);
+		}
 
 		// use corresponding texture for this model
-		if (md2->texture->rsp_blendtex[textc][skincolor].data != NULL)
-			texture = &md2->texture->rsp_blendtex[textc][skincolor];
-		else
-			texture = &md2->texture->rsp_tex;
+#ifdef TRUECOLOR
+		if (truecolor)
+		{
+			if (blendmodeltex->data_u32 != NULL)
+				texture = blendmodeltex;
+		}
+#endif
+		else if (blendmodeltex->data_u16 != NULL)
+			texture = blendmodeltex;
+
+		// Blend texture does not exist, use base texture.
+		if (texture == NULL)
+			texture = basemodeltex;
+
+#ifdef TRUECOLOR
+		if (truecolor)
+		{
+			dp_extracolormap = (spr->extra_colormap != NULL) ? spr->extra_colormap : defaultextracolormap;
+			dp_lighting = TC_CalcScaleLight((UINT32 *)spr->colormap);
+		}
+#endif
 
 		if (mobj->skin && mobj->sprite == SPR_PLAY)
 		{
@@ -192,7 +236,16 @@ boolean RSP_RenderModel(vissprite_t *spr)
 
 		sprframe = &sprdef->spriteframes[mobj->frame & FF_FRAMEMASK];
 
-		if (!texture->data)
+		// Check if texture data is valid
+#ifdef TRUECOLOR
+		if (truecolor)
+			texdataexists = (texture->data_u32 != NULL);
+		else
+#endif
+			texdataexists = (texture->data_u16 != NULL);
+
+		// Else, fallback to using a sprite as the texture
+		if (!texdataexists)
 		{
 			unsigned rot;
 			UINT8 flip;
@@ -251,21 +304,27 @@ boolean RSP_RenderModel(vissprite_t *spr)
 			sprtex.width = sprtexp->width;
 			sprtex.height = sprtexp->height;
 
+#ifdef TRUECOLOR
+			if (truecolor)
+				texdataexists = (sprtexp->data_u32 != NULL);
+			else
+#endif
+				texdataexists = (sprtexp->data_u16 != NULL);
+
 			// make the patch
-			if (!sprtexp->data)
+			if (!texdataexists)
 			{
 				patch_t *source;
 				size_t size;
 
-				// uuhhh.....
+				// lump number is not valid
 				if (!sprtexp->lumpnum)
 				{
 					RESETVIEW
 					return false;
 				}
 
-				// still not a patch yet
-				// (R_CheckIfPatch has most likely failed)
+				// not a patch
 				if ((sprtexp->width) < 1 || (sprtexp->height < 1))
 				{
 					RESETVIEW
@@ -277,13 +336,21 @@ boolean RSP_RenderModel(vissprite_t *spr)
 
 				// make the buffer
 				size = (sprtexp->width * sprtexp->height);
-				sprtexp->data = Z_Calloc(size * sizeof(UINT16), PU_SOFTPOLY, NULL);
 
-				// generate the texture, then clear lumpnum
-				Picture_GenerateSpriteTexture(source, sprtexp->data, 0, 0, sprtexp->width, sprtexp->height, flip, NULL, NULL);
+				// generate the texture
+				sprtexp->data_u16 = Z_Calloc(size * sizeof(UINT16), PU_SOFTPOLY, NULL);
+				Picture_GenerateSpriteTexture(source, sprtexp->data_u16, PICFMT_FLAT16, 0, 0, sprtexp->width, sprtexp->height, flip, NULL, NULL);
+
+#ifdef TRUECOLOR
+				// generate the texture for truecolor
+				sprtexp->data_u32 = Z_Calloc(size * sizeof(UINT32), PU_SOFTPOLY, NULL);
+				Picture_GenerateSpriteTexture(source, sprtexp->data_u32, PICFMT_FLAT32, 0, 0, sprtexp->width, sprtexp->height, flip, NULL, NULL);
+#endif
+
+				// clear the lump number
 				sprtexp->lumpnum = 0;
 
-				// aight bro u have lost yuor cache privileges
+				// free source patch
 				Z_Free(source);
 			}
 
@@ -292,7 +359,13 @@ boolean RSP_RenderModel(vissprite_t *spr)
 				tc = skinnum;
 			translation = R_GetTranslationColormap(tc, mobj->color, GTC_CACHE);
 
-			sprtex.data = sprtexp->data;
+#ifdef TRUECOLOR
+			if (truecolor)
+				sprtex.data_u32 = sprtexp->data_u32;
+			else
+#endif
+				sprtex.data_u16 = sprtexp->data_u16;
+
 			texture = &sprtex;
 		}
 
@@ -456,11 +529,11 @@ boolean RSP_RenderModel(vissprite_t *spr)
 			memset(&triangle, 0x00, sizeof(rsp_triangle_t));
 
 			// set triangle texture
-			if (texture->data)
-				triangle.texture = texture;
+			triangle.texture = texture;
 
 			// set colormap, translation and transmap
 			triangle.colormap = spr->colormap;
+
 			if (spr->extra_colormap)
 			{
 				if (!triangle.colormap)
@@ -468,8 +541,16 @@ boolean RSP_RenderModel(vissprite_t *spr)
 				else
 					triangle.colormap = &spr->extra_colormap->colormap[triangle.colormap - colormaps];
 			}
+
 			triangle.translation = translation;
 			triangle.transmap = spr->transmap;
+
+#ifdef TRUECOLOR
+			if (truecolor)
+				triangle.alpha = V_AlphaTrans((triangle.transmap - transtables)>>FF_TRANSSHIFT);
+			else
+#endif
+				triangle.alpha = 255;
 
 			// vertical flip
 			triangle.flipped = vflip;
@@ -640,7 +721,7 @@ boolean RSP_RenderModel(vissprite_t *spr)
 #define SETBRIGHTNESS(brightness,r,g,b) \
 	brightness = (UINT8)(((1063*(UINT16)(r))/5000) + ((3576*(UINT16)(g))/5000) + ((361*(UINT16)(b))/5000))
 
-static boolean BlendTranslations(UINT16 *px, RGBA_t *sourcepx, RGBA_t *blendpx, INT32 translation)
+static boolean BlendTranslations(void *px, RGBA_t *sourcepx, RGBA_t *blendpx, INT32 translation, INT32 format)
 {
 	if (translation == TC_BOSS)
 	{
@@ -649,21 +730,81 @@ static boolean BlendTranslations(UINT16 *px, RGBA_t *sourcepx, RGBA_t *blendpx, 
 		{
 			// Lactozilla: Invert the colors
 			UINT8 invcol = (255 - sourcepx->s.blue);
-			*px = NearestColor(invcol, invcol, invcol);
+			if (Picture_FormatBPP(format) == PICDEPTH_32BPP)
+			{
+				UINT32 *px32 = (UINT32 *)px;
+				*px32 = R_PutRgbaRGBA(invcol, invcol, invcol, sourcepx->s.alpha);
+			}
+			else if (Picture_FormatBPP(format) == PICDEPTH_16BPP)
+			{
+				UINT16 *px16 = (UINT16 *)px;
+				*px16 = (0xFF00 | NearestColor(invcol, invcol, invcol));
+			}
+			else // PICDEPTH_8BPP
+			{
+				UINT8 *px8 = (UINT8 *)px;
+				*px8 = NearestColor(invcol, invcol, invcol);
+			}
 		}
 		else
-			*px = NearestColor(sourcepx->s.red, sourcepx->s.green, sourcepx->s.blue);
-		*px |= 0xFF00;
+		{
+			if (Picture_FormatBPP(format) == PICDEPTH_32BPP)
+			{
+				UINT32 *px32 = (UINT32 *)px;
+				*px32 = R_PutRgbaRGBA(sourcepx->s.red, sourcepx->s.green, sourcepx->s.blue, sourcepx->s.alpha);
+			}
+			else if (Picture_FormatBPP(format) == PICDEPTH_16BPP)
+			{
+				UINT16 *px16 = (UINT16 *)px;
+				*px16 = (0xFF00 | NearestColor(sourcepx->s.red, sourcepx->s.green, sourcepx->s.blue));
+			}
+			else // PICDEPTH_8BPP
+			{
+				UINT8 *px8 = (UINT8 *)px;
+				*px8 = NearestColor(sourcepx->s.red, sourcepx->s.green, sourcepx->s.blue);
+			}
+		}
 		return true;
 	}
 	else if (translation == TC_METALSONIC)
 	{
 		// Turn everything below a certain blue threshold white
 		if (sourcepx->s.red == 0 && sourcepx->s.green == 0 && sourcepx->s.blue <= 82)
-			*px = NearestColor(255, 255, 255);
+		{
+			if (Picture_FormatBPP(format) == PICDEPTH_32BPP)
+			{
+				UINT32 *px32 = (UINT32 *)px;
+				*px32 = R_PutRgbaRGBA(0xFF, 0xFF, 0xFF, sourcepx->s.alpha);
+			}
+			else if (Picture_FormatBPP(format) == PICDEPTH_16BPP)
+			{
+				UINT16 *px16 = (UINT16 *)px;
+				*px16 = (0xFF00 | NearestColor(255, 255, 255));
+			}
+			else // PICDEPTH_8BPP
+			{
+				UINT8 *px8 = (UINT8 *)px;
+				*px8 = NearestColor(255, 255, 255);
+			}
+		}
 		else
-			*px = NearestColor(sourcepx->s.red, sourcepx->s.green, sourcepx->s.blue);
-		*px |= 0xFF00;
+		{
+			if (Picture_FormatBPP(format) == PICDEPTH_32BPP)
+			{
+				UINT32 *px32 = (UINT32 *)px;
+				*px32 = R_PutRgbaRGBA(sourcepx->s.red, sourcepx->s.green, sourcepx->s.blue, sourcepx->s.alpha);
+			}
+			else if (Picture_FormatBPP(format) == PICDEPTH_16BPP)
+			{
+				UINT16 *px16 = (UINT16 *)px;
+				*px16 = (0xFF00 | NearestColor(sourcepx->s.red, sourcepx->s.green, sourcepx->s.blue));
+			}
+			else // PICDEPTH_8BPP
+			{
+				UINT8 *px8 = (UINT8 *)px;
+				*px8 = NearestColor(sourcepx->s.red, sourcepx->s.green, sourcepx->s.blue);
+			}
+		}
 		return true;
 	}
 	else if (translation == TC_DASHMODE && blendpx)
@@ -671,11 +812,26 @@ static boolean BlendTranslations(UINT16 *px, RGBA_t *sourcepx, RGBA_t *blendpx, 
 		if (sourcepx->s.alpha == 0 && blendpx->s.alpha == 0)
 		{
 			// Don't bother with blending the pixel if the alpha of the blend pixel is 0
-			*px = NearestColor(sourcepx->s.red, sourcepx->s.green, sourcepx->s.blue);
+			if (Picture_FormatBPP(format) == PICDEPTH_32BPP)
+			{
+				UINT32 *px32 = (UINT32 *)px;
+				*px32 = R_PutRgbaRGBA(sourcepx->s.red, sourcepx->s.green, sourcepx->s.blue, sourcepx->s.alpha);
+			}
+			else if (Picture_FormatBPP(format) == PICDEPTH_16BPP)
+			{
+				UINT16 *px16 = (UINT16 *)px;
+				*px16 = (0xFF00 | NearestColor(sourcepx->s.red, sourcepx->s.green, sourcepx->s.blue));
+			}
+			else // PICDEPTH_8BPP
+			{
+				UINT8 *px8 = (UINT8 *)px;
+				*px8 = NearestColor(sourcepx->s.red, sourcepx->s.green, sourcepx->s.blue);
+			}
 		}
 		else
 		{
 			UINT8 ialpha = 255 - blendpx->s.alpha, balpha = blendpx->s.alpha;
+			UINT8 red, green, blue;
 			RGBA_t icolor = *sourcepx, bcolor;
 
 			memset(&bcolor, 0x00, sizeof(RGBA_t));
@@ -691,31 +847,60 @@ static boolean BlendTranslations(UINT16 *px, RGBA_t *sourcepx, RGBA_t *blendpx, 
 				icolor.s.red = sourcepx->s.blue;
 				icolor.s.blue = sourcepx->s.red;
 			}
-			*px = NearestColor(
-				(ialpha * icolor.s.red + balpha * bcolor.s.red)/255,
-				(ialpha * icolor.s.green + balpha * bcolor.s.green)/255,
-				(ialpha * icolor.s.blue + balpha * bcolor.s.blue)/255
-			);
+
+			red = (ialpha * icolor.s.red + balpha * bcolor.s.red)/255;
+			green = (ialpha * icolor.s.green + balpha * bcolor.s.green)/255;
+			blue = (ialpha * icolor.s.blue + balpha * bcolor.s.blue)/255;
+
+			if (Picture_FormatBPP(format) == PICDEPTH_32BPP)
+			{
+				UINT32 *px32 = (UINT32 *)px;
+				*px32 = R_PutRgbaRGBA(red, green, blue, sourcepx->s.alpha);
+			}
+			else if (Picture_FormatBPP(format) == PICDEPTH_16BPP)
+			{
+				UINT16 *px16 = (UINT16 *)px;
+				*px16 = (0xFF00 | NearestColor(red, green, blue));
+			}
+			else // PICDEPTH_8BPP
+			{
+				UINT8 *px8 = (UINT8 *)px;
+				*px8 = NearestColor(red, green, blue);
+			}
 		}
-		*px |= 0xFF00;
 		return true;
 	}
 	else if (translation == TC_ALLWHITE)
 	{
 		// Turn everything white
-		*px = (0xFF00 | NearestColor(255, 255, 255));
+		if (Picture_FormatBPP(format) == PICDEPTH_32BPP)
+		{
+			UINT32 *px32 = (UINT32 *)px;
+			*px32 = 0xFFFFFFFF;
+		}
+		else if (Picture_FormatBPP(format) == PICDEPTH_16BPP)
+		{
+			UINT16 *px16 = (UINT16 *)px;
+			*px16 = (0xFF00 | NearestColor(255, 255, 255));
+		}
+		else // PICDEPTH_8BPP
+		{
+			UINT8 *px8 = (UINT8 *)px;
+			*px8 = NearestColor(255, 255, 255);
+		}
 		return true;
 	}
 	return false;
 }
 
-void RSP_CreateModelTexture(modelinfo_t *model, INT32 tcnum, INT32 skincolor)
+void RSP_CreateModelTexture(modelinfo_t *model, INT32 tcnum, INT32 skincolor, INT32 format)
 {
 	modeltexturedata_t *texture = model->texture->base;
 	modeltexturedata_t *blendtexture = model->texture->blend;
 	rsp_texture_t *ttex;
 	rsp_texture_t *ntex;
-	size_t i, size = 0;
+	size_t i, j, size = 0;
+	INT32 fmtsize = (Picture_FormatBPP(format) / 8);
 
 	// vanilla port
 	UINT8 translation[16];
@@ -737,6 +922,7 @@ void RSP_CreateModelTexture(modelinfo_t *model, INT32 tcnum, INT32 skincolor)
 	if (!tcnum)
 	{
 		RGBA_t *image = texture->data;
+
 		// doesn't exist?
 		if (!image)
 			return;
@@ -744,21 +930,45 @@ void RSP_CreateModelTexture(modelinfo_t *model, INT32 tcnum, INT32 skincolor)
 		ntex->width = texture->width;
 		ntex->height = texture->height;
 
-		if (ntex->data)
-			Z_Free(ntex->data);
-		ntex->data = Z_Calloc(size * sizeof(UINT16), PU_SOFTPOLY, NULL);
+		if (Picture_FormatBPP(format) == PICDEPTH_32BPP)
+		{
+			if (ntex->data_u32)
+				Z_Free(ntex->data_u32);
 
-		for (i = 0; i < size; i++)
-			ntex->data[i] = ((image[i].s.alpha << 8) | NearestColor(image[i].s.red, image[i].s.green, image[i].s.blue));
+			ntex->data_u32 = Z_Calloc(size * fmtsize, PU_SOFTPOLY, NULL);
+			for (i = 0; i < size; i++)
+				ntex->data_u32[i] = image[i].rgba;
+		}
+		else if (Picture_FormatBPP(format) == PICDEPTH_16BPP)
+		{
+			if (ntex->data_u16)
+				Z_Free(ntex->data_u16);
+
+			ntex->data_u16 = Z_Calloc(size * fmtsize, PU_SOFTPOLY, NULL);
+			for (i = 0; i < size; i++)
+				ntex->data_u16[i] = ((image[i].s.alpha << 8) | NearestColor(image[i].s.red, image[i].s.green, image[i].s.blue));
+		}
+		else // PICDEPTH_8BPP
+		{
+			if (ntex->data_u8)
+				Z_Free(ntex->data_u8);
+
+			ntex->data_u8 = Z_Calloc(size * fmtsize, PU_SOFTPOLY, NULL);
+			for (i = 0; i < size; i++)
+				ntex->data_u8[i] = NearestColor(image[i].s.red, image[i].s.green, image[i].s.blue);
+		}
 	}
 	else
 	{
 		// create translations
 		RGBA_t blendcolor;
+		void *dataptr;
 
 		ttex->width = 1;
 		ttex->height = 1;
-		ttex->data = NULL;
+		ttex->data_u8 = NULL;
+		ttex->data_u16 = NULL;
+		ttex->data_u32 = NULL;
 
 		// doesn't exist?
 		if (!texture->data)
@@ -768,26 +978,83 @@ void RSP_CreateModelTexture(modelinfo_t *model, INT32 tcnum, INT32 skincolor)
 
 		ttex->width = texture->width;
 		ttex->height = texture->height;
-		ttex->data = Z_Calloc(size * sizeof(UINT16), PU_SOFTPOLY, NULL);
+
+		dataptr = Z_Calloc(size * fmtsize, PU_SOFTPOLY, NULL);
+		switch (Picture_FormatBPP(format))
+		{
+			case PICDEPTH_32BPP:
+				ttex->data_u32 = (UINT32 *)dataptr;
+				break;
+			case PICDEPTH_16BPP:
+				ttex->data_u16 = (UINT16 *)dataptr;
+				break;
+			default: // PICDEPTH_8BPP
+				ttex->data_u8 = (UINT8 *)dataptr;
+				break;
+		}
 
 		blendcolor = V_GetMasterColor(0); // initialize
 		if (skincolor != SKINCOLOR_NONE)
 			memcpy(&translation, &Color_Index[skincolor - 1], 16);
 
-		for (i = 0; i < size; i++)
+		for (i = 0, j = 0; i < size; i++, j += fmtsize)
 		{
 			RGBA_t *image = texture->data;
 			RGBA_t *blendimage = blendtexture->data;
+			UINT8 *tdata_u8 = ttex->data_u8;
+			UINT16 *tdata_u16 = ttex->data_u16;
+			UINT32 *tdata_u32 = ttex->data_u32;
+			UINT8 *ndata_u8 = ntex->data_u8;
+			UINT16 *ndata_u16 = ntex->data_u16;
+			UINT32 *ndata_u32 = ntex->data_u32;
+			UINT8 *tdataptr = NULL;
+
+			switch (Picture_FormatBPP(format))
+			{
+				case PICDEPTH_32BPP:
+					tdataptr = (UINT8 *)tdata_u32;
+					break;
+				case PICDEPTH_16BPP:
+					tdataptr = (UINT8 *)tdata_u16;
+					break;
+				default: // PICDEPTH_8BPP
+					tdataptr = (UINT8 *)tdata_u8;
+					break;
+			}
 
 			if (image[i].s.alpha < 1)
-				ttex->data[i] = 0x0000;
-			else if (!BlendTranslations(&ttex->data[i], &image[i], &blendimage[i], -tcnum))
+			{
+				switch (Picture_FormatBPP(format))
+				{
+					case PICDEPTH_32BPP:
+						tdata_u32[i] = 0x00000000;
+						break;
+					case PICDEPTH_16BPP:
+						tdata_u16[i] = 0x0000;
+						break;
+					default: // PICDEPTH_8BPP
+						tdata_u8[i] = TRANSPARENTPIXEL;
+						break;
+				}
+			}
+			else if (!BlendTranslations(&tdataptr[j], &image[i], &blendimage[i], -tcnum, format))
 			{
 				UINT16 brightness;
 
 				if (blendimage[i].s.alpha == 0)
 				{
-					ttex->data[i] = ntex->data[i];
+					switch (Picture_FormatBPP(format))
+					{
+						case PICDEPTH_32BPP:
+							tdata_u32[i] = ndata_u32[i];
+							break;
+						case PICDEPTH_16BPP:
+							tdata_u16[i] = ndata_u16[i];
+							break;
+						default: // PICDEPTH_8BPP
+							tdata_u8[i] = ndata_u8[i];
+							break;
+					}
 					continue;
 				}
 				else
@@ -850,7 +1117,19 @@ void RSP_CreateModelTexture(modelinfo_t *model, INT32 tcnum, INT32 skincolor)
 					tempcolor = ((image[i].s.blue * (255-blendimage[i].s.alpha)) / 255) + ((blendcolor.s.blue * blendimage[i].s.alpha) / 255);
 					tempcolor = min(255, tempcolor);
 					blue = (UINT8)tempcolor;
-					ttex->data[i] = ((image[i].s.alpha << 8) | NearestColor(red, green, blue));
+
+					switch (Picture_FormatBPP(format))
+					{
+						case PICDEPTH_32BPP:
+							tdata_u32[i] = R_PutRgbaRGBA(red, green, blue, image[i].s.alpha);
+							break;
+						case PICDEPTH_16BPP:
+							tdata_u16[i] = ((image[i].s.alpha << 8) | NearestColor(red, green, blue));
+							break;
+						default: // PICDEPTH_8BPP
+							tdata_u8[i] = NearestColor(red, green, blue);
+							break;
+					}
 				}
 			}
 		}
@@ -870,11 +1149,19 @@ void RSP_FreeModelTexture(modelinfo_t *model)
 	}
 
 	// Free polyrenderer memory.
-	if (model->texture->rsp_tex.data)
-		Z_Free(model->texture->rsp_tex.data);
-	model->texture->rsp_tex.data = NULL;
 	model->texture->rsp_tex.width = 1;
 	model->texture->rsp_tex.height = 1;
+
+#define FREERSPTEXDATA(dataformat) \
+	if (model->texture->rsp_tex.dataformat) \
+		Z_Free(model->texture->rsp_tex.dataformat); \
+	model->texture->rsp_tex.dataformat = NULL;
+
+	FREERSPTEXDATA(data_u8)
+	FREERSPTEXDATA(data_u16)
+	FREERSPTEXDATA(data_u32)
+
+#undef FREERSPTEXDATA
 }
 
 void RSP_FreeModelBlendTexture(modelinfo_t *model)

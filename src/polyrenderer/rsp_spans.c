@@ -17,19 +17,23 @@
 void (*rsp_curtrifunc)(rsp_triangle_t *tri, rsp_trimode_t type);
 
 static UINT32 tex_width, tex_height;
-static UINT16 *tex_data;
+static void *tex_data;
 static UINT8 *tex_translation;
 static UINT8 *tex_colormap;
 static UINT8 *tex_transmap;
+static UINT8 tex_alpha;
 
 // Floating-point texture mapping
 static inline void texspanloop_fp(float y, float startXPrestep, float endXPrestep, float startX, float startInvZ, float endInvZ, float startU, float endU, float startV, float endV, float invLineLength)
 {
 	float x, z;
 	UINT16 u, v;
-	UINT16 pixel = 0;
 	boolean depth_only = ((rsp_target.mode & (RENDERMODE_DEPTH|RENDERMODE_COLOR)) == RENDERMODE_DEPTH);
 	INT32 ix;
+	UINT16 *tex16 = NULL;
+#ifdef TRUECOLOR
+	UINT32 *tex32 = NULL;
+#endif
 
 #ifdef RSP_SPANSTEPPING
 	// portal clipping
@@ -51,9 +55,17 @@ static inline void texspanloop_fp(float y, float startXPrestep, float endXPreste
 		I_Error("texspanloop_fp: no pixel drawer set!");
 
 	rsp_tpix = tex_transmap;
+	rsp_apix = tex_alpha;
 	rsp_ypix = FixedInt(FixedRound(FLOAT_TO_FIXED(y)));
 	if (rsp_target.aiming)
 		rsp_ypix += SOFTWARE_AIMING;
+
+#ifdef TRUECOLOR
+	if (truecolor)
+		tex32 = (UINT32 *)tex_data;
+	else
+#endif
+		tex16 = (UINT16 *)tex_data;
 
 #ifdef RSP_SPANSTEPPING
 	// right
@@ -131,16 +143,31 @@ static inline void texspanloop_fp(float y, float startXPrestep, float endXPreste
 #endif
 			u %= tex_width;
 			v %= tex_height;
-			pixel = tex_data[(v * tex_width) + u];
-			if (pixel & 0xFF00)
+
+#ifdef TRUECOLOR
+			if (truecolor)
 			{
-				pixel &= 0x00FF;
-				if (tex_translation)
-					pixel = tex_translation[pixel];
-				if (tex_colormap)
-					pixel = tex_colormap[pixel];
-				rsp_cpix = pixel;
-				rsp_curpixelfunc();
+				UINT32 pixel = tex32[(v * tex_width) + u];
+				if (R_GetRgbaA(pixel))
+				{
+					rsp_cpix = pixel;
+					rsp_curpixelfunc();
+				}
+			}
+			else
+#endif
+			{
+				UINT16 pixel = tex16[(v * tex_width) + u];
+				if (pixel & 0xFF00)
+				{
+					pixel &= 0x00FF;
+					if (tex_translation)
+						pixel = tex_translation[pixel];
+					if (tex_colormap)
+						pixel = tex_colormap[pixel];
+					rsp_cpix = (UINT8)pixel;
+					rsp_curpixelfunc();
+				}
 			}
 		}
 		else
@@ -149,10 +176,28 @@ static inline void texspanloop_fp(float y, float startXPrestep, float endXPreste
 #ifdef RSP_DEBUGGING
 		if (cv_rspdebugdepth.value && (rsp_target.mode & RENDERMODE_DEPTH))
 		{
-			UINT8 *dest = screens[0] + (rsp_xpix + rsp_ypix * rsp_target.width);
 			float *depth = rsp_target.depthbuffer + (rsp_xpix + rsp_ypix * rsp_target.width);
-			float light = light = (2.0f / (*depth)) / 128.0f;
-			*dest = (UINT8)(light > 31.0f ? 31.0f : light);
+			float light = (2.0f / (*depth)); // depth range is 4096
+
+#ifdef TRUECOLOR
+			if (truecolor)
+			{
+				UINT32 *dest = ((UINT32 *)screens[0]) + (rsp_xpix + rsp_ypix * rsp_target.width);
+				UINT8 lightval;
+				UINT32 rgbaval;
+
+				light /= 16.0f;
+				lightval = (UINT8)(light > 255.0f ? 255.0f : light);
+				rgbaval = R_PutRgbaRGBA(lightval, lightval, lightval, 0xFF);
+				*dest = rgbaval;
+			}
+#endif
+			else
+			{
+				UINT8 *dest = screens[0] + (rsp_xpix + rsp_ypix * rsp_target.width);
+				light /= 128.0f;
+				*dest = (UINT8)(light > 31.0f ? 31.0f : light);
+			}
 		}
 #endif
 
@@ -202,12 +247,19 @@ void RSP_TexturedMappedTriangleFP(rsp_triangle_t *triangle, rsp_trimode_t type)
 
 	(void)v1y;
 
-	tex_data = triangle->texture->data;
+#ifdef TRUECOLOR
+	if (truecolor)
+		tex_data = (void *)triangle->texture->data_u32;
+	else
+#endif
+		tex_data = (void *)triangle->texture->data_u16;
+
 	tex_width = texW;
 	tex_height = texH;
 	tex_translation = triangle->translation;
 	tex_colormap = triangle->colormap;
 	tex_transmap = triangle->transmap;
+	tex_alpha = triangle->alpha;
 
 	// set pixel drawer
 	rsp_curpixelfunc = rsp_basepixelfunc;

@@ -291,7 +291,7 @@ static RGBA_t *Model_PCXLoad(const char *filename, int *rwidth, int *rheight, in
 // Model_LoadTexture
 // Download a PNG or PCX texture for models.
 //
-boolean Model_LoadTexture(modelinfo_t *model)
+boolean Model_LoadTexture(modelinfo_t *model, INT32 format)
 {
 	modeltexturedata_t *texture = NULL;
 	const char *filename = model->filename;
@@ -371,7 +371,7 @@ boolean Model_LoadTexture(modelinfo_t *model)
 	if (rendermode == render_soft)
 	{
 		// create base texture
-		RSP_CreateModelTexture(model, 0, 0);
+		RSP_CreateModelTexture(model, 0, 0, format);
 		return true;
 	}
 #endif

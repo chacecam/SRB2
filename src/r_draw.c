@@ -1003,7 +1003,7 @@ void R_DrawViewBorder(void)
 // ==========================================================================
 
 #ifdef TRUECOLOR
-static UINT32 TC_ColorMix(UINT32 fg, UINT32 bg)
+UINT32 TC_ColorMix(UINT32 fg, UINT32 bg)
 {
 	RGBA_t rgba;
 	UINT8 tint;
@@ -1029,7 +1029,7 @@ static UINT32 TC_ColorMix(UINT32 fg, UINT32 bg)
 	return (0xFF000000 | fg);
 }
 
-static UINT32 TC_TranslucentColorMix(UINT32 fg, UINT32 bg, UINT8 alpha)
+UINT32 TC_TranslucentColorMix(UINT32 fg, UINT32 bg, UINT8 alpha)
 {
 	// do full alpha mix
 	fg = TC_ColorMix(fg, bg);

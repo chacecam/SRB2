@@ -135,6 +135,7 @@ typedef struct
 	lighttable_t *colormap;
 	lighttable_t *translation;
 	UINT8 *transmap;
+	UINT8 alpha;
 } rsp_triangle_t;
 
 typedef struct
@@ -163,15 +164,18 @@ extern void (*rsp_transpixelfunc)(void);
 
 extern INT16 rsp_xpix;
 extern INT16 rsp_ypix;
-extern UINT8 rsp_cpix;
+extern UINT32 rsp_cpix;
 extern float rsp_zpix;
 extern UINT8 *rsp_tpix;
+extern UINT8 rsp_apix;
 
 extern INT32 rsp_viewwindowx, rsp_viewwindowy;
 #define SOFTWARE_AIMING (centery - (viewheight/2))
 
-void RSP_DrawPixel(void);
-void RSP_DrawTranslucentPixel(void);
+void RSP_DrawPixel_8(void);
+void RSP_DrawPixel_32(void);
+void RSP_DrawTranslucentPixel_8(void);
+void RSP_DrawTranslucentPixel_32(void);
 
 // triangle drawer functions
 extern void (*rsp_curtrifunc)(rsp_triangle_t *tri, rsp_trimode_t type);
@@ -197,6 +201,7 @@ void RSP_Init(void);
 void RSP_Viewport(INT32 width, INT32 height);
 void RSP_OnFrame(void);
 void RSP_ModelView(void);
+void RSP_SetBaseDrawerFunctions(void);
 void RSP_SetDrawerFunctions(void);
 void RSP_DebugRender(INT32 model);
 void RSP_ClearDepthBuffer(void);
@@ -220,7 +225,7 @@ extern UINT32 rsp_maskdraw;
 
 // 3D models
 boolean RSP_RenderModel(vissprite_t *spr);
-void RSP_CreateModelTexture(modelinfo_t *model, INT32 tcnum, INT32 skincolor);
+void RSP_CreateModelTexture(modelinfo_t *model, INT32 tcnum, INT32 skincolor, INT32 format);
 void RSP_FreeModelTexture(modelinfo_t *model);
 void RSP_FreeModelBlendTexture(modelinfo_t *model);
 
