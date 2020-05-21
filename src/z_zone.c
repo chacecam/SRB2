@@ -27,7 +27,8 @@
 
 #include "doomdef.h"
 #include "doomstat.h"
-#include "r_patch.h"
+#include "r_picformats.h"
+#include "r_textures.h"
 #include "i_system.h" // I_GetFreeMem
 #include "i_video.h" // rendermode
 #include "z_zone.h"
@@ -518,6 +519,7 @@ void Z_FlushCachedPatches(void)
 void Z_PreparePatchFlush(void)
 {
 	CONS_Debug(DBG_RENDER, "Z_PreparePatchFlush()...\n");
+	R_ClearLevelFlats();
 #ifdef ROTSPRITE
 	R_FreeAllRotSprite();
 #endif

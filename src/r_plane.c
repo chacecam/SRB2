@@ -16,9 +16,11 @@
 #include "doomdef.h"
 #include "console.h"
 #include "g_game.h"
+#include "i_video.h"
 #include "p_setup.h" // levelflats
 #include "p_slopes.h"
 #include "r_data.h"
+#include "r_textures.h"
 #include "r_local.h"
 #include "r_state.h"
 #include "r_splats.h" // faB(21jan):testing
@@ -83,6 +85,9 @@ static INT32 spanstart[MAXVIDHEIGHT];
 // texture mapping
 //
 lighttable_t **planezlight;
+#ifdef TRUECOLOR
+lighttable_u32_t **planezlight_u32;
+#endif
 static fixed_t planeheight;
 
 //added : 10-02-98: yslopetab is what yslope used to be,
@@ -226,12 +231,52 @@ void R_MapPlane(INT32 y, INT32 x1, INT32 x2)
 		pindex = MAXLIGHTZ - 1;
 
 	if (currentplane->slope)
-		ds_colormap = colormaps;
+	{
+#ifdef TRUECOLOR
+		if (tc_colormap)
+		{
+			ds_colormap = (lighttable_t*)colormaps_u32;
+			ds_colmapstyle = TC_COLORMAPSTYLE_32BPP;
+			dp_lighting = 0xFF;
+		}
+		else
+#endif
+		{
+			ds_colormap = colormaps;
+			ds_colmapstyle = TC_COLORMAPSTYLE_8BPP;
+		}
+	}
 	else
-		ds_colormap = planezlight[pindex];
+	{
+#ifdef TRUECOLOR
+		if (tc_colormap)
+		{
+			ds_colormap = (UINT8 *)(planezlight_u32[pindex]);
+			ds_colmapstyle = TC_COLORMAPSTYLE_32BPP;
+			dp_lighting = TC_CalcScaleLight(planezlight_u32[pindex]);
+		}
+		else
+#endif
+		{
+			ds_colormap = planezlight[pindex];
+			ds_colmapstyle = TC_COLORMAPSTYLE_8BPP;
+		}
+	}
 
 	if (currentplane->extra_colormap)
-		ds_colormap = currentplane->extra_colormap->colormap + (ds_colormap - colormaps);
+	{
+#ifdef TRUECOLOR
+		dp_extracolormap = currentplane->extra_colormap;
+		if (tc_colormap)
+			ds_colormap = (UINT8 *)(currentplane->extra_colormap->colormap_u32 + ((UINT32*)ds_colormap - colormaps_u32));
+		else
+#endif
+			ds_colormap = currentplane->extra_colormap->colormap + (ds_colormap - colormaps);
+	}
+#ifdef TRUECOLOR
+	else
+		dp_extracolormap = defaultextracolormap;
+#endif
 
 	ds_y = y;
 	ds_x1 = x1;
@@ -584,6 +629,7 @@ void R_DrawPlanes(void)
 	// Note: are these two lines really needed?
 	// R_DrawSinglePlane and R_DrawSkyPlane do span/column drawer resets themselves anyway
 	spanfunc = spanfuncs[BASEDRAWFUNC];
+	ds_picfmt = PICFMT_FLAT;
 
 	for (i = 0; i < MAXVISPLANES; i++, pl++)
 	{
@@ -615,6 +661,10 @@ static void R_DrawSkyPlane(visplane_t *pl)
 	// (that is, unless we'll need to switch drawers in future for some reason)
 	colfunc = colfuncs[BASEDRAWFUNC];
 
+	// set drawer vars
+	dc_colmapstyle = TC_COLORMAPSTYLE_8BPP;
+	dc_picfmt = textures[skytexture]->format;
+
 	// use correct aspect ratio scale
 	dc_iscale = skyscale;
 
@@ -642,188 +692,6 @@ static void R_DrawSkyPlane(visplane_t *pl)
 			colfunc();
 		}
 	}
-}
-
-//
-// R_CheckPowersOfTwo
-//
-// Self-explanatory?
-//
-boolean R_CheckPowersOfTwo(void)
-{
-	boolean wpow2 = (!(ds_flatwidth & (ds_flatwidth - 1)));
-	boolean hpow2 = (!(ds_flatheight & (ds_flatheight - 1)));
-
-	// Initially, the flat isn't powers-of-two-sized.
-	ds_powersoftwo = false;
-
-	// But if the width and height are powers of two,
-	// and are EQUAL, then it's okay :]
-	if ((ds_flatwidth == ds_flatheight) && (wpow2 && hpow2))
-		ds_powersoftwo = true;
-
-	// Just return ds_powersoftwo.
-	return ds_powersoftwo;
-}
-
-//
-// R_CheckFlatLength
-//
-// Determine the flat's dimensions from the lump length.
-//
-void R_CheckFlatLength(size_t size)
-{
-	switch (size)
-	{
-		case 4194304: // 2048x2048 lump
-			nflatmask = 0x3FF800;
-			nflatxshift = 21;
-			nflatyshift = 10;
-			nflatshiftup = 5;
-			ds_flatwidth = ds_flatheight = 2048;
-			break;
-		case 1048576: // 1024x1024 lump
-			nflatmask = 0xFFC00;
-			nflatxshift = 22;
-			nflatyshift = 12;
-			nflatshiftup = 6;
-			ds_flatwidth = ds_flatheight = 1024;
-			break;
-		case 262144:// 512x512 lump
-			nflatmask = 0x3FE00;
-			nflatxshift = 23;
-			nflatyshift = 14;
-			nflatshiftup = 7;
-			ds_flatwidth = ds_flatheight = 512;
-			break;
-		case 65536: // 256x256 lump
-			nflatmask = 0xFF00;
-			nflatxshift = 24;
-			nflatyshift = 16;
-			nflatshiftup = 8;
-			ds_flatwidth = ds_flatheight = 256;
-			break;
-		case 16384: // 128x128 lump
-			nflatmask = 0x3F80;
-			nflatxshift = 25;
-			nflatyshift = 18;
-			nflatshiftup = 9;
-			ds_flatwidth = ds_flatheight = 128;
-			break;
-		case 1024: // 32x32 lump
-			nflatmask = 0x3E0;
-			nflatxshift = 27;
-			nflatyshift = 22;
-			nflatshiftup = 11;
-			ds_flatwidth = ds_flatheight = 32;
-			break;
-		default: // 64x64 lump
-			nflatmask = 0xFC0;
-			nflatxshift = 26;
-			nflatyshift = 20;
-			nflatshiftup = 10;
-			ds_flatwidth = ds_flatheight = 64;
-			break;
-	}
-}
-
-//
-// R_GenerateFlat
-//
-// Generate a flat from specified width and height.
-//
-static UINT8 *R_GenerateFlat(UINT16 width, UINT16 height)
-{
-	UINT8 *flat = Z_Malloc(width * height, PU_LEVEL, NULL);
-	memset(flat, TRANSPARENTPIXEL, width * height);
-	return flat;
-}
-
-//
-// R_GetTextureFlat
-//
-// Convert a texture or patch to a flat.
-//
-static UINT8 *R_GetTextureFlat(levelflat_t *levelflat, boolean leveltexture, boolean ispng)
-{
-	UINT8 *flat;
-	textureflat_t *texflat = &texflats[levelflat->u.texture.num];
-	patch_t *patch = NULL;
-	boolean texturechanged = (leveltexture ? (levelflat->u.texture.num != levelflat->u.texture.lastnum) : false);
-
-	(void)ispng;
-
-	// Check if the texture changed.
-	if (leveltexture && (!texturechanged))
-	{
-		if (texflat != NULL && texflat->flat)
-		{
-			flat = texflat->flat;
-			ds_flatwidth = texflat->width;
-			ds_flatheight = texflat->height;
-			texturechanged = false;
-		}
-		else
-			texturechanged = true;
-	}
-
-	// If the texture changed, or the patch doesn't exist, convert either of them to a flat.
-	if (levelflat->flatpatch == NULL || texturechanged)
-	{
-		// Level texture
-		if (leveltexture)
-		{
-			texture_t *texture = textures[levelflat->u.texture.num];
-			texflat->width = ds_flatwidth = texture->width;
-			texflat->height = ds_flatheight = texture->height;
-
-			texflat->flat = R_GenerateFlat(ds_flatwidth, ds_flatheight);
-			R_TextureToFlat(levelflat->u.texture.num, texflat->flat);
-			flat = texflat->flat;
-
-			levelflat->flatpatch = flat;
-			levelflat->width = ds_flatwidth;
-			levelflat->height = ds_flatheight;
-		}
-		// Patch (never happens yet)
-		else
-		{
-			patch = (patch_t *)ds_source;
-#ifndef NO_PNG_LUMPS
-			if (ispng)
-			{
-				levelflat->flatpatch = R_PNGToFlat(&levelflat->width, &levelflat->height, ds_source, W_LumpLength(levelflat->u.flat.lumpnum));
-				levelflat->topoffset = levelflat->leftoffset = 0;
-				ds_flatwidth = levelflat->width;
-				ds_flatheight = levelflat->height;
-			}
-			else
-#endif
-			{
-				levelflat->width = ds_flatwidth = SHORT(patch->width);
-				levelflat->height = ds_flatheight = SHORT(patch->height);
-
-				levelflat->topoffset = patch->topoffset * FRACUNIT;
-				levelflat->leftoffset = patch->leftoffset * FRACUNIT;
-
-				levelflat->flatpatch = R_GenerateFlat(ds_flatwidth, ds_flatheight);
-				R_PatchToFlat(patch, levelflat->flatpatch);
-			}
-			flat = levelflat->flatpatch;
-		}
-	}
-	else
-	{
-		flat = levelflat->flatpatch;
-		ds_flatwidth = levelflat->width;
-		ds_flatheight = levelflat->height;
-	}
-
-	xoffs += levelflat->leftoffset;
-	yoffs += levelflat->topoffset;
-
-	levelflat->u.texture.lastnum = levelflat->u.texture.num;
-	return flat;
 }
 
 static void R_SlopeVectors(visplane_t *pl, INT32 i, float fudge)
@@ -919,12 +787,11 @@ d.z = (v1.x * v2.y) - (v1.y * v2.x)
 
 void R_DrawSinglePlane(visplane_t *pl)
 {
-	UINT8 *flat;
+	levelflat_t *levelflat;
 	INT32 light = 0;
 	INT32 x;
 	INT32 stop, angle;
 	ffloor_t *rover;
-	levelflat_t *levelflat;
 	int type;
 	int spanfunctype = BASEDRAWFUNC;
 
@@ -951,9 +818,20 @@ void R_DrawSinglePlane(visplane_t *pl)
 		if (pl->polyobj->translucency >= 10)
 			return; // Don't even draw it
 		else if (pl->polyobj->translucency > 0)
-			ds_transmap = transtables + ((pl->polyobj->translucency-1)<<FF_TRANSSHIFT);
+		{
+			INT32 transval = pl->polyobj->translucency-1;
+#ifdef TRUECOLOR
+			if (truecolor)
+				ds_alpha = V_AlphaTrans(transval);
+			else
+#endif
+				ds_transmap = transtables + (transval<<FF_TRANSSHIFT);
+		}
 		else // Opaque, but allow transparent flat pixels
+		{
 			spanfunctype = SPANDRAWFUNC_SPLAT;
+			ds_alpha = 0xFF;
+		}
 
 		if ((spanfunctype == SPANDRAWFUNC_SPLAT) || (pl->extra_colormap && (pl->extra_colormap->flags & CMF_FOG)))
 			light = (pl->lightlevel >> LIGHTSEGSHIFT);
@@ -986,29 +864,46 @@ void R_DrawSinglePlane(visplane_t *pl)
 			{
 				spanfunctype = SPANDRAWFUNC_TRANS;
 
-				// Hacked up support for alpha value in software mode Tails 09-24-2002
-				if (pl->ffloor->alpha < 12)
-					return; // Don't even draw it
-				else if (pl->ffloor->alpha < 38)
-					ds_transmap = transtables + ((tr_trans90-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 64)
-					ds_transmap = transtables + ((tr_trans80-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 89)
-					ds_transmap = transtables + ((tr_trans70-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 115)
-					ds_transmap = transtables + ((tr_trans60-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 140)
-					ds_transmap = transtables + ((tr_trans50-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 166)
-					ds_transmap = transtables + ((tr_trans40-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 192)
-					ds_transmap = transtables + ((tr_trans30-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 217)
-					ds_transmap = transtables + ((tr_trans20-1)<<FF_TRANSSHIFT);
-				else if (pl->ffloor->alpha < 243)
-					ds_transmap = transtables + ((tr_trans10-1)<<FF_TRANSSHIFT);
-				else // Opaque, but allow transparent flat pixels
-					spanfunctype = SPANDRAWFUNC_SPLAT;
+#ifdef TRUECOLOR
+				if (truecolor)
+				{
+					if (pl->ffloor->alpha >= 255) // Opaque, but allow transparent flat pixels
+					{
+						spanfunctype = SPANDRAWFUNC_SPLAT;
+						ds_alpha = 0xFF;
+					}
+					else if (pl->ffloor->alpha < 1)
+						return; // Don't even draw it
+					else
+						ds_alpha = pl->ffloor->alpha;
+				}
+				else
+#endif
+				{
+					// Hacked up support for alpha value in software mode Tails 09-24-2002
+					if (pl->ffloor->alpha < 12)
+						return; // Don't even draw it
+					else if (pl->ffloor->alpha < 38)
+						ds_transmap = transtables + ((tr_trans90-1)<<FF_TRANSSHIFT);
+					else if (pl->ffloor->alpha < 64)
+						ds_transmap = transtables + ((tr_trans80-1)<<FF_TRANSSHIFT);
+					else if (pl->ffloor->alpha < 89)
+						ds_transmap = transtables + ((tr_trans70-1)<<FF_TRANSSHIFT);
+					else if (pl->ffloor->alpha < 115)
+						ds_transmap = transtables + ((tr_trans60-1)<<FF_TRANSSHIFT);
+					else if (pl->ffloor->alpha < 140)
+						ds_transmap = transtables + ((tr_trans50-1)<<FF_TRANSSHIFT);
+					else if (pl->ffloor->alpha < 166)
+						ds_transmap = transtables + ((tr_trans40-1)<<FF_TRANSSHIFT);
+					else if (pl->ffloor->alpha < 192)
+						ds_transmap = transtables + ((tr_trans30-1)<<FF_TRANSSHIFT);
+					else if (pl->ffloor->alpha < 217)
+						ds_transmap = transtables + ((tr_trans20-1)<<FF_TRANSSHIFT);
+					else if (pl->ffloor->alpha < 243)
+						ds_transmap = transtables + ((tr_trans10-1)<<FF_TRANSSHIFT);
+					else // Opaque, but allow transparent flat pixels
+						spanfunctype = SPANDRAWFUNC_SPLAT;
+				}
 
 				if ((spanfunctype == SPANDRAWFUNC_SPLAT) || (pl->extra_colormap && (pl->extra_colormap->flags & CMF_FOG)))
 					light = (pl->lightlevel >> LIGHTSEGSHIFT);
@@ -1022,7 +917,7 @@ void R_DrawSinglePlane(visplane_t *pl)
 			}
 			else light = (pl->lightlevel >> LIGHTSEGSHIFT);
 
-	#ifndef NOWATER
+#ifndef NOWATER
 			if (pl->ffloor->flags & FF_RIPPLE)
 			{
 				INT32 top, bottom;
@@ -1042,12 +937,12 @@ void R_DrawSinglePlane(visplane_t *pl)
 						bottom = vid.height;
 
 					// Only copy the part of the screen we need
-					VID_BlitLinearScreen((splitscreen && viewplayer == &players[secondarydisplayplayer]) ? screens[0] + (top+(vid.height>>1))*vid.width : screens[0]+((top)*vid.width), screens[1]+((top)*vid.width),
-										 vid.width, bottom-top,
-										 vid.width, vid.width);
+					VID_BlitLinearScreen((splitscreen && viewplayer == &players[secondarydisplayplayer]) ? screens[0] + (top+(vid.height>>1))*vid.rowbytes : screens[0]+((top)*vid.rowbytes), screens[1]+((top)*vid.rowbytes),
+										 vid.rowbytes, bottom-top,
+										 vid.rowbytes, vid.rowbytes);
 				}
 			}
-	#endif
+#endif
 		}
 		else
 			light = (pl->lightlevel >> LIGHTSEGSHIFT);
@@ -1077,30 +972,24 @@ void R_DrawSinglePlane(visplane_t *pl)
 		case LEVELFLAT_NONE:
 			return;
 		case LEVELFLAT_FLAT:
-			ds_source = W_CacheLumpNum(levelflat->u.flat.lumpnum, PU_CACHE);
-			R_CheckFlatLength(W_LumpLength(levelflat->u.flat.lumpnum));
+#if defined(PICTURES_ALLOWDEPTH) && defined(TRUECOLOR)
+			if (truecolor)
+			{
+				ds_source = (UINT8 *)R_GetLevelFlat(levelflat);
+				if (!ds_source)
+					return;
+			}
+			else
+#endif
+				ds_source = (UINT8 *)R_GetFlat(levelflat->u.flat.lumpnum);
 			// Raw flats always have dimensions that are powers-of-two numbers.
+			R_CheckFlatLength(W_LumpLength(levelflat->u.flat.lumpnum));
 			ds_powersoftwo = true;
 			break;
 		default:
-			switch (type)
-			{
-				case LEVELFLAT_TEXTURE:
-					/* Textures get cached differently and don't need ds_source */
-					ds_source = R_GetTextureFlat(levelflat, true, false);
-					break;
-				default:
-					ds_source = W_CacheLumpNum(levelflat->u.flat.lumpnum, PU_STATIC);
-					flat      = R_GetTextureFlat(levelflat, false,
-#ifndef NO_PNG_LUMPS
-							( type == LEVELFLAT_PNG )
-#else
-							false
-#endif
-					);
-					Z_ChangeTag(ds_source, PU_CACHE);
-					ds_source = flat;
-			}
+			ds_source = (UINT8 *)R_GetLevelFlat(levelflat);
+			if (!ds_source)
+				return;
 			// Check if this texture or patch has power-of-two dimensions.
 			if (R_CheckPowersOfTwo())
 				R_CheckFlatLength(ds_flatwidth * ds_flatheight);
@@ -1210,10 +1099,22 @@ void R_DrawSinglePlane(visplane_t *pl)
 		else
 			spanfunctype = SPANDRAWFUNC_TILTED;
 
-		planezlight = scalelight[light];
-	}
+#ifdef TRUECOLOR
+		if (tc_colormap)
+			planezlight_u32 = scalelight_u32[light];
+		else
+#endif
+			planezlight = scalelight[light];
+	} // if (pl->slope)
 	else
-		planezlight = zlight[light];
+	{
+#ifdef TRUECOLOR
+		if (tc_colormap)
+			planezlight_u32 = zlight_u32[light];
+		else
+#endif
+			planezlight = zlight[light];
+	}
 
 	// Use the correct span drawer depending on the powers-of-twoness
 	if (!ds_powersoftwo)

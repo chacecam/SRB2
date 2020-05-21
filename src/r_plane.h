@@ -16,6 +16,7 @@
 
 #include "screen.h" // needs MAXVIDWIDTH/MAXVIDHEIGHT
 #include "r_data.h"
+#include "r_textures.h"
 #include "p_polyobj.h"
 
 #define MAXVISPLANES 512
@@ -68,7 +69,11 @@ extern fixed_t cachedystep[MAXVIDHEIGHT];
 extern fixed_t basexscale, baseyscale;
 
 extern fixed_t *yslope;
+
 extern lighttable_t **planezlight;
+#ifdef TRUECOLOR
+extern lighttable_u32_t **planezlight_u32;
+#endif
 
 void R_InitPlanes(void);
 void R_ClearPlanes(void);

@@ -16,6 +16,7 @@
 
 #include "d_player.h"
 #include "r_data.h"
+#include "r_textures.h"
 
 //
 // POV related.
@@ -56,8 +57,12 @@ extern boolean frustumclipping;
 #define LIGHTRESOLUTIONFIX (640*fovtan/vid.width)
 
 extern lighttable_t *scalelight[LIGHTLEVELS][MAXLIGHTSCALE];
-extern lighttable_t *scalelightfixed[MAXLIGHTSCALE];
 extern lighttable_t *zlight[LIGHTLEVELS][MAXLIGHTZ];
+
+#ifdef TRUECOLOR
+extern lighttable_u32_t *scalelight_u32[LIGHTLEVELS][MAXLIGHTSCALE];
+extern lighttable_u32_t *zlight_u32[LIGHTLEVELS][MAXLIGHTZ];
+#endif
 
 // Number of diminishing brightness levels.
 // There a 0-31, i.e. 32 LUT in the COLORMAP lump.
@@ -93,6 +98,12 @@ extern consvar_t cv_drawdist, cv_drawdist_nights, cv_drawdist_precip;
 extern consvar_t cv_fov;
 extern consvar_t cv_skybox;
 extern consvar_t cv_tailspickup;
+
+// lactokaiju: truecolor
+#ifdef TRUECOLOR
+extern consvar_t cv_tcstate;
+extern consvar_t cv_tccolormap;
+#endif
 
 // Called by startup code.
 void R_Init(void);

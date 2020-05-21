@@ -26,11 +26,12 @@
 #include "../doomstat.h"    //gamemode
 #include "../i_video.h"     //rendermode
 #include "../r_data.h"
+#include "../r_textures.h"
 #include "../w_wad.h"
 #include "../z_zone.h"
 #include "../v_video.h"
 #include "../r_draw.h"
-#include "../r_patch.h"
+#include "../r_picformats.h"
 #include "../p_setup.h"
 
 // Values set after a call to HWR_ResizeBlock()
@@ -65,24 +66,30 @@ static void HWR_DrawColumnInCache(const column_t *patchcol, UINT8 *block, GLMipm
 								INT32 pblockheight, INT32 blockmodulo,
 								fixed_t yfracstep, fixed_t scale_y,
 								texpatch_t *originPatch, INT32 patchheight,
-								INT32 bpp)
+								INT32 bpp, pictureformat_t format)
 {
 	fixed_t yfrac, position, count;
 	UINT8 *dest;
-	const UINT8 *source;
+	const UINT8 *source = NULL;
+	const UINT16 *sourceu16 = NULL;
+	const UINT32 *sourceu32 = NULL;
 	INT32 topdelta, prevdelta = -1;
 	INT32 originy = 0;
 
 	// for writing a pixel to dest
 	RGBA_t colortemp;
-	UINT8 alpha;
-	UINT8 texel;
+	UINT8 alpha = 0;
+	UINT8 texel = 0;
 	UINT16 texelu16;
+	RGBA_t texelu32;
+	INT32 sourcebpp = Picture_FormatBPP(format);
 
 	(void)patchheight; // This parameter is unused
 
 	if (originPatch) // originPatch can be NULL here, unlike in the software version
 		originy = originPatch->originy;
+
+	memset(&texelu32, 0x00, sizeof(RGBA_t));
 
 	while (patchcol->topdelta != 0xff)
 	{
@@ -90,9 +97,14 @@ static void HWR_DrawColumnInCache(const column_t *patchcol, UINT8 *block, GLMipm
 		if (topdelta <= prevdelta)
 			topdelta += prevdelta;
 		prevdelta = topdelta;
-		source = (const UINT8 *)patchcol + 3;
-		count  = ((patchcol->length * scale_y) + (FRACUNIT/2)) >> FRACBITS;
+		count = ((patchcol->length * scale_y) + (FRACUNIT/2)) >> FRACBITS;
 		position = originy + topdelta;
+
+		source = (const UINT8 *)patchcol + 3;
+		if (sourcebpp == PICDEPTH_32BPP)
+			sourceu32 = (const UINT32 *)source;
+		else if (sourcebpp == PICDEPTH_16BPP)
+			sourceu16 = (const UINT16 *)source;
 
 		yfrac = 0;
 		//yfracstep = (patchcol->length << FRACBITS) / count;
@@ -116,17 +128,46 @@ static void HWR_DrawColumnInCache(const column_t *patchcol, UINT8 *block, GLMipm
 		{
 			count--;
 
-			texel = source[yfrac>>FRACBITS];
+			// Read the texel
+			if (sourcebpp == PICDEPTH_32BPP)
+			{
+				UINT32 s32 = sourceu32[yfrac>>FRACBITS];
+				texelu32.rgba = s32;
+				alpha = texelu32.s.alpha;
+
+				// Convert to the target bit depth
+				if (bpp < 3)
+					texel = NearestColor(texelu32.s.red, texelu32.s.green, texelu32.s.blue);
+			}
+			else
+			{
+				if (sourcebpp == PICDEPTH_16BPP)
+				{
+					UINT16 px = sourceu16[yfrac>>FRACBITS];
+					texel = (px & 0xFF);
+					alpha = ((sourceu16[yfrac>>FRACBITS] & 0xFF00) >> 8);
+				}
+				else
+					texel = source[yfrac>>FRACBITS];
+
+				// Set translucency for 8bpp source pictures
+				if (sourcebpp == 8)
+				{
+					alpha = 0xFF;
+					// If the mipmap is chromakeyed, check if the texel's color
+					// is equivalent to the chroma key's color index.
+					if ((mipmap->flags & TF_CHROMAKEYED) && (texel == HWR_PATCHES_CHROMAKEY_COLORINDEX))
+						alpha = 0x00;
+				}
+			}
 
 			//Hurdler: 25/04/2000: now support colormap in hardware mode
 			if (mipmap->colormap)
 				texel = mipmap->colormap[texel];
 
-			// If the mipmap is chromakeyed, check if the texel's color
-			// is equivalent to the chroma key's color index.
-			alpha = 0xff;
-			if ((mipmap->flags & TF_CHROMAKEYED) && (texel == HWR_PATCHES_CHROMAKEY_COLORINDEX))
-				alpha = 0x00;
+			// Convert to the target bit depth
+			if ((sourcebpp <= 16) && (bpp >= 3))
+				texelu32 = V_GetColor(texel);
 
 			// hope compiler will get this switch out of the loops (dreams...)
 			// gcc do it ! but vcc not ! (why don't use cygwin gcc for win32 ?)
@@ -139,7 +180,7 @@ static void HWR_DrawColumnInCache(const column_t *patchcol, UINT8 *block, GLMipm
 						 texelu16 = (UINT16)((alpha<<8) | texel);
 						 memcpy(dest, &texelu16, sizeof(UINT16));
 						 break;
-				case 3 : colortemp = V_GetColor(texel);
+				case 3 : colortemp = texelu32;
 						 if ((originPatch != NULL) && (originPatch->style != AST_COPY))
 						 {
 							 RGBA_t rgbatexel;
@@ -148,7 +189,7 @@ static void HWR_DrawColumnInCache(const column_t *patchcol, UINT8 *block, GLMipm
 						 }
 						 memcpy(dest, &colortemp, sizeof(RGBA_t)-sizeof(UINT8));
 						 break;
-				case 4 : colortemp = V_GetColor(texel);
+				case 4 : colortemp = texelu32;
 						 colortemp.s.alpha = alpha;
 						 if ((originPatch != NULL) && (originPatch->style != AST_COPY))
 						 {
@@ -170,7 +211,13 @@ static void HWR_DrawColumnInCache(const column_t *patchcol, UINT8 *block, GLMipm
 			dest += blockmodulo;
 			yfrac += yfracstep;
 		}
-		patchcol = (const column_t *)((const UINT8 *)patchcol + patchcol->length + 4);
+		if (sourcebpp == PICDEPTH_32BPP)
+			patchcol = (const column_t *)((const UINT32 *)patchcol + patchcol->length);
+		else if (sourcebpp == PICDEPTH_16BPP)
+			patchcol = (const column_t *)((const UINT16 *)patchcol + patchcol->length);
+		else
+			patchcol = (const column_t *)((const UINT8 *)patchcol + patchcol->length);
+		patchcol = (const column_t *)((const UINT8 *)patchcol + 4);
 	}
 }
 
@@ -178,22 +225,28 @@ static void HWR_DrawFlippedColumnInCache(const column_t *patchcol, UINT8 *block,
 								INT32 pblockheight, INT32 blockmodulo,
 								fixed_t yfracstep, fixed_t scale_y,
 								texpatch_t *originPatch, INT32 patchheight,
-								INT32 bpp)
+								INT32 bpp, pictureformat_t format)
 {
 	fixed_t yfrac, position, count;
 	UINT8 *dest;
-	const UINT8 *source;
+	const UINT8 *source = NULL;
+	const UINT16 *sourceu16 = NULL;
+	const UINT32 *sourceu32 = NULL;
 	INT32 topdelta, prevdelta = -1;
 	INT32 originy = 0;
 
 	// for writing a pixel to dest
 	RGBA_t colortemp;
-	UINT8 alpha;
-	UINT8 texel;
+	UINT8 alpha = 0;
+	UINT8 texel = 0;
 	UINT16 texelu16;
+	RGBA_t texelu32;
+	INT32 sourcebpp = Picture_FormatBPP(format);
 
 	if (originPatch) // originPatch can be NULL here, unlike in the software version
 		originy = originPatch->originy;
+
+	memset(&texelu32, 0x00, sizeof(RGBA_t));
 
 	while (patchcol->topdelta != 0xff)
 	{
@@ -202,9 +255,14 @@ static void HWR_DrawFlippedColumnInCache(const column_t *patchcol, UINT8 *block,
 			topdelta += prevdelta;
 		prevdelta = topdelta;
 		topdelta = patchheight-patchcol->length-topdelta;
-		source = (const UINT8 *)patchcol + 3;
 		count  = ((patchcol->length * scale_y) + (FRACUNIT/2)) >> FRACBITS;
 		position = originy + topdelta;
+
+		source = (const UINT8 *)patchcol + 3;
+		if (sourcebpp == PICDEPTH_32BPP)
+			sourceu32 = (const UINT32 *)source;
+		else if (sourcebpp == PICDEPTH_16BPP)
+			sourceu16 = (const UINT16 *)source;
 
 		yfrac = (patchcol->length-1) << FRACBITS;
 
@@ -228,17 +286,45 @@ static void HWR_DrawFlippedColumnInCache(const column_t *patchcol, UINT8 *block,
 		{
 			count--;
 
-			texel = source[yfrac>>FRACBITS];
+			// Read the texel
+			if (sourcebpp == PICDEPTH_32BPP)
+			{
+				UINT32 s32 = sourceu32[yfrac>>FRACBITS];
+				texelu32.rgba = s32;
+				alpha = texelu32.s.alpha;
+
+				// Convert to the target bit depth
+				if (bpp < 3)
+					texel = NearestColor(texelu32.s.red, texelu32.s.green, texelu32.s.blue);
+			}
+			else
+			{
+				if (sourcebpp == PICDEPTH_16BPP)
+				{
+					UINT16 px = sourceu16[yfrac>>FRACBITS];
+					texel = (px & 0xFF);
+					alpha = ((sourceu16[yfrac>>FRACBITS] & 0xFF00) >> 8);
+				}
+				else
+					texel = source[yfrac>>FRACBITS];
+
+				// Set translucency for 8bpp source pictures
+				if (sourcebpp == 8)
+				{
+					alpha = 0xFF;
+					// Make pixel transparent if chroma keyed
+					if ((mipmap->flags & TF_CHROMAKEYED) && (texel == HWR_PATCHES_CHROMAKEY_COLORINDEX))
+						alpha = 0x00;
+				}
+			}
 
 			//Hurdler: 25/04/2000: now support colormap in hardware mode
 			if (mipmap->colormap)
 				texel = mipmap->colormap[texel];
 
-			// If the mipmap is chromakeyed, check if the texel's color
-			// is equivalent to the chroma key's color index.
-			alpha = 0xff;
-			if ((mipmap->flags & TF_CHROMAKEYED) && (texel == HWR_PATCHES_CHROMAKEY_COLORINDEX))
-				alpha = 0x00;
+			// Convert to the target bit depth
+			if ((sourcebpp <= 16) && (bpp >= 3))
+				texelu32 = V_GetColor(texel);
 
 			// hope compiler will get this switch out of the loops (dreams...)
 			// gcc do it ! but vcc not ! (why don't use cygwin gcc for win32 ?)
@@ -251,7 +337,7 @@ static void HWR_DrawFlippedColumnInCache(const column_t *patchcol, UINT8 *block,
 						 texelu16 = (UINT16)((alpha<<8) | texel);
 						 memcpy(dest, &texelu16, sizeof(UINT16));
 						 break;
-				case 3 : colortemp = V_GetColor(texel);
+				case 3 : colortemp = texelu32;
 						 if ((originPatch != NULL) && (originPatch->style != AST_COPY))
 						 {
 							 RGBA_t rgbatexel;
@@ -260,7 +346,7 @@ static void HWR_DrawFlippedColumnInCache(const column_t *patchcol, UINT8 *block,
 						 }
 						 memcpy(dest, &colortemp, sizeof(RGBA_t)-sizeof(UINT8));
 						 break;
-				case 4 : colortemp = V_GetColor(texel);
+				case 4 : colortemp = texelu32;
 						 colortemp.s.alpha = alpha;
 						 if ((originPatch != NULL) && (originPatch->style != AST_COPY))
 						 {
@@ -282,10 +368,15 @@ static void HWR_DrawFlippedColumnInCache(const column_t *patchcol, UINT8 *block,
 			dest += blockmodulo;
 			yfrac -= yfracstep;
 		}
-		patchcol = (const column_t *)((const UINT8 *)patchcol + patchcol->length + 4);
+		if (sourcebpp == PICDEPTH_32BPP)
+			patchcol = (const column_t *)((const UINT32 *)patchcol + patchcol->length);
+		else if (sourcebpp == PICDEPTH_16BPP)
+			patchcol = (const column_t *)((const UINT16 *)patchcol + patchcol->length);
+		else
+			patchcol = (const column_t *)((const UINT8 *)patchcol + patchcol->length);
+		patchcol = (const column_t *)((const UINT8 *)patchcol + 4);
 	}
 }
-
 
 // Simplified patch caching function
 // for use by sprites and other patches that are not part of a wall texture
@@ -295,7 +386,8 @@ static void HWR_DrawFlippedColumnInCache(const column_t *patchcol, UINT8 *block,
 static void HWR_DrawPatchInCache(GLMipmap_t *mipmap,
 	INT32 pblockwidth, INT32 pblockheight,
 	INT32 pwidth, INT32 pheight,
-	const patch_t *realpatch)
+	const patch_t *realpatch,
+	pictureformat_t format)
 {
 	INT32 ncols;
 	fixed_t xfrac, xfracstep;
@@ -333,7 +425,7 @@ static void HWR_DrawPatchInCache(GLMipmap_t *mipmap,
 								pblockheight, blockmodulo,
 								yfracstep, scale_y,
 								NULL, pheight, // not that pheight is going to get used anyway...
-								bpp);
+								bpp, format);
 	}
 }
 
@@ -341,7 +433,8 @@ static void HWR_DrawPatchInCache(GLMipmap_t *mipmap,
 static void HWR_DrawTexturePatchInCache(GLMipmap_t *mipmap,
 	INT32 pblockwidth, INT32 pblockheight,
 	texture_t *texture, texpatch_t *patch,
-	const patch_t *realpatch)
+	const patch_t *realpatch,
+	pictureformat_t format)
 {
 	INT32 x, x1, x2;
 	INT32 col, ncols;
@@ -357,7 +450,7 @@ static void HWR_DrawTexturePatchInCache(GLMipmap_t *mipmap,
 								INT32 pblockheight, INT32 blockmodulo,
 								fixed_t yfracstep, fixed_t scale_y,
 								texpatch_t *originPatch, INT32 patchheight,
-								INT32 bpp);
+								INT32 bpp, pictureformat_t format);
 
 	if (texture->width <= 0 || texture->height <= 0)
 		return;
@@ -429,7 +522,7 @@ static void HWR_DrawTexturePatchInCache(GLMipmap_t *mipmap,
 								pblockheight, blockmodulo,
 								yfracstep, scale_y,
 								patch, height,
-								bpp);
+								bpp, format);
 	}
 }
 
@@ -644,26 +737,39 @@ static void HWR_GenerateTexture(INT32 texnum, GLTexture_t *grtex)
 		}
 	}
 
+	if (texture->format == PICFMT_NONE)
+		texture->format = PICFMT_PATCH;
+
 	// Composite the columns together.
 	for (i = 0, patch = texture->patches; i < texture->patchcount; i++, patch++)
 	{
+		pictureformat_t format = PICFMT_PATCH;
 		size_t lumplength = W_LumpLengthPwad(patch->wad, patch->lump);
 		pdata = W_CacheLumpNumPwad(patch->wad, patch->lump, PU_CACHE);
 		realpatch = (patch_t *)pdata;
 
 #ifndef NO_PNG_LUMPS
-		if (R_IsLumpPNG((UINT8 *)realpatch, lumplength))
-			realpatch = R_PNGToPatch((UINT8 *)realpatch, lumplength, NULL);
+		if (Picture_IsLumpPNG((UINT8 *)realpatch, lumplength))
+		{
+			// Dummy variables.
+			INT32 pngwidth, pngheight;
+#ifdef PICTURES_ALLOWDEPTH
+			format = PICFMT_PATCH32;
+#endif
+			realpatch = (patch_t *)Picture_PNGConvert(pdata, format, &pngwidth, &pngheight, NULL, NULL, lumplength, NULL, 0);
+		}
 		else
 #endif
 #ifdef WALLFLATS
 		if (texture->type == TEXTURETYPE_FLAT)
-			realpatch = R_FlatToPatch(pdata, texture->width, texture->height, 0, 0, NULL, false);
+			realpatch = (patch_t *)Picture_Convert(PICFMT_FLAT, pdata, format, 0, NULL, texture->width, texture->height, 0, 0, 0);
 		else
 #endif
-		(void)lumplength;
+		{
+			(void)lumplength;
+		}
 
-		HWR_DrawTexturePatchInCache(&grtex->mipmap, blockwidth, blockheight, texture, patch, realpatch);
+		HWR_DrawTexturePatchInCache(&grtex->mipmap, blockwidth, blockheight, texture, patch, realpatch, format);
 	}
 	//Hurdler: not efficient at all but I don't remember exactly how HWR_DrawPatchInCache works :(
 	if (format2bpp[grtex->mipmap.grInfo.format]==4)
@@ -690,8 +796,15 @@ void HWR_MakePatch (const patch_t *patch, GLPatch_t *grPatch, GLMipmap_t *grMipm
 #ifndef NO_PNG_LUMPS
 	// lump is a png so convert it
 	size_t len = W_LumpLengthPwad(grPatch->wadnum, grPatch->lumpnum);
-	if ((patch != NULL) && R_IsLumpPNG((const UINT8 *)patch, len))
-		patch = R_PNGToPatch((const UINT8 *)patch, len, NULL);
+	if ((patch != NULL) && Picture_IsLumpPNG((const UINT8 *)patch, len))
+	{
+		INT32 pngwidth, pngheight;
+		INT16 topoffset, leftoffset;
+#ifdef PICTURES_ALLOWDEPTH
+		grPatch->picfmt = PICFMT_PATCH32;
+#endif
+		patch = (patch_t *)Picture_PNGConvert((const UINT8 *)patch, grPatch->picfmt, &pngwidth, &pngheight, &topoffset, &leftoffset, len, NULL, 0);
+	}
 #endif
 
 	// don't do it twice (like a cache)
@@ -745,7 +858,7 @@ void HWR_MakePatch (const patch_t *patch, GLPatch_t *grPatch, GLMipmap_t *grMipm
 		HWR_DrawPatchInCache(grMipmap,
 			newwidth, newheight,
 			grPatch->width, grPatch->height,
-			patch);
+			patch, grPatch->picfmt);
 	}
 
 	grPatch->max_s = (float)newwidth / (float)blockwidth;
@@ -955,6 +1068,24 @@ static void HWR_CacheFlat(GLMipmap_t *grMipmap, lumpnum_t flatlumpnum)
 static void HWR_CacheTextureAsFlat(GLMipmap_t *grMipmap, INT32 texturenum)
 {
 	UINT8 *flat;
+	size_t size;
+#ifdef PICTURES_ALLOWDEPTH
+	GLTexture_t *grtex;
+#else
+	UINT8 *converted;
+#endif
+
+#ifdef PICTURES_ALLOWDEPTH
+	// Texture in hardware cache
+	grtex = &gr_textures[texturenum];
+
+	// Generate texture if missing from the cache
+	// The texture CAN be downloaded but have no data,
+	// which is perfectly fine when the GPU has it,
+	// but not for this kind of conversion.
+	if (!grtex->mipmap.grInfo.data)
+		HWR_GenerateTexture(texturenum, grtex);
+#endif
 
 	// setup the texture info
 #ifdef GLIDE_API_COMPATIBILITY
@@ -962,16 +1093,28 @@ static void HWR_CacheTextureAsFlat(GLMipmap_t *grMipmap, INT32 texturenum)
 	grMipmap->grInfo.largeLodLog2 = GR_LOD_LOG2_64;
 	grMipmap->grInfo.aspectRatioLog2 = GR_ASPECT_LOG2_1x1;
 #endif
-	grMipmap->grInfo.format = GR_TEXFMT_P_8;
-	grMipmap->flags = TF_WRAPXY|TF_CHROMAKEYED;
 
-	grMipmap->width  = (UINT16)textures[texturenum]->width;
+#ifdef PICTURES_ALLOWDEPTH
+	grMipmap->grInfo.format = textureformat;
+#else
+	grMipmap->grInfo.format = GR_TEXFMT_P_8;
+#endif
+
+	grMipmap->flags = TF_WRAPXY|TF_CHROMAKEYED;
+	grMipmap->width = (UINT16)textures[texturenum]->width;
 	grMipmap->height = (UINT16)textures[texturenum]->height;
 
-	flat = Z_Malloc(grMipmap->width * grMipmap->height, PU_HWRCACHE, &grMipmap->grInfo.data);
-	memset(flat, TRANSPARENTPIXEL, grMipmap->width * grMipmap->height);
-
-	R_TextureToFlat(texturenum, flat);
+#ifdef PICTURES_ALLOWDEPTH
+	size = (grMipmap->width * grMipmap->height) * format2bpp[textureformat];
+	flat = Z_Malloc(size, PU_HWRCACHE, &grMipmap->grInfo.data);
+	M_Memcpy(flat, grtex->mipmap.grInfo.data, size);
+#else
+	size = (grMipmap->width * grMipmap->height);
+	flat = Z_Malloc(size, PU_HWRCACHE, &grMipmap->grInfo.data);
+	converted = (UINT8 *)Picture_TextureToFlat(texturenum);
+	M_Memcpy(flat, converted, size);
+	Z_Free(converted);
+#endif
 }
 
 // Download a Doom 'flat' to the hardware cache and make it ready for use
@@ -1005,7 +1148,7 @@ void HWR_GetLevelFlat(levelflat_t *levelflat)
 		INT32 texturenum = levelflat->u.texture.num;
 #ifdef PARANOIA
 		if ((unsigned)texturenum >= gr_numtextures)
-			I_Error("HWR_GetLevelFlat: texturenum >= numtextures\n");
+			I_Error("HWR_GetLevelFlat: texturenum >= numtextures");
 #endif
 
 		// Who knows?
@@ -1025,6 +1168,60 @@ void HWR_GetLevelFlat(levelflat_t *levelflat)
 		// The system-memory data can be purged now.
 		Z_ChangeTag(grtex->mipmap.grInfo.data, PU_HWRCACHE_UNLOCKED);
 	}
+	else if (levelflat->type == LEVELFLAT_PATCH)
+	{
+		GLPatch_t *patch = W_CachePatchNum(levelflat->u.flat.lumpnum, PU_CACHE);
+		levelflat->width = (UINT16)SHORT(patch->width);
+		levelflat->height = (UINT16)SHORT(patch->height);
+		HWR_GetPatch(patch);
+	}
+#ifndef NO_PNG_LUMPS
+	else if (levelflat->type == LEVELFLAT_PNG)
+	{
+		INT32 pngwidth, pngheight;
+		GLMipmap_t *mipmap = levelflat->mipmap;
+		UINT8 *flat;
+		size_t size;
+		pictureformat_t format = PICFMT_FLAT32;
+		INT32 fmtbpp = Picture_FormatBPP(format);
+
+		// Cache the picture.
+		if (!levelflat->picture)
+		{
+			levelflat->picture = Picture_PNGConvert(W_CacheLumpNum(levelflat->u.flat.lumpnum, PU_CACHE), format, &pngwidth, &pngheight, NULL, NULL, W_LumpLength(levelflat->u.flat.lumpnum), NULL, 0);
+			levelflat->width = (UINT16)pngwidth;
+			levelflat->height = (UINT16)pngheight;
+		}
+
+		// Make the mipmap.
+		if (mipmap == NULL)
+		{
+			mipmap = Z_Calloc(sizeof(GLMipmap_t), PU_LEVEL, NULL);
+			mipmap->grInfo.format = (fmtbpp == PICDEPTH_32BPP ? GR_RGBA : GR_TEXFMT_P_8);
+			mipmap->flags = TF_WRAPXY|TF_CHROMAKEYED;
+#ifdef GLIDE_API_COMPATIBILITY
+			mipmap->grInfo.smallLodLog2 = GR_LOD_LOG2_64;
+			mipmap->grInfo.largeLodLog2 = GR_LOD_LOG2_64;
+			mipmap->grInfo.aspectRatioLog2 = GR_ASPECT_LOG2_1x1;
+#endif
+			levelflat->mipmap = mipmap;
+		}
+
+		if (!mipmap->grInfo.data && !mipmap->downloaded)
+		{
+			if (levelflat->picture == NULL)
+				I_Error("HWR_GetLevelFlat: levelflat->picture == NULL");
+			mipmap->width = levelflat->width;
+			mipmap->height = levelflat->height;
+			size = (mipmap->width * mipmap->height) * (fmtbpp / 8);
+			flat = Z_Malloc(size, PU_LEVEL, &mipmap->grInfo.data);
+			M_Memcpy(flat, levelflat->picture, size);
+		}
+
+		// Tell the hardware driver to bind the current texture to the flat's mipmap
+		HWD.pfnSetTexture(mipmap);
+	}
+#endif
 	else // set no texture
 		HWD.pfnSetTexture(NULL);
 }
@@ -1292,6 +1489,7 @@ GLPatch_t *HWR_GetCachedGLPatchPwad(UINT16 wadnum, UINT16 lumpnum)
 		grpatch = Z_Calloc(sizeof(GLPatch_t), PU_HWRPATCHINFO, &lumpcache[lumpnum]);
 		grpatch->wadnum = wadnum;
 		grpatch->lumpnum = lumpnum;
+		grpatch->picfmt = PICFMT_PATCH;
 		grpatch->mipmap = Z_Calloc(sizeof(GLMipmap_t), PU_HWRPATCHINFO, NULL);
 	}
 

@@ -478,7 +478,8 @@ OBJS:=$(i_main_o) \
 		$(OBJDIR)/r_sky.o    \
 		$(OBJDIR)/r_splats.o \
 		$(OBJDIR)/r_things.o \
-		$(OBJDIR)/r_patch.o \
+		$(OBJDIR)/r_textures.o \
+		$(OBJDIR)/r_picformats.o \
 		$(OBJDIR)/r_portal.o \
 		$(OBJDIR)/r_md2load.o \
 		$(OBJDIR)/r_md3load.o \

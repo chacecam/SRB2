@@ -26,6 +26,7 @@
 #include "keys.h"
 #include "i_video.h"
 #include "m_menu.h"
+#include "m_misc.h"
 #include "am_map.h"
 #include "d_main.h"
 #include "v_video.h"
@@ -103,8 +104,14 @@ INT32 viewangletox[FINEANGLES/2];
 angle_t xtoviewangle[MAXVIDWIDTH+1];
 
 lighttable_t *scalelight[LIGHTLEVELS][MAXLIGHTSCALE];
-lighttable_t *scalelightfixed[MAXLIGHTSCALE];
 lighttable_t *zlight[LIGHTLEVELS][MAXLIGHTZ];
+
+#ifdef TRUECOLOR
+lighttable_u32_t *scalelight_u32[LIGHTLEVELS][MAXLIGHTSCALE];
+lighttable_u32_t *zlight_u32[LIGHTLEVELS][MAXLIGHTZ];
+
+static void TrueColor_OnChange(void);
+#endif
 
 // Hack to support extra boom colormaps.
 extracolormap_t *extra_colormaps = NULL;
@@ -153,6 +160,18 @@ consvar_t cv_drawdist_nights = {"drawdist_nights", "2048", CV_SAVE, drawdist_con
 consvar_t cv_drawdist_precip = {"drawdist_precip", "1024", CV_SAVE, drawdist_precip_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 //consvar_t cv_precipdensity = {"precipdensity", "Moderate", CV_SAVE, precipdensity_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
 consvar_t cv_fov = {"fov", "90", CV_FLOAT|CV_CALL, fov_cons_t, Fov_OnChange, 0, NULL, NULL, 0, 0, NULL};
+
+// lactokaiju: truecolor
+#ifdef TRUECOLOR
+consvar_t cv_tcstate = {"tc_state", "Off", CV_CALL|CV_NOINIT, CV_OnOff, TrueColor_OnChange, 0, NULL, NULL, 0, 0, NULL};
+consvar_t cv_tccolormap = {"tc_colormap", "On", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
+
+static void TrueColor_OnChange(void)
+{
+	truecolor = (!!cv_tcstate.value);
+	setmodeneeded = vid.modenum + 1;
+}
+#endif
 
 // Okay, whoever said homremoval causes a performance hit should be shot.
 consvar_t cv_homremoval = {"homremoval", "No", CV_SAVE, homremoval_cons_t, NULL, 0, NULL, NULL, 0, 0, NULL};
@@ -553,6 +572,9 @@ static inline void R_InitLightTables(void)
 				level = NUMCOLORMAPS-1;
 
 			zlight[i][j] = colormaps + level*256;
+#ifdef TRUECOLOR
+			zlight_u32[i][j] = colormaps_u32 + level*256;
+#endif
 		}
 	}
 }
@@ -943,6 +965,9 @@ void R_ExecuteSetViewSize(void)
 	}
 
 	memset(scalelight, 0xFF, sizeof(scalelight));
+#ifdef TRUECOLOR
+	M_Memset32(scalelight_u32, 0xFF, sizeof(scalelight_u32));
+#endif
 
 	// Calculate the light levels to use for each level/scale combination.
 	for (i = 0; i< LIGHTLEVELS; i++)
@@ -959,6 +984,9 @@ void R_ExecuteSetViewSize(void)
 				level = NUMCOLORMAPS - 1;
 
 			scalelight[i][j] = colormaps + level*256;
+#ifdef TRUECOLOR
+			scalelight_u32[i][j] = colormaps_u32 + level*256;
+#endif
 		}
 	}
 
@@ -1399,6 +1427,11 @@ void R_RenderPlayerView(player_t *player)
 			V_DrawFill(0, 0, BASEVIDWIDTH, BASEVIDHEIGHT, 32+(timeinmap&15));
 	}
 
+	// lactokaiju: truecolor
+#ifdef TRUECOLOR
+	tc_colormap = (truecolor && (!!cv_tccolormap.value));
+#endif
+
 	R_SetupFrame(player);
 	framecount++;
 	validcount++;
@@ -1533,7 +1566,6 @@ void R_RenderPlayerView(player_t *player)
 	free(masks);
 }
 
-// Lactozilla: Renderer switching
 #ifdef HWRENDER
 void R_InitHardwareMode(void)
 {
@@ -1547,7 +1579,6 @@ void R_InitHardwareMode(void)
 
 void R_ReloadHUDGraphics(void)
 {
-	CONS_Debug(DBG_RENDER, "R_ReloadHUDGraphics()...\n");
 	ST_LoadGraphics();
 	HU_LoadGraphics();
 	ST_ReloadSkinFaceGraphics();
@@ -1581,6 +1612,12 @@ void R_RegisterEngineStuff(void)
 
 	CV_RegisterVar(&cv_shadow);
 	CV_RegisterVar(&cv_skybox);
+
+	// lactokaiju: truecolor
+#ifdef TRUECOLOR
+	CV_RegisterVar(&cv_tccolormap);
+	CV_RegisterVar(&cv_tcstate);
+#endif
 
 	CV_RegisterVar(&cv_cam_dist);
 	CV_RegisterVar(&cv_cam_still);

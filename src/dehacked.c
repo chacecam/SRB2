@@ -29,8 +29,9 @@
 #include "p_local.h" // for var1 and var2, and some constants
 #include "p_setup.h"
 #include "r_data.h"
+#include "r_textures.h"
 #include "r_draw.h"
-#include "r_patch.h"
+#include "r_picformats.h"
 #include "r_things.h" // R_Char2Frame
 #include "r_sky.h"
 #include "fastcmp.h"
@@ -1557,7 +1558,7 @@ static void readlevelheader(MYFILE *f, INT32 num)
 			}
 			else if (fastcmp(word, "ACT"))
 			{
-				if (i >= 0 && i < 20) // 0 for no act number, TTL1 through TTL19
+				if (i >= 0 && i <= 99) // 0 for no act number
 					mapheaderinfo[num-1]->actnum = (UINT8)i;
 				else
 					deh_warning("Level header %d: invalid act number %d", num, i);

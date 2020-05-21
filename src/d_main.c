@@ -111,8 +111,6 @@ boolean devparm = false; // started game with -devparm
 boolean singletics = false; // timedemo
 boolean lastdraw = false;
 
-static void D_CheckRendererState(void);
-
 postimg_t postimgtype = postimg_none;
 INT32 postimgparam;
 postimg_t postimgtype2 = postimg_none;
@@ -421,6 +419,10 @@ static void D_Display(void)
 				if (players[displayplayer].mo || players[displayplayer].playerstate == PST_DEAD)
 				{
 					topleft = screens[0] + viewwindowy*vid.width + viewwindowx;
+#ifdef TRUECOLOR
+					if (truecolor)
+						topleft_u32 = (UINT32 *)screens[0] + viewwindowy*vid.width + viewwindowx;
+#endif
 					objectsdrawn = 0;
 	#ifdef HWRENDER
 					if (rendermode != render_soft)
@@ -445,6 +447,10 @@ static void D_Display(void)
 						M_Memcpy(ylookup, ylookup2, viewheight*sizeof (ylookup[0]));
 
 						topleft = screens[0] + viewwindowy*vid.width + viewwindowx;
+#ifdef TRUECOLOR
+						if (truecolor)
+							topleft_u32 = (UINT32 *)screens[0] + viewwindowy*vid.width + viewwindowx;
+#endif
 
 						R_RenderPlayerView(&players[secondarydisplayplayer]);
 
@@ -606,18 +612,34 @@ static void D_Display(void)
 	needpatchrecache = false;
 }
 
-// Lactozilla: Check the renderer's state
-// after a possible renderer switch.
 void D_CheckRendererState(void)
 {
 	// flush all patches from memory
 	if (needpatchflush)
 		Z_FlushCachedPatches();
-
-	// some patches have been freed,
-	// so cache them again
 	if (needpatchrecache)
 		R_ReloadHUDGraphics();
+}
+
+void D_CheckColorDepth(INT32 newbitdepth, INT32 oldbitdepth)
+{
+#ifdef TRUECOLOR
+	if (oldbitdepth == 0) // Video init
+		return;
+
+	// The bitdepth changed :)
+	if (newbitdepth != oldbitdepth)
+	{
+		// Reload every texture.
+		R_LoadTextures();
+
+		// Also free levelflat pictures.
+		R_ClearLevelFlats();
+	}
+#else
+	(void)newbitdepth;
+	(void)oldbitdepth;
+#endif
 }
 
 // =========================================================================

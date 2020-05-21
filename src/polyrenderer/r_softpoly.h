@@ -19,7 +19,7 @@
 #include "../g_game.h"
 #include "../i_video.h"
 #include "../r_data.h"
-#include "../r_patch.h"
+#include "../r_picformats.h"
 #include "../r_defs.h"
 #include "../r_main.h"
 #include "../r_draw.h"

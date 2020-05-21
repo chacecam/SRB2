@@ -280,7 +280,7 @@ boolean RSP_RenderModel(vissprite_t *spr)
 				sprtexp->data = Z_Calloc(size * sizeof(UINT16), PU_SOFTPOLY, NULL);
 
 				// generate the texture, then clear lumpnum
-				R_GenerateSpriteTexture(source, sprtexp->data, 0, 0, sprtexp->width, sprtexp->height, flip, NULL, NULL);
+				Picture_GenerateSpriteTexture(source, sprtexp->data, 0, 0, sprtexp->width, sprtexp->height, flip, NULL, NULL);
 				sprtexp->lumpnum = 0;
 
 				// aight bro u have lost yuor cache privileges

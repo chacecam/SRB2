@@ -5200,7 +5200,7 @@ static boolean M_PrepareLevelPlatter(INT32 gt, boolean nextmappick)
 	{
 		if (M_CanShowLevelOnPlatter(mapnum, gt))
 		{
-			const INT32 actnum = mapheaderinfo[mapnum]->actnum;
+			const UINT8 actnum = mapheaderinfo[mapnum]->actnum;
 			const boolean headingisname = (fastcmp(mapheaderinfo[mapnum]->selectheading, mapheaderinfo[mapnum]->lvlttl));
 			const boolean wide = (mapheaderinfo[mapnum]->menuflags & LF2_WIDEICON);
 
@@ -8852,8 +8852,6 @@ void M_ForceSaveSlotSelected(INT32 sslot)
 // ================
 // CHARACTER SELECT
 // ================
-
-// lactozilla: sometimes the renderer changes and these patches don't exist anymore
 static void M_CacheCharacterSelectEntry(INT32 i, INT32 skinnum)
 {
 	if (!(description[i].picname[0]))
@@ -9080,7 +9078,6 @@ static void M_DrawSetupChoosePlayerMenu(void)
 	INT32 x, y;
 	INT32 w = (vid.width/vid.dupx);
 
-	// lactozilla: the renderer changed so recache patches
 	if (needpatchrecache)
 		M_CacheCharacterSelect();
 

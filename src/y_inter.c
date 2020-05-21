@@ -73,7 +73,7 @@ typedef union
 		UINT32 score, total; // fake score, total
 		UINT32 tics; // time
 
-		INT32 actnum; // act number being displayed
+		UINT8 actnum; // act number being displayed
 		patch_t *ptotal; // TOTAL
 		UINT8 gotlife; // Number of extra lives obtained
 	} coop;
@@ -287,8 +287,8 @@ static void Y_RescaleScreenBuffer(void)
 	colfrac = FixedDiv(FRACUNIT, scalefac);
 
 	for (sy = 0, dy = 0; sy < (y_buffer->source_height << FRACBITS) && dy < y_buffer->target_height; sy += rowfrac, dy++)
-		for (sx = 0, dx = 0; sx < (y_buffer->source_width << FRACBITS) && dx < y_buffer->target_width; sx += colfrac, dx += y_buffer->target_bpp)
-			dest[(dy * y_buffer->target_rowbytes) + dx] = y_buffer->source_picture[((sy>>FRACBITS) * y_buffer->source_width) + (sx>>FRACBITS)];
+		for (sx = 0, dx = 0; sx < (y_buffer->source_width << FRACBITS) && dx < y_buffer->target_width; sx += colfrac, dx++)
+			M_Memcpy(dest + ((dy * y_buffer->target_rowbytes) + (dx * y_buffer->target_bpp)), y_buffer->source_picture + (((sy>>FRACBITS) * y_buffer->source_rowbytes) + ((sx>>FRACBITS) * y_buffer->source_bpp)), vid.bpp);
 }
 
 //

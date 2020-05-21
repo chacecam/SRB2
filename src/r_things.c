@@ -22,9 +22,10 @@
 #include "m_misc.h"
 #include "info.h" // spr2names
 #include "i_video.h" // rendermode
+#include "v_video.h"
 #include "i_system.h"
 #include "r_things.h"
-#include "r_patch.h"
+#include "r_picformats.h"
 #include "r_plane.h"
 #include "r_portal.h"
 #include "p_tick.h"
@@ -55,6 +56,9 @@
 // There was a lot of stuff grabbed wrong, so I changed it...
 //
 static lighttable_t **spritelights;
+#ifdef TRUECOLOR
+static lighttable_u32_t **spritelights_u32;
+#endif
 
 // constant arrays used for psprite clipping and initializing clipping
 INT16 negonearray[MAXVIDWIDTH];
@@ -122,21 +126,12 @@ static void R_InstallSpriteLump(UINT16 wad,            // graphics patch
 			tex = lumpcache[lump];
 			tex += rot;
 
-			if (R_CheckIfPatch(lumppat))
-			{
-				patch = (patch_t *)W_CachePatchNumPwad(wad, lump, PU_STATIC);
-				tex->width = SHORT(patch->width);
-				tex->height = SHORT(patch->height);
-				tex->lumpnum = lumppat;
-				tex->data = NULL;
-				Z_Free(patch);
-			}
-			else
-			{
-				// not even a patch
-				tex->width = -1;
-				tex->height = -1;
-			}
+			patch = (patch_t *)W_CachePatchNumPwad(wad, lump, PU_STATIC);
+			tex->width = SHORT(patch->width);
+			tex->height = SHORT(patch->height);
+			tex->lumpnum = lumppat;
+			tex->data = NULL;
+			Z_Free(patch);
 		}
 	}
 #endif
@@ -317,10 +312,14 @@ boolean R_AddSingleSpriteDef(const char *sprname, spritedef_t *spritedef, UINT16
 				patch_t *png = W_CacheLumpNumPwad(wadnum, l, PU_STATIC);
 				size_t len = W_LumpLengthPwad(wadnum, l);
 				// lump is a png so convert it
-				if (R_IsLumpPNG((UINT8 *)png, len))
+				if (Picture_IsLumpPNG((UINT8 *)png, len))
 				{
-					png = R_PNGToPatch((UINT8 *)png, len, NULL);
-					M_Memcpy(&patch, png, sizeof(INT16)*4);
+					// Dummy variables.
+					INT32 pngwidth, pngheight;
+					INT16 topoffset, leftoffset;
+					patch_t *converted = (patch_t *)Picture_PNGConvert((UINT8 *)png, PICFMT_PATCH, &pngwidth, &pngheight, &topoffset, &leftoffset, len, NULL, 0);
+					M_Memcpy(&patch, converted, sizeof(INT16)*4); // only copy the header because that's all we need
+					Z_Free(converted);
 				}
 				Z_Free(png);
 			}
@@ -800,7 +799,9 @@ static void R_DrawVisSprite(vissprite_t *vis)
 	}
 
 	colfunc = colfuncs[BASEDRAWFUNC]; // hack: this isn't resetting properly somewhere.
+	dc_alpha = 0xFF;
 	dc_colormap = vis->colormap;
+
 	if (!(vis->cut & SC_PRECIP) && (vis->mobj->flags & (MF_ENEMY|MF_BOSS)) && (vis->mobj->flags2 & MF2_FRET) && !(vis->mobj->flags & MF_GRENADEBOUNCE) && (leveltime & 1)) // Bosses "flash"
 	{
 		// translate certain pixels to white
@@ -815,7 +816,12 @@ static void R_DrawVisSprite(vissprite_t *vis)
 	else if (vis->mobj->color && vis->transmap) // Color mapping
 	{
 		colfunc = colfuncs[COLDRAWFUNC_TRANSTRANS];
-		dc_transmap = vis->transmap;
+#ifdef TRUECOLOR
+		if (truecolor)
+			dc_alpha = V_AlphaTrans((vis->transmap - transtables)>>FF_TRANSSHIFT);
+		else
+#endif
+			dc_transmap = vis->transmap;
 		if (!(vis->cut & SC_PRECIP) && vis->mobj->colorized)
 			dc_translation = R_GetTranslationColormap(TC_RAINBOW, vis->mobj->color, GTC_CACHE);
 		else if (!(vis->cut & SC_PRECIP)
@@ -839,7 +845,12 @@ static void R_DrawVisSprite(vissprite_t *vis)
 	else if (vis->transmap)
 	{
 		colfunc = colfuncs[COLDRAWFUNC_FUZZY];
-		dc_transmap = vis->transmap;    //Fab : 29-04-98: translucency table
+#ifdef TRUECOLOR
+		if (truecolor)
+			dc_alpha = V_AlphaTrans((vis->transmap - transtables)>>FF_TRANSSHIFT);
+		else
+#endif
+			dc_transmap = vis->transmap;    //Fab : 29-04-98: translucency table
 	}
 	else if (vis->mobj->color)
 	{
@@ -875,13 +886,38 @@ static void R_DrawVisSprite(vissprite_t *vis)
 
 	if (vis->extra_colormap)
 	{
-		if (!dc_colormap)
-			dc_colormap = vis->extra_colormap->colormap;
+#ifdef TRUECOLOR
+		dp_extracolormap = vis->extra_colormap;
+		if (tc_colormap)
+		{
+			if (!dc_colormap)
+				dc_colormap = (UINT8 *)vis->extra_colormap->colormap_u32;
+			else
+				dc_colormap = (UINT8 *)(&vis->extra_colormap->colormap_u32[(UINT32 *)dc_colormap - colormaps_u32]);
+		}
 		else
-			dc_colormap = &vis->extra_colormap->colormap[dc_colormap - colormaps];
+#endif
+		{
+			if (!dc_colormap)
+				dc_colormap = vis->extra_colormap->colormap;
+			else
+				dc_colormap = &vis->extra_colormap->colormap[dc_colormap - colormaps];
+		}
 	}
+#ifdef TRUECOLOR
+	else
+		dp_extracolormap = defaultextracolormap;
+#endif
+
 	if (!dc_colormap)
-		dc_colormap = colormaps;
+	{
+#ifdef TRUECOLOR
+		if (tc_colormap)
+			dc_colormap = (UINT8 *)colormaps_u32;
+		else
+#endif
+			dc_colormap = colormaps;
+	}
 
 	dc_texturemid = vis->texturemid;
 	dc_texheight = 0;
@@ -1009,7 +1045,15 @@ static void R_DrawPrecipitationVisSprite(vissprite_t *vis)
 		dc_transmap = vis->transmap;    //Fab : 29-04-98: translucency table
 	}
 
-	dc_colormap = colormaps;
+#ifdef TRUECOLOR
+	if (tc_colormap)
+	{
+		dc_colormap = (UINT8 *)colormaps_u32;
+		dp_extracolormap = defaultextracolormap;
+	}
+	else
+#endif
+		dc_colormap = colormaps;
 
 	dc_iscale = FixedDiv(FRACUNIT, vis->scale);
 	dc_texturemid = vis->texturemid;
@@ -1106,12 +1150,26 @@ static void R_SplitSprite(vissprite_t *sprite)
 		{
 			lightnum = (*sector->lightlist[i].lightlevel >> LIGHTSEGSHIFT);
 
-			if (lightnum < 0)
-				spritelights = scalelight[0];
-			else if (lightnum >= LIGHTLEVELS)
-				spritelights = scalelight[LIGHTLEVELS-1];
+#ifdef TRUECOLOR
+			if (tc_colormap)
+			{
+				if (lightnum < 0)
+					spritelights_u32 = scalelight_u32[0];
+				else if (lightnum >= LIGHTLEVELS)
+					spritelights_u32 = scalelight_u32[LIGHTLEVELS-1];
+				else
+					spritelights_u32 = scalelight_u32[lightnum];
+			}
 			else
-				spritelights = scalelight[lightnum];
+#endif
+			{
+				if (lightnum < 0)
+					spritelights = scalelight[0];
+				else if (lightnum >= LIGHTLEVELS)
+					spritelights = scalelight[LIGHTLEVELS-1];
+				else
+					spritelights = scalelight[lightnum];
+			}
 
 			newsprite->extra_colormap = *sector->lightlist[i].extra_colormap;
 
@@ -1122,7 +1180,13 @@ static void R_SplitSprite(vissprite_t *sprite)
 
 				if (lindex >= MAXLIGHTSCALE)
 					lindex = MAXLIGHTSCALE-1;
-				newsprite->colormap = spritelights[lindex];
+
+#ifdef TRUECOLOR
+				if (tc_colormap)
+					newsprite->colormap = (UINT8 *)(spritelights_u32[lindex]);
+				else
+#endif
+					newsprite->colormap = spritelights[lindex];
 			}
 		}
 		sprite = newsprite;
@@ -1375,8 +1439,15 @@ static void R_ProjectDropShadow(mobj_t *thing, vissprite_t *vis, fixed_t scale, 
 		shadow->extra_colormap = thing->subsector->sector->extra_colormap;
 
 	shadow->transmap = transtables + (trans<<FF_TRANSSHIFT);
-	shadow->colormap = scalelight[0][0]; // full dark!
 	shadow->model = NULL;
+
+	// full dark!
+#ifdef TRUECOLOR
+	if (tc_colormap)
+		shadow->colormap = (UINT8 *)(scalelight_u32[0][0]);
+	else
+#endif
+		shadow->colormap = scalelight[0][0];
 
 	objectsdrawn++;
 }
@@ -1842,12 +1913,26 @@ static void R_ProjectSprite(mobj_t *thing)
 		//light = R_GetPlaneLight(thing->subsector->sector, gzt, false);
 		lightnum = (*thing->subsector->sector->lightlist[light].lightlevel >> LIGHTSEGSHIFT);
 
-		if (lightnum < 0)
-			spritelights = scalelight[0];
-		else if (lightnum >= LIGHTLEVELS)
-			spritelights = scalelight[LIGHTLEVELS-1];
+#ifdef TRUECOLOR
+		if (tc_colormap)
+		{
+			if (lightnum < 0)
+				spritelights_u32 = scalelight_u32[0];
+			else if (lightnum >= LIGHTLEVELS)
+				spritelights_u32 = scalelight_u32[LIGHTLEVELS-1];
+			else
+				spritelights_u32 = scalelight_u32[lightnum];
+		}
 		else
-			spritelights = scalelight[lightnum];
+#endif
+		{
+			if (lightnum < 0)
+				spritelights = scalelight[0];
+			else if (lightnum >= LIGHTLEVELS)
+				spritelights = scalelight[LIGHTLEVELS-1];
+			else
+				spritelights = scalelight[lightnum];
+		}
 	}
 
 	heightsec = thing->subsector->sector->heightsec;
@@ -1968,7 +2053,12 @@ static void R_ProjectSprite(mobj_t *thing)
 		&& (!vis->extra_colormap || !(vis->extra_colormap->flags & CMF_FADEFULLBRIGHTSPRITES)))
 	{
 		// full bright: goggles
-		vis->colormap = colormaps;
+#ifdef TRUECOLOR
+		if (tc_colormap)
+			vis->colormap = (UINT8 *)colormaps_u32;
+		else
+#endif
+			vis->colormap = colormaps;
 	}
 	else
 	{
@@ -1978,7 +2068,12 @@ static void R_ProjectSprite(mobj_t *thing)
 		if (lindex >= MAXLIGHTSCALE)
 			lindex = MAXLIGHTSCALE-1;
 
-		vis->colormap = spritelights[lindex];
+#ifdef TRUECOLOR
+		if (tc_colormap)
+			vis->colormap = (UINT8 *)(spritelights_u32[lindex]);
+		else
+#endif
+			vis->colormap = spritelights[lindex];
 	}
 
 	if (vflip)
@@ -2161,7 +2256,12 @@ static void R_ProjectPrecipitationSprite(precipmobj_t *thing)
 	vis->heightsec = thing->subsector->sector->heightsec;
 
 	// Fullbright
-	vis->colormap = colormaps;
+#ifdef TRUECOLOR
+	if (tc_colormap)
+		vis->colormap = (UINT8 *)colormaps_u32;
+	else
+#endif
+		vis->colormap = colormaps;
 
 weatherthink:
 	// okay... this is a hack, but weather isn't networked, so it should be ok
@@ -2204,12 +2304,26 @@ void R_AddSprites(sector_t *sec, INT32 lightlevel)
 
 		lightnum = (lightlevel >> LIGHTSEGSHIFT);
 
-		if (lightnum < 0)
-			spritelights = scalelight[0];
-		else if (lightnum >= LIGHTLEVELS)
-			spritelights = scalelight[LIGHTLEVELS-1];
+#ifdef TRUECOLOR
+		if (tc_colormap)
+		{
+			if (lightnum < 0)
+				spritelights_u32 = scalelight_u32[0];
+			else if (lightnum >= LIGHTLEVELS)
+				spritelights_u32 = scalelight_u32[LIGHTLEVELS-1];
+			else
+				spritelights_u32 = scalelight_u32[lightnum];
+		}
 		else
-			spritelights = scalelight[lightnum];
+#endif
+		{
+			if (lightnum < 0)
+				spritelights = scalelight[0];
+			else if (lightnum >= LIGHTLEVELS)
+				spritelights = scalelight[LIGHTLEVELS-1];
+			else
+				spritelights = scalelight[lightnum];
+		}
 	}
 
 	// Handle all things in sector.
@@ -2714,6 +2828,9 @@ void R_InitDrawNodes(void)
 //
 static void R_DrawSprite(vissprite_t *spr)
 {
+	dc_picfmt = PICFMT_PATCH;
+	dc_colmapstyle = (tc_colormap) ? TC_COLORMAPSTYLE_32BPP : TC_COLORMAPSTYLE_8BPP;
+
 #ifndef POLYRENDERER
 	mfloorclip = spr->clipbot;
 	mceilingclip = spr->cliptop;
@@ -2753,6 +2870,8 @@ static void R_DrawSprite(vissprite_t *spr)
 // Special drawer for precipitation sprites Tails 08-18-2002
 static void R_DrawPrecipitationSprite(vissprite_t *spr)
 {
+	dc_picfmt = PICFMT_PATCH;
+	dc_colmapstyle = (tc_colormap) ? TC_COLORMAPSTYLE_32BPP : TC_COLORMAPSTYLE_8BPP;
 	mfloorclip = spr->clipbot;
 	mceilingclip = spr->cliptop;
 	R_DrawPrecipitationVisSprite(spr);
