@@ -647,7 +647,7 @@ void I_Error(const char *error, ...)
 	if (demorecording)
 		G_CheckDemoStatus();
 	if (metalrecording)
-		G_StopMetalRecording();
+		G_StopMetalRecording(false);
 
 	D_QuitNetGame();
 
@@ -733,7 +733,7 @@ void I_Quit(void)
 	if (demorecording)
 		G_CheckDemoStatus();
 	if (metalrecording)
-		G_StopMetalRecording();
+		G_StopMetalRecording(false);
 
 	M_SaveConfig(NULL); // save game config, cvars..
 #ifndef NONET
@@ -1353,6 +1353,8 @@ getBufferedData:
 		}
 	}
 }
+
+void I_UpdateMouseGrab(void) {}
 
 // ===========================================================================================
 //                                                                       DIRECT INPUT JOYSTICK
@@ -3197,7 +3199,7 @@ INT32 I_GetKey(void)
 // -----------------
 #define DI_KEYBOARD_BUFFERSIZE 32 // number of data elements in keyboard buffer
 
-void I_StartupKeyboard(void)
+static void I_StartupKeyboard(void)
 {
 	DIPROPDWORD dip;
 
@@ -3432,6 +3434,8 @@ INT32 I_StartupSystem(void)
 
 	// some 'more global than globals' things to initialize here ?
 	graphics_started = keyboard_started = sound_started = cdaudio_started = false;
+
+	I_StartupKeyboard();
 
 #ifdef NDEBUG
 

@@ -94,6 +94,7 @@
     <Import Project="..\..\libs\SDL2.props" />
     <Import Project="..\..\libs\SDL_mixer.props" />
     <Import Project="..\..\libs\libgme.props" />
+    <Import Project="..\..\libs\libopenmpt.props" />
     <Import Project="Srb2SDL.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -212,6 +213,7 @@
     <ClInclude Include="..\fastcmp.h" />
     <ClInclude Include="..\filesrch.h" />
     <ClInclude Include="..\f_finale.h" />
+    <ClInclude Include="..\g_demo.h" />
     <ClInclude Include="..\g_game.h" />
     <ClInclude Include="..\g_input.h" />
     <ClInclude Include="..\g_state.h" />
@@ -228,6 +230,10 @@
     <ClInclude Include="..\hardware\hw_light.h" />
     <ClInclude Include="..\hardware\hw_main.h" />
     <ClInclude Include="..\hardware\hw_md2.h" />
+    <ClInclude Include="..\hardware\hw_md2load.h" />
+    <ClInclude Include="..\hardware\hw_md3load.h" />
+    <ClInclude Include="..\hardware\hw_model.h" />
+    <ClInclude Include="..\hardware\u_list.h" />
     <ClInclude Include="..\hu_stuff.h" />
     <ClInclude Include="..\info.h" />
     <ClInclude Include="..\i_addrinfo.h" />
@@ -276,7 +282,10 @@
     <ClInclude Include="..\r_local.h" />
     <ClInclude Include="..\r_main.h" />
     <ClInclude Include="..\r_plane.h" />
+    <ClInclude Include="..\r_patch.h" />
+    <ClInclude Include="..\r_portal.h" />
     <ClInclude Include="..\r_segs.h" />
+    <ClInclude Include="..\r_skins.h" />
     <ClInclude Include="..\r_sky.h" />
     <ClInclude Include="..\r_splats.h" />
     <ClInclude Include="..\r_state.h" />
@@ -356,6 +365,7 @@
     <ClCompile Include="..\filesrch.c" />
     <ClCompile Include="..\f_finale.c" />
     <ClCompile Include="..\f_wipe.c" />
+    <ClCompile Include="..\g_demo.c" />
     <ClCompile Include="..\g_game.c" />
     <ClCompile Include="..\g_input.c" />
     <ClCompile Include="..\hardware\hw3sound.c" />
@@ -366,8 +376,12 @@
     <ClCompile Include="..\hardware\hw_light.c" />
     <ClCompile Include="..\hardware\hw_main.c" />
     <ClCompile Include="..\hardware\hw_md2.c" />
+    <ClCompile Include="..\hardware\hw_md2load.c" />
+    <ClCompile Include="..\hardware\hw_md3load.c" />
+    <ClCompile Include="..\hardware\hw_model.c" />
     <ClCompile Include="..\hardware\hw_trick.c" />
     <ClCompile Include="..\hardware\r_opengl\r_opengl.c" />
+    <ClCompile Include="..\hardware\u_list.c" />
     <ClCompile Include="..\hu_stuff.c" />
     <ClCompile Include="..\info.c" />
     <ClCompile Include="..\i_addrinfo.c">
@@ -427,9 +441,15 @@
     <ClCompile Include="..\r_draw8.c">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\r_draw8_npo2.c">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\r_main.c" />
     <ClCompile Include="..\r_plane.c" />
+	<ClCompile Include="..\r_patch.c" />
+    <ClCompile Include="..\r_portal.c" />
     <ClCompile Include="..\r_segs.c" />
+    <ClCompile Include="..\r_skins.c" />
     <ClCompile Include="..\r_sky.c" />
     <ClCompile Include="..\r_splats.c" />
     <ClCompile Include="..\r_things.c" />

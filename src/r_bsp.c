@@ -2,7 +2,7 @@
 //-----------------------------------------------------------------------------
 // Copyright (C) 1993-1996 by id Software, Inc.
 // Copyright (C) 1998-2000 by DooM Legacy Team.
-// Copyright (C) 1999-2018 by Sonic Team Junior.
+// Copyright (C) 1999-2020 by Sonic Team Junior.
 //
 // This program is free software distributed under the
 // terms of the GNU General Public License, version 2.
@@ -15,6 +15,7 @@
 #include "g_game.h"
 #include "r_local.h"
 #include "r_state.h"
+#include "r_portal.h" // Add seg portals
 
 #include "r_splats.h"
 #include "p_local.h" // camera
@@ -26,11 +27,11 @@ side_t *sidedef;
 line_t *linedef;
 sector_t *frontsector;
 sector_t *backsector;
-boolean portalline; // is curline a portal seg?
 
 // very ugly realloc() of drawsegs at run-time, I upped it to 512
 // instead of 256.. and someone managed to send me a level with
 // 896 drawsegs! So too bad here's a limit removal a-la-Boom
+drawseg_t *curdrawsegs = NULL; /**< This is used to handle multiple lists for masked drawsegs. */
 drawseg_t *drawsegs = NULL;
 drawseg_t *ds_p = NULL;
 
@@ -220,10 +221,7 @@ static INT32 R_DoorClosed(void)
 	// preserve a kind of transparent door/lift special effect:
 	&& (backsector->ceilingheight >= frontsector->ceilingheight || curline->sidedef->toptexture)
 
-	&& (backsector->floorheight <= frontsector->floorheight || curline->sidedef->bottomtexture)
-
-	// properly render skies (consider door "open" if both ceilings are sky):
-	&& (backsector->ceilingpic != skyflatnum || frontsector->ceilingpic != skyflatnum);
+	&& (backsector->floorheight <= frontsector->floorheight || curline->sidedef->bottomtexture);
 }
 
 //
@@ -237,8 +235,6 @@ static INT32 R_DoorClosed(void)
 sector_t *R_FakeFlat(sector_t *sec, sector_t *tempsec, INT32 *floorlightlevel,
 	INT32 *ceilinglightlevel, boolean back)
 {
-	INT32 mapnum = -1;
-
 	if (floorlightlevel)
 		*floorlightlevel = sec->floorlightsec == -1 ?
 			sec->lightlevel : sectors[sec->floorlightsec].lightlevel;
@@ -247,10 +243,10 @@ sector_t *R_FakeFlat(sector_t *sec, sector_t *tempsec, INT32 *floorlightlevel,
 		*ceilinglightlevel = sec->ceilinglightsec == -1 ?
 			sec->lightlevel : sectors[sec->ceilinglightsec].lightlevel;
 
-	// If the sector has a midmap, it's probably from 280 type
-	if (sec->midmap != -1)
-		mapnum = sec->midmap;
-	else if (sec->heightsec != -1)
+	// if (sec->midmap != -1)
+	//	mapnum = sec->midmap;
+	// In original colormap code, this block did not run if sec->midmap was set
+	if (!sec->extra_colormap && sec->heightsec != -1)
 	{
 		const sector_t *s = &sectors[sec->heightsec];
 		mobj_t *viewmobj = viewplayer->mo;
@@ -273,8 +269,6 @@ sector_t *R_FakeFlat(sector_t *sec, sector_t *tempsec, INT32 *floorlightlevel,
 		// Replace floor and ceiling height with other sector's heights.
 		tempsec->floorheight = s->floorheight;
 		tempsec->ceilingheight = s->ceilingheight;
-
-		mapnum = s->midmap;
 
 		if ((underwater && (tempsec->  floorheight = sec->floorheight,
 			tempsec->ceilingheight = s->floorheight - 1, !back)) || viewz <= s->floorheight)
@@ -301,7 +295,6 @@ sector_t *R_FakeFlat(sector_t *sec, sector_t *tempsec, INT32 *floorlightlevel,
 					tempsec->ceiling_yoffs = s->ceiling_yoffs;
 					tempsec->ceilingpic_angle = s->ceilingpic_angle;
 				}
-				mapnum = s->bottommap;
 			}
 
 			tempsec->lightlevel = s->lightlevel;
@@ -324,8 +317,6 @@ sector_t *R_FakeFlat(sector_t *sec, sector_t *tempsec, INT32 *floorlightlevel,
 			tempsec->floor_xoffs = tempsec->ceiling_xoffs = s->ceiling_xoffs;
 			tempsec->floor_yoffs = tempsec->ceiling_yoffs = s->ceiling_yoffs;
 			tempsec->floorpic_angle = tempsec->ceilingpic_angle = s->ceilingpic_angle;
-
-			mapnum = s->topmap;
 
 			if (s->floorpic == skyflatnum) // SKYFIX?
 			{
@@ -357,26 +348,17 @@ sector_t *R_FakeFlat(sector_t *sec, sector_t *tempsec, INT32 *floorlightlevel,
 		sec = tempsec;
 	}
 
-	if (mapnum >= 0 && (size_t)mapnum < num_extra_colormaps)
-		sec->extra_colormap = &extra_colormaps[mapnum];
-	else
-		sec->extra_colormap = NULL;
-
 	return sec;
 }
 
 boolean R_IsEmptyLine(seg_t *line, sector_t *front, sector_t *back)
 {
 	return (
-#ifdef POLYOBJECTS
 		!line->polyseg &&
-#endif
 		back->ceilingpic == front->ceilingpic
 		&& back->floorpic == front->floorpic
-#ifdef ESLOPE
 		&& back->f_slope == front->f_slope
 		&& back->c_slope == front->c_slope
-#endif
 		&& back->lightlevel == front->lightlevel
 		&& !line->sidedef->midtexture
 		// Check offsets too!
@@ -404,6 +386,7 @@ static void R_AddLine(seg_t *line)
 	INT32 x1, x2;
 	angle_t angle1, angle2, span, tspan;
 	static sector_t tempsec;
+	boolean bothceilingssky = false, bothfloorssky = false;
 
 	portalline = false;
 
@@ -473,7 +456,7 @@ static void R_AddLine(seg_t *line)
 				line2 = P_FindSpecialLineFromTag(40, line->linedef->tag, line2);
 			if (line2 >= 0) // found it!
 			{
-				R_AddPortal(line->linedef-lines, line2, x1, x2); // Remember the lines for later rendering
+				Portal_Add2Lines(line->linedef-lines, line2, x1, x2); // Remember the lines for later rendering
 				//return; // Don't fill in that space now!
 				goto clipsolid;
 			}
@@ -490,8 +473,23 @@ static void R_AddLine(seg_t *line)
 
 	doorclosed = 0;
 
+	if (backsector->ceilingpic == skyflatnum && frontsector->ceilingpic == skyflatnum)
+		bothceilingssky = true;
+	if (backsector->floorpic == skyflatnum && frontsector->floorpic == skyflatnum)
+		bothfloorssky = true;
+
+	if (bothceilingssky && bothfloorssky) // everything's sky? let's save us a bit of time then
+	{
+		if (!line->polyseg &&
+			!line->sidedef->midtexture
+			&& ((!frontsector->ffloors && !backsector->ffloors)
+				|| (frontsector->tag == backsector->tag)))
+			return; // line is empty, don't even bother
+
+		goto clippass; // treat like wide open window instead
+	}
+
 	// Closed door.
-#ifdef ESLOPE
 	if (frontsector->f_slope || frontsector->c_slope || backsector->f_slope || backsector->c_slope)
 	{
 		fixed_t frontf1,frontf2, frontc1, frontc2; // front floor/ceiling ends
@@ -508,48 +506,58 @@ static void R_AddLine(seg_t *line)
 		SLOPEPARAMS( backsector->f_slope, backf1,  backf2,  backsector->floorheight)
 		SLOPEPARAMS( backsector->c_slope, backc1,  backc2,  backsector->ceilingheight)
 #undef SLOPEPARAMS
-		if ((backc1 <= frontf1 && backc2 <= frontf2)
-			|| (backf1 >= frontc1 && backf2 >= frontc2))
+		// if both ceilings are skies, consider it always "open"
+		// same for floors
+		if (!bothceilingssky && !bothfloorssky)
 		{
-			goto clipsolid;
+			if ((backc1 <= frontf1 && backc2 <= frontf2)
+				|| (backf1 >= frontc1 && backf2 >= frontc2))
+			{
+				goto clipsolid;
+			}
+
+			// Check for automap fix. Store in doorclosed for r_segs.c
+			doorclosed = (backc1 <= backf1 && backc2 <= backf2
+			&& ((backc1 >= frontc1 && backc2 >= frontc2) || curline->sidedef->toptexture)
+			&& ((backf1 <= frontf1 && backf2 >= frontf2) || curline->sidedef->bottomtexture));
+
+			if (doorclosed)
+				goto clipsolid;
 		}
-
-		// Check for automap fix. Store in doorclosed for r_segs.c
-		doorclosed = (backc1 <= backf1 && backc2 <= backf2
-		&& ((backc1 >= frontc1 && backc2 >= frontc2) || curline->sidedef->toptexture)
-		&& ((backf1 <= frontf1 && backf2 >= frontf2) || curline->sidedef->bottomtexture)
-		&& (backsector->ceilingpic != skyflatnum || frontsector->ceilingpic != skyflatnum));
-
-		if (doorclosed)
-			goto clipsolid;
 
 		// Window.
-		if (backc1 != frontc1 || backc2 != frontc2
-			|| backf1 != frontf1 || backf2 != frontf2)
-		{
-			goto clippass;
-		}
+		if (!bothceilingssky) // ceilings are always the "same" when sky
+			if (backc1 != frontc1 || backc2 != frontc2)
+				goto clippass;
+		if (!bothfloorssky)	// floors are always the "same" when sky
+			if (backf1 != frontf1 || backf2 != frontf2)
+				goto clippass;
 	}
 	else
-#endif
 	{
-		if (backsector->ceilingheight <= frontsector->floorheight
-			|| backsector->floorheight >= frontsector->ceilingheight)
+		// if both ceilings are skies, consider it always "open"
+		// same for floors
+		if (!bothceilingssky && !bothfloorssky)
 		{
-			goto clipsolid;
-		}
+			if (backsector->ceilingheight <= frontsector->floorheight
+				|| backsector->floorheight >= frontsector->ceilingheight)
+			{
+				goto clipsolid;
+			}
 
-		// Check for automap fix. Store in doorclosed for r_segs.c
-		doorclosed = R_DoorClosed();
-		if (doorclosed)
-			goto clipsolid;
+			// Check for automap fix. Store in doorclosed for r_segs.c
+			doorclosed = R_DoorClosed();
+			if (doorclosed)
+				goto clipsolid;
+		}
 
 		// Window.
-		if (backsector->ceilingheight != frontsector->ceilingheight
-			|| backsector->floorheight != frontsector->floorheight)
-		{
-			goto clippass;
-		}
+		if (!bothceilingssky) // ceilings are always the "same" when sky
+			if (backsector->ceilingheight != frontsector->ceilingheight)
+				goto clippass;
+		if (!bothfloorssky)	// floors are always the "same" when sky
+			if (backsector->floorheight != frontsector->floorheight)
+				goto clippass;
 	}
 
 	// Reject empty lines used for triggers and special events.
@@ -640,8 +648,6 @@ static boolean R_CheckBBox(const fixed_t *bspcoord)
 
 	return true;
 }
-
-#ifdef POLYOBJECTS
 
 size_t numpolys;        // number of polyobjects in current subsector
 size_t num_po_ptrs;     // number of polyobject pointers allocated
@@ -806,7 +812,6 @@ static void R_AddPolyObjects(subsector_t *sub)
 			R_AddLine(po_ptrs[i]->segs[j]);
 	}
 }
-#endif
 
 //
 // R_Subsector
@@ -846,16 +851,12 @@ static void R_Subsector(size_t num)
 
 	floorcolormap = ceilingcolormap = frontsector->extra_colormap;
 
-	floorcenterz =
-#ifdef ESLOPE
-		frontsector->f_slope ? P_GetZAt(frontsector->f_slope, frontsector->soundorg.x, frontsector->soundorg.y) :
-#endif
+	floorcenterz = frontsector->f_slope ?
+		P_GetZAt(frontsector->f_slope, frontsector->soundorg.x, frontsector->soundorg.y) :
 		frontsector->floorheight;
 
-	ceilingcenterz =
-#ifdef ESLOPE
-		frontsector->c_slope ? P_GetZAt(frontsector->c_slope, frontsector->soundorg.x, frontsector->soundorg.y) :
-#endif
+	ceilingcenterz = frontsector->c_slope ?
+		P_GetZAt(frontsector->c_slope, frontsector->soundorg.x, frontsector->soundorg.y) :
 		frontsector->ceilingheight;
 
 	// Check and prep all 3D floors. Set the sector floor/ceiling light levels and colormaps.
@@ -873,61 +874,38 @@ static void R_Subsector(size_t num)
 		light = R_GetPlaneLight(frontsector, floorcenterz, false);
 		if (frontsector->floorlightsec == -1)
 			floorlightlevel = *frontsector->lightlist[light].lightlevel;
-		floorcolormap = frontsector->lightlist[light].extra_colormap;
+		floorcolormap = *frontsector->lightlist[light].extra_colormap;
 		light = R_GetPlaneLight(frontsector, ceilingcenterz, false);
 		if (frontsector->ceilinglightsec == -1)
 			ceilinglightlevel = *frontsector->lightlist[light].lightlevel;
-		ceilingcolormap = frontsector->lightlist[light].extra_colormap;
+		ceilingcolormap = *frontsector->lightlist[light].extra_colormap;
 	}
 
 	sub->sector->extra_colormap = frontsector->extra_colormap;
 
-	if (((
-#ifdef ESLOPE
-			frontsector->f_slope ? P_GetZAt(frontsector->f_slope, viewx, viewy) :
-#endif
-		frontsector->floorheight) < viewz || (frontsector->heightsec != -1
-		&& sectors[frontsector->heightsec].ceilingpic == skyflatnum)))
+	if ((frontsector->f_slope ? P_GetZAt(frontsector->f_slope, viewx, viewy) : frontsector->floorheight) < viewz
+		|| frontsector->floorpic == skyflatnum
+		|| (frontsector->heightsec != -1 && sectors[frontsector->heightsec].ceilingpic == skyflatnum))
 	{
 		floorplane = R_FindPlane(frontsector->floorheight, frontsector->floorpic, floorlightlevel,
-			frontsector->floor_xoffs, frontsector->floor_yoffs, frontsector->floorpic_angle, floorcolormap, NULL
-#ifdef POLYOBJECTS_PLANES
-			, NULL
-#endif
-#ifdef ESLOPE
-			, frontsector->f_slope
-#endif
-			);
+			frontsector->floor_xoffs, frontsector->floor_yoffs, frontsector->floorpic_angle, floorcolormap, NULL, NULL, frontsector->f_slope);
 	}
 	else
 		floorplane = NULL;
 
-	if (((
-#ifdef ESLOPE
-			frontsector->c_slope ? P_GetZAt(frontsector->c_slope, viewx, viewy) :
-#endif
-		frontsector->ceilingheight) > viewz || frontsector->ceilingpic == skyflatnum
-		|| (frontsector->heightsec != -1
-		&& sectors[frontsector->heightsec].floorpic == skyflatnum)))
+	if ((frontsector->c_slope ? P_GetZAt(frontsector->c_slope, viewx, viewy) : frontsector->ceilingheight) > viewz
+		|| frontsector->ceilingpic == skyflatnum
+		|| (frontsector->heightsec != -1 && sectors[frontsector->heightsec].floorpic == skyflatnum))
 	{
 		ceilingplane = R_FindPlane(frontsector->ceilingheight, frontsector->ceilingpic,
 			ceilinglightlevel, frontsector->ceiling_xoffs, frontsector->ceiling_yoffs, frontsector->ceilingpic_angle,
-			ceilingcolormap, NULL
-#ifdef POLYOBJECTS_PLANES
-			, NULL
-#endif
-#ifdef ESLOPE
-			, frontsector->c_slope
-#endif
-			);
+			ceilingcolormap, NULL, NULL, frontsector->c_slope);
 	}
 	else
 		ceilingplane = NULL;
 
 	numffloors = 0;
-#ifdef ESLOPE
 	ffloor[numffloors].slope = NULL;
-#endif
 	ffloor[numffloors].plane = NULL;
 	ffloor[numffloors].polyobj = NULL;
 	if (frontsector->ffloors)
@@ -952,43 +930,30 @@ static void R_Subsector(size_t num)
 			ffloor[numffloors].plane = NULL;
 			ffloor[numffloors].polyobj = NULL;
 
-			heightcheck =
-#ifdef ESLOPE
-				*rover->b_slope ? P_GetZAt(*rover->b_slope, viewx, viewy) :
-#endif
+			heightcheck = *rover->b_slope ?
+				P_GetZAt(*rover->b_slope, viewx, viewy) :
 				*rover->bottomheight;
 
-			planecenterz =
-#ifdef ESLOPE
-				*rover->b_slope ? P_GetZAt(*rover->b_slope, frontsector->soundorg.x, frontsector->soundorg.y) :
-#endif
+			planecenterz = *rover->b_slope ?
+				P_GetZAt(*rover->b_slope, frontsector->soundorg.x, frontsector->soundorg.y) :
 				*rover->bottomheight;
 			if (planecenterz <= ceilingcenterz
 				&& planecenterz >= floorcenterz
-				&& ((viewz < heightcheck && !(rover->flags & FF_INVERTPLANES))
-				|| (viewz > heightcheck && (rover->flags & FF_BOTHPLANES))))
+				&& ((viewz < heightcheck && (rover->flags & FF_BOTHPLANES || !(rover->flags & FF_INVERTPLANES)))
+				|| (viewz > heightcheck && (rover->flags & FF_BOTHPLANES || rover->flags & FF_INVERTPLANES))))
 			{
 				light = R_GetPlaneLight(frontsector, planecenterz,
 					viewz < heightcheck);
 
 				ffloor[numffloors].plane = R_FindPlane(*rover->bottomheight, *rover->bottompic,
 					*frontsector->lightlist[light].lightlevel, *rover->bottomxoffs,
-					*rover->bottomyoffs, *rover->bottomangle, frontsector->lightlist[light].extra_colormap, rover
-#ifdef POLYOBJECTS_PLANES
-					, NULL
-#endif
-#ifdef ESLOPE
-					, *rover->b_slope
-#endif
-					);
+					*rover->bottomyoffs, *rover->bottomangle, *frontsector->lightlist[light].extra_colormap, rover, NULL, *rover->b_slope);
 
-#ifdef ESLOPE
 				ffloor[numffloors].slope = *rover->b_slope;
 
 				// Tell the renderer this sector has slopes in it.
 				if (ffloor[numffloors].slope)
 					frontsector->hasslope = true;
-#endif
 
 				ffloor[numffloors].height = heightcheck;
 				ffloor[numffloors].ffloor = rover;
@@ -999,42 +964,29 @@ static void R_Subsector(size_t num)
 			ffloor[numffloors].plane = NULL;
 			ffloor[numffloors].polyobj = NULL;
 
-			heightcheck =
-#ifdef ESLOPE
-				*rover->t_slope ? P_GetZAt(*rover->t_slope, viewx, viewy) :
-#endif
+			heightcheck = *rover->t_slope ?
+				P_GetZAt(*rover->t_slope, viewx, viewy) :
 				*rover->topheight;
 
-			planecenterz =
-#ifdef ESLOPE
-				*rover->t_slope ? P_GetZAt(*rover->t_slope, frontsector->soundorg.x, frontsector->soundorg.y) :
-#endif
+			planecenterz = *rover->t_slope ?
+				P_GetZAt(*rover->t_slope, frontsector->soundorg.x, frontsector->soundorg.y) :
 				*rover->topheight;
 			if (planecenterz >= floorcenterz
 				&& planecenterz <= ceilingcenterz
-				&& ((viewz > heightcheck && !(rover->flags & FF_INVERTPLANES))
-				|| (viewz < heightcheck && (rover->flags & FF_BOTHPLANES))))
+				&& ((viewz > heightcheck && (rover->flags & FF_BOTHPLANES || !(rover->flags & FF_INVERTPLANES)))
+				|| (viewz < heightcheck && (rover->flags & FF_BOTHPLANES || rover->flags & FF_INVERTPLANES))))
 			{
 				light = R_GetPlaneLight(frontsector, planecenterz, viewz < heightcheck);
 
 				ffloor[numffloors].plane = R_FindPlane(*rover->topheight, *rover->toppic,
 					*frontsector->lightlist[light].lightlevel, *rover->topxoffs, *rover->topyoffs, *rover->topangle,
-					frontsector->lightlist[light].extra_colormap, rover
-#ifdef POLYOBJECTS_PLANES
-					, NULL
-#endif
-#ifdef ESLOPE
-					, *rover->t_slope
-#endif
-					);
+					*frontsector->lightlist[light].extra_colormap, rover, NULL, *rover->t_slope);
 
-#ifdef ESLOPE
 				ffloor[numffloors].slope = *rover->t_slope;
 
 				// Tell the renderer this sector has slopes in it.
 				if (ffloor[numffloors].slope)
 					frontsector->hasslope = true;
-#endif
 
 				ffloor[numffloors].height = heightcheck;
 				ffloor[numffloors].ffloor = rover;
@@ -1043,7 +995,6 @@ static void R_Subsector(size_t num)
 		}
 	}
 
-#ifdef POLYOBJECTS_PLANES
 	// Polyobjects have planes, too!
 	if (sub->polyList)
 	{
@@ -1068,40 +1019,17 @@ static void R_Subsector(size_t num)
 				&& polysec->floorheight >= floorcenterz
 				&& (viewz < polysec->floorheight))
 			{
-				fixed_t xoff, yoff;
-				xoff = polysec->floor_xoffs;
-				yoff = polysec->floor_yoffs;
-
-				if (po->angle != 0) {
-					angle_t fineshift = po->angle >> ANGLETOFINESHIFT;
-
-					xoff -= FixedMul(FINECOSINE(fineshift), po->centerPt.x)+FixedMul(FINESINE(fineshift), po->centerPt.y);
-					yoff -= FixedMul(FINESINE(fineshift), po->centerPt.x)-FixedMul(FINECOSINE(fineshift), po->centerPt.y);
-				} else {
-					xoff -= po->centerPt.x;
-					yoff += po->centerPt.y;
-				}
-
 				light = R_GetPlaneLight(frontsector, polysec->floorheight, viewz < polysec->floorheight);
 				ffloor[numffloors].plane = R_FindPlane(polysec->floorheight, polysec->floorpic,
-						polysec->lightlevel, xoff, yoff,
-						polysec->floorpic_angle-po->angle,
-						NULL,
-						NULL
-#ifdef POLYOBJECTS_PLANES
-					, po
-#endif
-#ifdef ESLOPE
-					, NULL // will ffloors be slopable eventually?
-#endif
-					);
+					(light == -1 ? frontsector->lightlevel : *frontsector->lightlist[light].lightlevel), polysec->floor_xoffs, polysec->floor_yoffs,
+					polysec->floorpic_angle-po->angle,
+					(light == -1 ? frontsector->extra_colormap : *frontsector->lightlist[light].extra_colormap), NULL, po,
+					NULL); // will ffloors be slopable eventually?
 
 				ffloor[numffloors].height = polysec->floorheight;
 				ffloor[numffloors].polyobj = po;
-#ifdef ESLOPE
 				ffloor[numffloors].slope = NULL;
-#endif
-//				ffloor[numffloors].ffloor = rover;
+				//ffloor[numffloors].ffloor = rover;
 				po->visplane = ffloor[numffloors].plane;
 				numffloors++;
 			}
@@ -1115,38 +1043,16 @@ static void R_Subsector(size_t num)
 				&& polysec->ceilingheight <= ceilingcenterz
 				&& (viewz > polysec->ceilingheight))
 			{
-				fixed_t xoff, yoff;
-				xoff = polysec->ceiling_xoffs;
-				yoff = polysec->ceiling_yoffs;
-
-				if (po->angle != 0) {
-					angle_t fineshift = po->angle >> ANGLETOFINESHIFT;
-
-					xoff -= FixedMul(FINECOSINE(fineshift), po->centerPt.x)+FixedMul(FINESINE(fineshift), po->centerPt.y);
-					yoff -= FixedMul(FINESINE(fineshift), po->centerPt.x)-FixedMul(FINECOSINE(fineshift), po->centerPt.y);
-				} else {
-					xoff -= po->centerPt.x;
-					yoff += po->centerPt.y;
-				}
-
-				light = R_GetPlaneLight(frontsector, polysec->ceilingheight, viewz < polysec->ceilingheight);
+				light = R_GetPlaneLight(frontsector, polysec->floorheight, viewz < polysec->floorheight);
 				ffloor[numffloors].plane = R_FindPlane(polysec->ceilingheight, polysec->ceilingpic,
-					polysec->lightlevel, xoff, yoff, polysec->ceilingpic_angle-po->angle,
-					NULL, NULL
-#ifdef POLYOBJECTS_PLANES
-					, po
-#endif
-#ifdef ESLOPE
-					, NULL // will ffloors be slopable eventually?
-#endif
-					);
+					(light == -1 ? frontsector->lightlevel : *frontsector->lightlist[light].lightlevel), polysec->ceiling_xoffs, polysec->ceiling_yoffs, polysec->ceilingpic_angle-po->angle,
+					(light == -1 ? frontsector->extra_colormap : *frontsector->lightlist[light].extra_colormap), NULL, po,
+					NULL); // will ffloors be slopable eventually?
 
 				ffloor[numffloors].polyobj = po;
 				ffloor[numffloors].height = polysec->ceilingheight;
-#ifdef ESLOPE
 				ffloor[numffloors].slope = NULL;
-#endif
-//				ffloor[numffloors].ffloor = rover;
+				//ffloor[numffloors].ffloor = rover;
 				po->visplane = ffloor[numffloors].plane;
 				numffloors++;
 			}
@@ -1154,7 +1060,6 @@ static void R_Subsector(size_t num)
 			po = (polyobj_t *)(po->link.next);
 		}
 	}
-#endif
 
 #ifdef FLOORSPLATS
 	if (sub->splats)
@@ -1177,19 +1082,15 @@ static void R_Subsector(size_t num)
 
 	firstseg = NULL;
 
-#ifdef POLYOBJECTS
 	// haleyjd 02/19/06: draw polyobjects before static lines
 	if (sub->polyList)
 		R_AddPolyObjects(sub);
-#endif
 
 	while (count--)
 	{
 //		CONS_Debug(DBG_GAMELOGIC, "Adding normal line %d...(%d)\n", line->linedef-lines, leveltime);
-#ifdef POLYOBJECTS
-		if (!line->polyseg) // ignore segs that belong to polyobjects
-#endif
-		R_AddLine(line);
+		if (!line->glseg && !line->polyseg) // ignore segs that belong to polyobjects
+			R_AddLine(line);
 		line++;
 		curline = NULL; /* cph 2001/11/18 - must clear curline now we're done with it, so stuff doesn't try using it for other things */
 	}
@@ -1205,13 +1106,11 @@ void R_Prep3DFloors(sector_t *sector)
 	ffloor_t *rover;
 	ffloor_t *best;
 	fixed_t bestheight, maxheight;
-	INT32 count, i, mapnum;
+	INT32 count, i;
 	sector_t *sec;
-#ifdef ESLOPE
 	pslope_t *bestslope = NULL;
 	fixed_t heighttest; // I think it's better to check the Z height at the sector's center
 	                    // than assume unsloped heights are accurate indicators of order in sloped sectors. -Red
-#endif
 
 	count = 1;
 	for (rover = sector->ffloors; rover; rover = rover->next)
@@ -1234,17 +1133,13 @@ void R_Prep3DFloors(sector_t *sector)
 	else
 		memset(sector->lightlist, 0, sizeof (lightlist_t) * count);
 
-#ifdef ESLOPE
 	heighttest = sector->c_slope ? P_GetZAt(sector->c_slope, sector->soundorg.x, sector->soundorg.y) : sector->ceilingheight;
 
 	sector->lightlist[0].height = heighttest + 1;
 	sector->lightlist[0].slope = sector->c_slope;
-#else
-	sector->lightlist[0].height = sector->ceilingheight + 1;
-#endif
 	sector->lightlist[0].lightlevel = &sector->lightlevel;
 	sector->lightlist[0].caster = NULL;
-	sector->lightlist[0].extra_colormap = sector->extra_colormap;
+	sector->lightlist[0].extra_colormap = &sector->extra_colormap;
 	sector->lightlist[0].flags = 0;
 
 	maxheight = INT32_MAX;
@@ -1259,7 +1154,6 @@ void R_Prep3DFloors(sector_t *sector)
 				&& !(rover->flags & FF_CUTLEVEL) && !(rover->flags & FF_CUTSPRITES)))
 			continue;
 
-#ifdef ESLOPE
 			heighttest = *rover->t_slope ? P_GetZAt(*rover->t_slope, sector->soundorg.x, sector->soundorg.y) : *rover->topheight;
 
 			if (heighttest > bestheight && heighttest < maxheight)
@@ -1281,21 +1175,6 @@ void R_Prep3DFloors(sector_t *sector)
 					continue;
 				}
 			}
-#else
-			if (*rover->topheight > bestheight && *rover->topheight < maxheight)
-			{
-				best = rover;
-				bestheight = *rover->topheight;
-				continue;
-			}
-			if (rover->flags & FF_DOUBLESHADOW && *rover->bottomheight > bestheight
-				&& *rover->bottomheight < maxheight)
-			{
-				best = rover;
-				bestheight = *rover->bottomheight;
-				continue;
-			}
-#endif
 		}
 		if (!best)
 		{
@@ -1306,15 +1185,8 @@ void R_Prep3DFloors(sector_t *sector)
 		sector->lightlist[i].height = maxheight = bestheight;
 		sector->lightlist[i].caster = best;
 		sector->lightlist[i].flags = best->flags;
-#ifdef ESLOPE
 		sector->lightlist[i].slope = bestslope;
-#endif
 		sec = &sectors[best->secnum];
-		mapnum = sec->midmap;
-		if (mapnum >= 0 && (size_t)mapnum < num_extra_colormaps)
-			sec->extra_colormap = &extra_colormaps[mapnum];
-		else
-			sec->extra_colormap = NULL;
 
 		if (best->flags & FF_NOSHADE)
 		{
@@ -1324,22 +1196,18 @@ void R_Prep3DFloors(sector_t *sector)
 		else if (best->flags & FF_COLORMAPONLY)
 		{
 			sector->lightlist[i].lightlevel = sector->lightlist[i-1].lightlevel;
-			sector->lightlist[i].extra_colormap = sec->extra_colormap;
+			sector->lightlist[i].extra_colormap = &sec->extra_colormap;
 		}
 		else
 		{
 			sector->lightlist[i].lightlevel = best->toplightlevel;
-			sector->lightlist[i].extra_colormap = sec->extra_colormap;
+			sector->lightlist[i].extra_colormap = &sec->extra_colormap;
 		}
 
 		if (best->flags & FF_DOUBLESHADOW)
 		{
-#ifdef ESLOPE
 			heighttest = *best->b_slope ? P_GetZAt(*best->b_slope, sector->soundorg.x, sector->soundorg.y) : *best->bottomheight;
 			if (bestheight == heighttest) ///TODO: do this in a more efficient way -Red
-#else
-			if (bestheight == *best->bottomheight)
-#endif
 			{
 				sector->lightlist[i].lightlevel = sector->lightlist[best->lastlight].lightlevel;
 				sector->lightlist[i].extra_colormap =
