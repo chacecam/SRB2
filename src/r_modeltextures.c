@@ -374,6 +374,8 @@ boolean Model_LoadTexture(modelinfo_t *model, INT32 format)
 		RSP_CreateModelTexture(model, 0, 0, format);
 		return true;
 	}
+#else
+	(void)format;
 #endif
 
 #ifdef HWRENDER
