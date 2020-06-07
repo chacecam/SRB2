@@ -1613,7 +1613,7 @@ void *W_CachePatchNumPwad(UINT16 wad, UINT16 lump, INT32 tag)
 	if (!TestValidLump(wad, lump))
 		return NULL;
 
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		return (void *)Patch_CacheGL(wad, lump, tag, false);
 	else
 		return Patch_CacheSoftware(wad, lump, tag, false);
@@ -1650,7 +1650,7 @@ void **W_GetPatchPointerPwad(UINT16 wad, UINT16 lump, INT32 tag)
 	if (*pp) // Already cached
 		return pp;
 
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		Patch_CacheGL(wad, lump, tag, true);
 	else
 		Patch_CacheSoftware(wad, lump, tag, true);

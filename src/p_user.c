@@ -8600,7 +8600,7 @@ static void P_MovePlayer(player_t *player)
 		}
 	}
 
-	if (rendermode != render_soft && rendermode != render_none && cv_fovchange.value)
+	if (I_HardwareRendering() && cv_fovchange.value)
 	{
 		fixed_t speed;
 		const fixed_t runnyspeed = 20*FRACUNIT;
@@ -8622,7 +8622,7 @@ static void P_MovePlayer(player_t *player)
 		player->fovadd = 0;
 
 #ifdef FLOORSPLATS
-	if (cv_shadow.value && rendermode == render_soft)
+	if (cv_shadow.value && I_SoftwareRendering())
 		R_AddFloorSplat(player->mo->subsector, player->mo, "SHADOW", player->mo->x,
 			player->mo->y, player->mo->floorz, SPLATDRAWMODE_OPAQUE);
 #endif
@@ -10082,7 +10082,7 @@ boolean P_MoveChaseCamera(player_t *player, camera_t *thiscam, boolean resetcall
 
 	if (camorbit) //Sev here, I'm guessing this is where orbital cam lives
 	{
-		if (rendermode == render_opengl)
+		if (I_HardwareRendering())
 			distxy = FixedMul(dist, FINECOSINE((focusaiming>>ANGLETOFINESHIFT) & FINEMASK));
 		else
 			distxy = dist;

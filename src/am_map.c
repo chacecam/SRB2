@@ -1136,7 +1136,7 @@ void AM_Drawer(void)
 		return;
 
 	AM_drawFline = AM_drawFline_soft;
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		AM_drawFline = HWR_drawAMline;
 
 	AM_clearFB(BACKGROUND);

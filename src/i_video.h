@@ -81,7 +81,6 @@ INT32 I_NumVideoModes(void);
 */
 INT32 I_GetVideoModeForSize(INT32 w, INT32 h);
 
-
 /**	\brief	The I_SetVideoMode function
 
 	Set the video mode right now,
@@ -110,6 +109,16 @@ const char *I_GetVideoModeName(INT32 modenum);
 */
 boolean I_CheckRenderer(void);
 
+/**	\brief Checks if the video system is rendering with the software backend.
+	\return	true if rendering by software
+*/
+boolean I_SoftwareRendering(void);
+
+/**	\brief Checks if the video system is rendering with the OpenGL backend.
+	\return	true if rendering by hardware
+*/
+boolean I_HardwareRendering(void);
+
 /**	\brief Load OpenGL mode
 */
 void I_StartupOpenGL(void);
@@ -118,7 +127,7 @@ void I_StartupOpenGL(void);
 */
 void I_CheckGLLoaded(rendermode_t oldrender);
 
-/**	\brief can video system do fullscreen
+/**	\brief can video system do fullscreen?
 */
 extern boolean allow_fullscreen;
 

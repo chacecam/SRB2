@@ -339,7 +339,7 @@ void Y_IntermissionDrawer(void)
 		V_DrawScaledPatch(0, 0, 0, *interpic);
 	else if (!usetile)
 	{
-		if (rendermode == render_soft && usebuffer)
+		if (I_SoftwareRendering() && usebuffer)
 		{
 			// no y_buffer
 			if (y_buffer == NULL)
@@ -358,7 +358,7 @@ void Y_IntermissionDrawer(void)
 			HWR_DrawIntermissionBG();
 		else
 		{
-			if (widebgpatch && rendermode == render_soft && vid.width / vid.dupx == 400)
+			if (widebgpatch && I_SoftwareRendering() && vid.width / vid.dupx == 400)
 				V_DrawScaledPatch(0, 0, V_SNAPTOLEFT, *widebgpatch);
 			else
 				V_DrawScaledPatch(0, 0, 0, *bgpatch);
@@ -1267,7 +1267,7 @@ void Y_StartIntermission(void)
 			{
 				useinterpic = false;
 				// This needs to be here for OpenGL, otherwise usebuffer is never set to true for it, and thus there's no screenshot in the intermission
-				if (rendermode == render_opengl)
+				if (I_HardwareRendering())
 					usebuffer = true;
 			}
 			usetile = false;

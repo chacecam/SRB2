@@ -454,7 +454,7 @@ void R_AddSpriteDefs(UINT16 wadnum)
 
 		if (R_AddSingleSpriteDef(sprnames[i], &sprites[i], wadnum, start, end))
 		{
-			if (rendermode == render_opengl)
+			if (I_HardwareRendering())
 				HWR_AddSpriteModel(i);
 			// if a new sprite was added (not just replaced)
 			addsprites++;

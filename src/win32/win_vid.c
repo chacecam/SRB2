@@ -294,7 +294,7 @@ void I_ShutdownGraphics(void)
 	}
 
 #ifdef HWRENDER
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 #endif
 		CloseDirectDraw();
 
@@ -496,7 +496,7 @@ void I_SetPalette(RGBA_t *palette)
 	}
 	else
 #ifdef HWRENDER
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 #endif
 	{
 		PALETTEENTRY mainpal[256];
@@ -729,7 +729,7 @@ static VOID VID_Init(VOID)
 		}
 	}
 
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 #endif
 		if (!bWinParm)
 		{
@@ -895,7 +895,7 @@ INT32 I_SetVideoMode(INT32 modenum)
 	vid.bpp = pcurrentmode->bytesperpixel;
 	if (modenum) // if not 320x200 windowed mode, it's actually a hack
 	{
-		if (rendermode == render_opengl)
+		if (I_HardwareRendering())
 		{
 			// don't accept depth < 16 for OpenGL mode (too much ugly)
 			if (cv_scr_depth.value < 16)
@@ -1058,7 +1058,7 @@ static void VID_Command_ModeInfo_f(void)
 	CONS_Printf("\x82" "%s\n", I_GetVideoModeName(modenum));
 	CONS_Printf(M_GetText("width: %d\nheight: %d\n"),
 		pv->width, pv->height);
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 		CONS_Printf(M_GetText("bytes per scanline: %d\nbytes per pixel: %d\nnumpages: %d\n"),
 			pv->rowbytes, pv->bytesperpixel, pv->numpages);
 }

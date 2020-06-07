@@ -688,7 +688,7 @@ next_token:
 		skin_cons_t[numskins].strvalue = skin->name;
 #endif
 
-		if (rendermode == render_opengl)
+		if (I_HardwareRendering())
 			HWR_AddPlayerModel(numskins);
 
 		numskins++;

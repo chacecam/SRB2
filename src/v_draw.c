@@ -881,7 +881,7 @@ void V_DrawFillConsoleMap(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c)
 	if (rendermode == render_none)
 		return;
 
-	if (rendermode != render_soft && rendermode != render_none)
+	if (I_HardwareRendering())
 	{
 		UINT32 hwcolor = V_GetHWConsBackColor();
 		HWR_DrawConsoleFill(x, y, w, h, c, hwcolor);	// we still use the regular color stuff but only for flags. actual draw color is "hwcolor" for this.
@@ -1076,7 +1076,7 @@ void V_DrawFadeFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c, UINT16 color, U
 	if (rendermode == render_none)
 		return;
 
-	if (rendermode != render_soft && rendermode != render_none)
+	if (I_HardwareRendering())
 	{
 		// ughhhhh please can someone else do this? thanks ~toast 25/7/19 in 38 degrees centigrade w/o AC
 		HWR_DrawFadeFill(x, y, w, h, c, color, strength); // toast two days later - left above comment in 'cause it's funny
@@ -1236,7 +1236,7 @@ void V_DrawFlatFill(INT32 x, INT32 y, INT32 w, INT32 h, lumpnum_t flatnum)
 	UINT8 *flat, *dest;
 	size_t size, lflatsize, flatshift;
 
-	if (rendermode != render_soft && rendermode != render_none)
+	if (I_HardwareRendering())
 	{
 		HWR_DrawFlatFill(x, y, w, h, flatnum);
 		return;
@@ -1344,7 +1344,7 @@ void V_DrawPatchFill(patch_t *pat)
 //
 void V_DrawFadeScreen(UINT16 color, UINT8 strength)
 {
-	if (rendermode != render_soft && rendermode != render_none)
+	if (I_HardwareRendering())
 	{
 		HWR_FadeScreenMenuBack(color, strength);
 		return;
@@ -1371,7 +1371,7 @@ void V_DrawFadeConsBack(INT32 plines)
 {
 	UINT8 *deststop, *buf;
 
-	if (rendermode != render_soft && rendermode != render_none)
+	if (I_HardwareRendering())
 	{
 		UINT32 hwcolor = V_GetHWConsBackColor();
 		HWR_DrawConsoleBack(hwcolor, plines);
@@ -1402,7 +1402,7 @@ void V_DrawPromptBack(INT32 boxheight, INT32 color)
 	if (color == INT32_MAX)
 		color = cons_backcolor.value;
 
-	if (rendermode != render_soft && rendermode != render_none)
+	if (I_HardwareRendering())
 	{
 		UINT32 hwcolor;
 		switch (color)

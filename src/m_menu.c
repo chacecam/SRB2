@@ -2162,7 +2162,7 @@ menu_t OP_MonitorToggleDef =
 
 static void M_OpenGLOptionsMenu(void)
 {
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		M_SetupNextMenu(&OP_OpenGLOptionsDef);
 	else
 		M_StartMessage(M_GetText("You must be in OpenGL mode\nto access this menu.\n\n(Press a key)\n"), NULL, MM_NOTHING);
@@ -10337,7 +10337,7 @@ static void M_Refresh(INT32 choice)
 	V_DrawCenteredString(BASEVIDWIDTH/2, (BASEVIDHEIGHT/2)+12, 0, "Please wait.");
 	I_OsPolling();
 	I_UpdateNoBlit();
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 		I_FinishUpdate(); // page flip or blit buffer
 
 	// note: this is the one case where 0 is a valid room number
@@ -10586,7 +10586,7 @@ static void M_RoomMenu(INT32 choice)
 	V_DrawCenteredString(BASEVIDWIDTH/2, (BASEVIDHEIGHT/2)+12, 0, "Please wait.");
 	I_OsPolling();
 	I_UpdateNoBlit();
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 		I_FinishUpdate(); // page flip or blit buffer
 
 	if (GetRoomsList(currentMenu == &MP_ServerDef) < 0)
@@ -10863,7 +10863,7 @@ static void M_ConnectIP(INT32 choice)
 	V_DrawCenteredString(BASEVIDWIDTH/2, BASEVIDHEIGHT/2, 0, "Connecting to server...");
 	I_OsPolling();
 	I_UpdateNoBlit();
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 		I_FinishUpdate(); // page flip or blit buffer
 }
 
@@ -11484,7 +11484,7 @@ static void M_SetupScreenshotMenu(void)
 	menuitem_t *item = &OP_ScreenshotOptionsMenu[op_screenshot_colorprofile];
 
 	// Hide some options based on render mode
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 	{
 		item->status = IT_GRAYEDOUT;
 		if ((currentMenu == &OP_ScreenshotOptionsDef) && (itemOn == op_screenshot_colorprofile)) // Can't select that
@@ -12432,7 +12432,7 @@ static void M_HandleVideoMode(INT32 ch)
 static void M_DrawScreenshotMenu(void)
 {
 	M_DrawGenericScrollMenu();
-	if ((rendermode == render_opengl) && (itemOn < 7)) // where it starts to go offscreen; change this number if you change the layout of the screenshot menu
+	if ((I_HardwareRendering()) && (itemOn < 7)) // where it starts to go offscreen; change this number if you change the layout of the screenshot menu
 	{
 		INT32 y = currentMenu->y+currentMenu->menuitems[op_screenshot_colorprofile].alphaKey*2;
 		if (itemOn == 6)

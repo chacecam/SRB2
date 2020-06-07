@@ -5946,7 +5946,7 @@ if (0)
 	drawcount = 0;
 #endif
 #ifdef NEWCLIP
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 	{
 		angle_t a1 = gld_FrustumAngle();
 		gld_clipper_Clear();
@@ -6172,7 +6172,7 @@ if (0)
 	drawcount = 0;
 #endif
 #ifdef NEWCLIP
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 	{
 		angle_t a1 = gld_FrustumAngle();
 		gld_clipper_Clear();
@@ -6373,25 +6373,25 @@ consvar_t cv_grsolvetjoin = {"gr_solvetjoin", "On", 0, CV_OnOff, NULL, 0, NULL, 
 
 static void CV_grmodellighting_OnChange(void)
 {
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		HWD.pfnSetSpecialState(HWD_SET_MODEL_LIGHTING, cv_grmodellighting.value);
 }
 
 static void CV_grfogdensity_OnChange(void)
 {
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		HWD.pfnSetSpecialState(HWD_SET_FOG_DENSITY, cv_grfogdensity.value);
 }
 
 static void CV_grfiltermode_OnChange(void)
 {
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		HWD.pfnSetSpecialState(HWD_SET_TEXTUREFILTERMODE, cv_grfiltermode.value);
 }
 
 static void CV_granisotropic_OnChange(void)
 {
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		HWD.pfnSetSpecialState(HWD_SET_TEXTUREANISOTROPICMODE, cv_granisotropicmode.value);
 }
 
@@ -6468,7 +6468,7 @@ void HWR_Startup(void)
 #endif
 	}
 
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		textureformat = patchformat = GR_RGBA;
 
 	startupdone = true;

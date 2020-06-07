@@ -1039,7 +1039,7 @@ void R_LoadTextures(void)
 		i = Rloadtextures(i, w);
 	}
 
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		HWR_LoadTextures(numtextures);
 }
 

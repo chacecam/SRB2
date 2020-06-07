@@ -411,7 +411,7 @@ void V_SetPalette(INT32 palettenum)
 	if (!pLocalPalette)
 		LoadMapPalette();
 
-	if (rendermode != render_soft && rendermode != render_none)
+	if (I_HardwareRendering())
 		HWR_SetPalette(&pLocalPalette[palettenum*256]);
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	else
@@ -423,7 +423,7 @@ void V_SetPalette(INT32 palettenum)
 void V_SetPaletteLump(const char *pal)
 {
 	LoadPalette(pal);
-	if (rendermode != render_soft && rendermode != render_none)
+	if (I_HardwareRendering())
 		HWR_SetPalette(pLocalPalette);
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	else
@@ -715,7 +715,7 @@ void V_Recalc(void)
 	vid.fdupx = FixedDiv(vid.width*FRACUNIT, BASEVIDWIDTH*FRACUNIT);
 	vid.fdupy = FixedDiv(vid.height*FRACUNIT, BASEVIDHEIGHT*FRACUNIT);
 
-	//if (rendermode != render_opengl && rendermode != render_none) // This was just placing it incorrectly at non aspect correct resolutions in opengl
+	//if (I_SoftwareRendering()) // This was just placing it incorrectly at non aspect correct resolutions in opengl
 	// 13/11/18:
 	// The above is no longer necessary, since we want OpenGL to be just like software now
 	// -- Monster Iestyn

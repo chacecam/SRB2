@@ -223,12 +223,12 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 		}
 	}
 
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 	{
 		OglSdlSurface(vid.width, vid.height);
 	}
 
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 	{
 		SDL_RenderClear(renderer);
 		SDL_RenderSetLogicalSize(renderer, width, height);
@@ -1142,11 +1142,11 @@ void I_UpdateNoBlit(void)
 		return;
 	if (exposevideo)
 	{
-		if (rendermode == render_opengl)
+		if (I_HardwareRendering())
 		{
 			OglSdlFinishUpdate(cv_vidwait.value);
 		}
-		else if (rendermode == render_soft)
+		else if (I_SoftwareRendering())
 		{
 			SDL_RenderCopy(renderer, texture, NULL, NULL);
 			SDL_RenderPresent(renderer);
@@ -1206,7 +1206,7 @@ void I_FinishUpdate(void)
 	if (cv_showping.value && netgame && consoleplayer != serverplayer)
 		SCR_DisplayLocalPing();
 
-	if (rendermode == render_soft && screens[0])
+	if (I_SoftwareRendering() && screens[0])
 	{
 		SDL_Rect rect;
 
@@ -1231,7 +1231,7 @@ void I_FinishUpdate(void)
 		SDL_RenderCopy(renderer, texture, NULL, NULL);
 		SDL_RenderPresent(renderer);
 	}
-	else if (rendermode == render_opengl)
+	else if (I_HardwareRendering())
 	{
 		OglSdlFinishUpdate(cv_vidwait.value);
 	}
@@ -1334,7 +1334,7 @@ INT32 I_GetVideoModeForSize(INT32 w, INT32 h)
 static SDL_bool Impl_CreateContext(void)
 {
 	// Renderer-specific stuff
-	if ((rendermode == render_opengl) && (vid.glstate != VID_GL_LIBRARY_ERROR))
+	if ((I_HardwareRendering()) && (vid.glstate != VID_GL_LIBRARY_ERROR))
 	{
 		if (!sdlglcontext)
 			sdlglcontext = SDL_GL_CreateContext(window);
@@ -1345,7 +1345,7 @@ static SDL_bool Impl_CreateContext(void)
 		}
 		SDL_GL_MakeCurrent(window, sdlglcontext);
 	}
-	else if (rendermode == render_soft)
+	else if (I_SoftwareRendering())
 	{
 		int flags = 0; // Use this to set SDL_RENDERER_* flags now
 		if (usesdl2soft)
@@ -1392,7 +1392,7 @@ boolean I_CheckRenderer(void)
 		rendermode = setrenderneeded;
 		rendererchanged = true;
 
-		if (rendermode == render_opengl)
+		if (I_HardwareRendering())
 		{
 			I_CheckGLLoaded(oldrenderer);
 
@@ -1445,7 +1445,7 @@ boolean I_CheckRenderer(void)
 	SDLSetMode(vid.width, vid.height, USE_FULLSCREEN, (rendererchanged ? SDL_FALSE : SDL_TRUE));
 	Impl_VideoSetupBuffer();
 
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 	{
 		if (bufSurface)
 		{
@@ -1458,7 +1458,7 @@ boolean I_CheckRenderer(void)
 
 		SCR_SetDrawFuncs();
 	}
-	else if (rendermode == render_opengl && rendererchanged)
+	else if (I_HardwareRendering() && rendererchanged)
 	{
 		HWR_Switch();
 		V_SetPalette(0);
@@ -1486,6 +1486,16 @@ INT32 I_SetVideoMode(INT32 modeNum)
 	//Impl_SetWindowName("SRB2 "VERSIONSTRING);
 	I_CheckRenderer();
 	return SDL_TRUE;
+}
+
+boolean I_SoftwareRendering(void)
+{
+	return (rendermode == render_soft);
+}
+
+boolean I_HardwareRendering(void)
+{
+	return (rendermode == render_opengl);
 }
 
 static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
@@ -1667,7 +1677,7 @@ void I_StartupGraphics(void)
 	//SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY>>1,SDL_DEFAULT_REPEAT_INTERVAL<<2);
 	VID_Command_ModeList_f();
 
-	 if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		I_StartupOpenGL();
 
 	// Fury: we do window initialization after GL setup to allow

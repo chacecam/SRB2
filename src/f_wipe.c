@@ -502,7 +502,7 @@ boolean F_TryColormapFade(UINT8 wipecolor)
 #ifndef NOWIPE
 	if (F_ShouldColormapFade())
 	{
-		if (rendermode == render_opengl)
+		if (I_HardwareRendering())
 			F_WipeColorFill(wipecolor);
 		return true;
 	}
@@ -552,7 +552,7 @@ void F_RunWipe(UINT8 wipetype, boolean drawMenu)
 		// Wipe styles
 		if (wipestyle == WIPESTYLE_COLORMAP)
 		{
-			if (rendermode == render_opengl)
+			if (I_HardwareRendering())
 			{
 				// send in the wipe type and wipe frame because we need to cache the graphic
 				HWR_DoTintedWipe(wipetype, wipeframe-1);
@@ -570,7 +570,7 @@ void F_RunWipe(UINT8 wipetype, boolean drawMenu)
 		}
 		else
 		{
-			if (rendermode == render_opengl)
+			if (I_HardwareRendering())
 			{
 				// send in the wipe type and wipe frame because we need to cache the graphic
 				HWR_DoWipe(wipetype, wipeframe-1);

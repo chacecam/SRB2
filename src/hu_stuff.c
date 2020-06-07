@@ -2268,7 +2268,7 @@ void HU_Erase(void)
 		return;
 
 	// software mode copies view border pattern & beveled edges from the backbuffer
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 	{
 		topline = 0;
 		for (y = topline, yoffset = y*vid.width; y < bottomline; y++, yoffset += vid.width)

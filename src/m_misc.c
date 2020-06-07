@@ -1082,7 +1082,7 @@ static inline moviemode_t M_StartMovieAPNG(const char *pathname)
 		return MM_OFF;
 	}
 
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 	{
 		M_CreateScreenShotPalette();
 		palette = screenshot_palette;
@@ -1211,7 +1211,7 @@ void M_SaveFrame(void)
 					return;
 				}
 
-				if (rendermode == render_soft)
+				if (I_SoftwareRendering())
 				{
 					// munge planar buffer to linear
 					linear = screens[2];
@@ -1511,13 +1511,13 @@ void M_DoScreenShot(void)
 #ifdef USE_PNG
 	freename = Newsnapshotfile(pathname,"png");
 #else
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 		freename = Newsnapshotfile(pathname,"pcx");
-	else if (rendermode == render_opengl)
+	else if (I_HardwareRendering())
 		freename = Newsnapshotfile(pathname,"tga");
 #endif
 
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 	{
 		// munge planar buffer to linear
 		linear = screens[2];
@@ -1528,7 +1528,7 @@ void M_DoScreenShot(void)
 		goto failure;
 
 	// save the pcx file
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		ret = HWR_Screenshot(va(pandf,pathname,freename));
 	else
 	{

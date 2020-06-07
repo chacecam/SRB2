@@ -229,7 +229,7 @@ static void D_Display(void)
 		SCR_Recalc(); // NOTE! setsizeneeded is set by SCR_Recalc()
 
 	// View morph
-	if (rendermode == render_soft && !splitscreen)
+	if (I_SoftwareRendering() && !splitscreen)
 		R_CheckViewMorph();
 
 	// Change the view size if needed
@@ -405,7 +405,7 @@ static void D_Display(void)
 				}
 
 				// Image postprocessing effect
-				if (rendermode == render_soft)
+				if (I_SoftwareRendering())
 				{
 					if (!splitscreen)
 						R_ApplyViewMorph();
@@ -419,7 +419,7 @@ static void D_Display(void)
 
 			if (lastdraw)
 			{
-				if (rendermode == render_soft)
+				if (I_SoftwareRendering())
 				{
 					VID_BlitLinearScreen(screens[0], screens[1], vid.width*vid.bpp, vid.height, vid.width*vid.bpp, vid.rowbytes);
 					Y_ConsiderScreenBuffer();

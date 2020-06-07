@@ -338,7 +338,7 @@ patch_t *RotSprite_CreatePatch(rotsprite_t *rotsprite, rotsprite_vars_t rsvars)
 	M_Memcpy(img, imgbuf, size);
 
 	// Ugh
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 	{
 		GLPatch_t *grPatch = Z_Calloc(sizeof(GLPatch_t), PU_HWRPATCHINFO, NULL);
 		grPatch->mipmap = Z_Calloc(sizeof(GLMipmap_t), PU_HWRPATCHINFO, NULL);

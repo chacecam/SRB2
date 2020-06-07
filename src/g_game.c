@@ -2335,7 +2335,7 @@ static inline void G_PlayerFinishLevel(INT32 player)
 	p->starpostz = 0;
 	p->starpostnum = 0;
 
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 		V_SetPaletteLump(GetPalette()); // Reset the palette
 }
 

@@ -1887,7 +1887,7 @@ static void P_LoadSegs(UINT8 *data)
 		seg->linedef = &lines[SHORT(ms->linedef)];
 
 		seg->length = P_SegLength(seg);
-		seg->flength = (rendermode == render_opengl) ? P_SegLengthFloat(seg) : 0;
+		seg->flength = (I_HardwareRendering()) ? P_SegLengthFloat(seg) : 0;
 
 		seg->glseg = false;
 		P_InitializeSeg(seg);
@@ -3193,7 +3193,7 @@ static void P_RunSpecialStageWipe(void)
 	wipestyleflags |= (WSF_FADEOUT|WSF_TOWHITE);
 
 	// uh..........
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		F_WipeColorFill(0);
 
 	F_WipeEndScreen();
@@ -3224,7 +3224,7 @@ static void P_RunLevelWipe(void)
 	wipestyleflags |= WSF_FADEOUT;
 
 	// uh..........
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		F_WipeColorFill(31);
 
 	F_WipeEndScreen();
@@ -3561,7 +3561,7 @@ boolean P_LoadLevel(boolean fromnetsave)
 	HWR_FreeExtraSubsectors();
 
 	// Create plane polygons.
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		HWR_LoadLevel();
 
 	// oh god I hope this helps

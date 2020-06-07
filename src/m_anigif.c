@@ -406,7 +406,7 @@ const UINT8 gifhead_nsid[19] = {0x21,0xFF,0x0B, // extension block + size
 static RGBA_t *GIF_getpalette(size_t palnum)
 {
 	// In hardware mode, always returns the local palette
-	if (rendermode == render_opengl)
+	if (I_HardwareRendering())
 		return pLocalPalette;
 	else
 		return (gif_colorprofile ? &pLocalPalette[palnum*256] : &pMasterPalette[palnum*256]);
@@ -545,9 +545,9 @@ static void GIF_framewrite(void)
 		GIF_optimizeregion(cur_screen, movie_screen, &blitx, &blity, &blitw, &blith);
 
 		// blit to temp screen
-		if (rendermode == render_soft)
+		if (I_SoftwareRendering())
 			I_ReadScreen(movie_screen);
-		else if (rendermode == render_opengl)
+		else if (I_HardwareRendering())
 		{
 			UINT8 *linear = HWR_GetScreenshot();
 			GIF_rgbconvert(linear, movie_screen);
@@ -561,7 +561,7 @@ static void GIF_framewrite(void)
 		blith = vid.height;
 
 		// Copy the current OpenGL frame into the base screen
-		if (rendermode == render_opengl)
+		if (I_HardwareRendering())
 		{
 			UINT8 *linear = HWR_GetScreenshot();
 			GIF_rgbconvert(linear, screens[0]);
@@ -570,7 +570,7 @@ static void GIF_framewrite(void)
 
 		// Copy the first frame into the movie screen
 		// OpenGL already does the same above.
-		if (gif_frames == 0 && rendermode == render_soft)
+		if (gif_frames == 0 && I_SoftwareRendering())
 			I_ReadScreen(movie_screen);
 
 		movie_screen = screens[0];

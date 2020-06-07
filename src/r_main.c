@@ -909,7 +909,7 @@ void R_SetViewSize(void)
 	R_SetSkyScale();
 
 	// planes
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 	{
 		// this is only used for planes rendering in software mode
 		j = viewheight*16;
@@ -1041,7 +1041,7 @@ subsector_t *R_PointInSubsectorOrNull(fixed_t x, fixed_t y)
 static void R_SetupFreelook(void)
 {
 	INT32 dy = 0;
-	if (rendermode == render_soft)
+	if (I_SoftwareRendering())
 	{
 		// clip it in the case we are looking a hardware 90 degrees full aiming
 		// (lmps, network and use F12...)

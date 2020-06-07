@@ -315,7 +315,7 @@ void SCR_Recalc(void)
 	am_recalc = true;
 
 	// Shoot! The screen texture was flushed!
-	if ((rendermode == render_opengl) && (gamestate == GS_INTERMISSION))
+	if ((I_HardwareRendering()) && (gamestate == GS_INTERMISSION))
 		usebuffer = false;
 }
 

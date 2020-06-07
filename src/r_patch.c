@@ -369,7 +369,7 @@ void Patch_UpdateReferences(void)
 		else
 #endif
 		{
-			if (rendermode == render_opengl)
+			if (I_HardwareRendering())
 				Patch_CacheGL(patch->wad, patch->lump, patch->tag, false);
 			else
 				Patch_CacheSoftware(patch->wad, patch->lump, patch->tag, false);
