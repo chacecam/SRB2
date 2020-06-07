@@ -28,11 +28,12 @@
 
 #include "hw_dll.h"
 
+#define SCREENVERTS 10
+
 // ==========================================================================
 //                                                       STANDARD DLL EXPORTS
 // ==========================================================================
 
-typedef void (*I_Error_t) (const char *error, ...) FUNCIERROR;
 void DBG_Printf(const char *lpFmt, ...) /*FUNCPRINTF*/;
 
 boolean HWD_Init(void);
@@ -66,67 +67,15 @@ INT32 HWD_GetTextureUsed(void);
 void HWD_ClearMipMapCache(void);
 void HWD_Flush(void);
 
-#define SCREENVERTS 10
-EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2]);
-EXPORT void HWRAPI(FlushScreenTextures) (void);
-EXPORT void HWRAPI(StartScreenWipe) (void);
-EXPORT void HWRAPI(EndScreenWipe) (void);
-EXPORT void HWRAPI(DoScreenWipe) (void);
-EXPORT void HWRAPI(DrawIntermissionBG) (void);
-EXPORT void HWRAPI(MakeScreenTexture) (void);
-EXPORT void HWRAPI(MakeScreenFinalTexture) (void);
-EXPORT void HWRAPI(DrawScreenFinalTexture) (int width, int height);
-// ==========================================================================
-//                                      HWR DRIVER OBJECT, FOR CLIENT PROGRAM
-// ==========================================================================
-
-#if !defined (_CREATE_DLL_)
-
-struct hwdriver_s
-{
-	Init                pfnInit;
-	SetPalette          pfnSetPalette;
-	FinishUpdate        pfnFinishUpdate;
-	Draw2DLine          pfnDraw2DLine;
-	DrawPolygon         pfnDrawPolygon;
-	RenderSkyDome       pfnRenderSkyDome;
-	SetBlend            pfnSetBlend;
-	ClearBuffer         pfnClearBuffer;
-	SetTexture          pfnSetTexture;
-	ReadRect            pfnReadRect;
-	GClipRect           pfnGClipRect;
-	ClearMipMapCache    pfnClearMipMapCache;
-	SetSpecialState     pfnSetSpecialState;//Hurdler: added for backward compatibility
-	DrawModel           pfnDrawModel;
-	CreateModelVBOs     pfnCreateModelVBOs;
-	SetTransform        pfnSetTransform;
-	GetTextureUsed      pfnGetTextureUsed;
-	GetRenderVersion    pfnGetRenderVersion;
-#ifdef _WINDOWS
-	GetModeList         pfnGetModeList;
-#endif
-#ifndef HAVE_SDL
-	Shutdown            pfnShutdown;
-#endif
-	PostImgRedraw       pfnPostImgRedraw;
-	FlushScreenTextures pfnFlushScreenTextures;
-	StartScreenWipe     pfnStartScreenWipe;
-	EndScreenWipe       pfnEndScreenWipe;
-	DoScreenWipe        pfnDoScreenWipe;
-	DrawIntermissionBG  pfnDrawIntermissionBG;
-	MakeScreenTexture   pfnMakeScreenTexture;
-	MakeScreenFinalTexture  pfnMakeScreenFinalTexture;
-	DrawScreenFinalTexture  pfnDrawScreenFinalTexture;
-};
-
-extern struct hwdriver_s hwdriver;
-
-//Hurdler: 16/10/99: added for OpenGL gamma correction
-//extern RGBA_t  gamma_correction;
-
-#define HWD hwdriver
-
-#endif //not defined _CREATE_DLL_
+void HWD_PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2]);
+void HWD_FlushScreenTextures(void);
+void HWD_StartScreenWipe(void);
+void HWD_EndScreenWipe(void);
+void HWD_DoScreenWipe(void);
+void HWD_DrawIntermissionBG(void);
+void HWD_MakeScreenTexture(void);
+void HWD_MakeScreenFinalTexture(void);
+void HWD_DrawScreenFinalTexture(int width, int height);
 
 #endif //__HWR_DRV_H__
 

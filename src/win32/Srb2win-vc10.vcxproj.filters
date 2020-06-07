@@ -69,9 +69,6 @@
     <ClCompile Include="win_dbg.c">
       <Filter>Win32app</Filter>
     </ClCompile>
-    <ClCompile Include="win_dll.c">
-      <Filter>Win32app</Filter>
-    </ClCompile>
     <ClCompile Include="win_main.c">
       <Filter>Win32app</Filter>
     </ClCompile>
@@ -109,9 +106,6 @@
       <Filter>Hw_Hardware</Filter>
     </ClCompile>
     <ClCompile Include="..\hardware\hw_trick.c">
-      <Filter>Hw_Hardware</Filter>
-    </ClCompile>
-    <ClCompile Include="..\hardware\hw3sound.c">
       <Filter>Hw_Hardware</Filter>
     </ClCompile>
     <ClCompile Include="..\blua\lapi.c">
@@ -501,9 +495,6 @@
     <ClInclude Include="win_dbg.h">
       <Filter>Win32app</Filter>
     </ClInclude>
-    <ClInclude Include="win_dll.h">
-      <Filter>Win32app</Filter>
-    </ClInclude>
     <ClInclude Include="win_main.h">
       <Filter>Win32app</Filter>
     </ClInclude>
@@ -544,15 +535,6 @@
       <Filter>Hw_Hardware</Filter>
     </ClInclude>
     <ClInclude Include="..\hardware\hw_model.h">
-      <Filter>Hw_Hardware</Filter>
-    </ClInclude>
-    <ClInclude Include="..\hardware\hw3dsdrv.h">
-      <Filter>Hw_Hardware</Filter>
-    </ClInclude>
-    <ClInclude Include="..\hardware\hw3sound.h">
-      <Filter>Hw_Hardware</Filter>
-    </ClInclude>
-    <ClInclude Include="..\hardware\hws_data.h">
       <Filter>Hw_Hardware</Filter>
     </ClInclude>
     <ClInclude Include="..\hardware\u_list.h">

@@ -26,10 +26,6 @@
 #include "z_zone.h"
 #include "lua_hook.h"
 
-#ifdef HW3SOUND
-#include "hardware/hw3sound.h"
-#endif
-
 boolean LUA_CallAction(const char *action, mobj_t *actor);
 
 player_t *stplyr;
@@ -8852,19 +8848,19 @@ void A_Dye(mobj_t *actor)
 		return;
 	if (color >= MAXTRANSLATIONS)
 		return;
-	
+
 	if (!color)
 		target->colorized = false;
 	else
 		target->colorized = true;
-		
+
 	// What if it's a player?
 	if (target->player)
 	{
 		target->player->powers[pw_dye] = color;
 		return;
 	}
-	
+
 	target->color = color;
 }
 

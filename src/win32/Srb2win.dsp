@@ -165,14 +165,6 @@ SOURCE=.\win_dbg.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\win_dll.c
-# End Source File
-# Begin Source File
-
-SOURCE=.\win_dll.h
-# End Source File
-# Begin Source File
-
 SOURCE=.\win_main.c
 # End Source File
 # Begin Source File
@@ -495,18 +487,6 @@ SOURCE=..\y_inter.h
 # PROP Default_Filter ""
 # Begin Source File
 
-SOURCE=..\hardware\hw3dsdrv.h
-# End Source File
-# Begin Source File
-
-SOURCE=..\hardware\hw3sound.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\hardware\hw3sound.h
-# End Source File
-# Begin Source File
-
 SOURCE=..\hardware\hw_bsp.c
 # End Source File
 # Begin Source File
@@ -571,8 +551,6 @@ SOURCE=..\hardware\hw_trick.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\hardware\hws_data.h
-# End Source File
 # End Group
 # Begin Group "I_Interface"
 

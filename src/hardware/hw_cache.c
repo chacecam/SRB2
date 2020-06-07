@@ -812,7 +812,7 @@ void HWR_FreeMipmapCache(void)
 	INT32 i;
 
 	// free references to the textures
-	HWD.pfnClearMipMapCache();
+	HWD_ClearMipMapCache();
 
 	// free all hardware-converted graphics cached in the heap
 	// our gool is only the textures since user of the texture is the texture cache
@@ -872,7 +872,7 @@ void HWR_LoadTextures(size_t pnumtextures)
 
 void HWR_SetPalette(RGBA_t *palette)
 {
-	HWD.pfnSetPalette(palette);
+	HWD_SetPalette(palette);
 
 	// hardware driver will flush there own cache if cache is non paletized
 	// now flush data texture cache so 32 bit texture are recomputed
@@ -903,7 +903,7 @@ GLTexture_t *HWR_GetTexture(INT32 tex)
 		HWR_GenerateTexture(tex, grtex);
 
 	// Tell the hardware driver to bind the current texture to the flat's mipmap
-	HWD.pfnSetTexture(&grtex->mipmap);
+	HWD_SetTexture(&grtex->mipmap);
 
 	// The system-memory data can be purged now.
 	Z_ChangeTag(grtex->mipmap.grInfo.data, PU_HWRCACHE_UNLOCKED);
@@ -992,7 +992,7 @@ void HWR_LiterallyGetFlat(lumpnum_t flatlumpnum)
 	if (!grmip->downloaded && !grmip->grInfo.data)
 		HWR_CacheFlat(grmip, flatlumpnum);
 
-	HWD.pfnSetTexture(grmip);
+	HWD_SetTexture(grmip);
 
 	// The system-memory data can be purged now.
 	Z_ChangeTag(grmip->grInfo.data, PU_HWRCACHE_UNLOCKED);
@@ -1027,13 +1027,13 @@ void HWR_GetLevelFlat(levelflat_t *levelflat)
 			HWR_CacheTextureAsFlat(&grtex->mipmap, texturenum);
 
 		// Tell the hardware driver to bind the current texture to the flat's mipmap
-		HWD.pfnSetTexture(&grtex->mipmap);
+		HWD_SetTexture(&grtex->mipmap);
 
 		// The system-memory data can be purged now.
 		Z_ChangeTag(grtex->mipmap.grInfo.data, PU_HWRCACHE_UNLOCKED);
 	}
 	else // set no texture
-		HWD.pfnSetTexture(NULL);
+		HWD_SetTexture(NULL);
 }
 
 //
@@ -1058,7 +1058,7 @@ static void HWR_LoadMappedPatch(GLMipmap_t *grmip, GLPatch_t *gpatch)
 			Z_Free(lumppatch);
 	}
 
-	HWD.pfnSetTexture(grmip);
+	HWD_SetTexture(grmip);
 
 	// The system-memory data can be purged now.
 	Z_ChangeTag(grmip->grInfo.data, PU_HWRCACHE_UNLOCKED);
@@ -1090,7 +1090,7 @@ void HWR_GetPatch(GLPatch_t *gpatch)
 			Z_Free(lumppatch);
 	}
 
-	HWD.pfnSetTexture(gpatch->mipmap);
+	HWD_SetTexture(gpatch->mipmap);
 
 	// The system-memory patch data can be purged now.
 	Z_ChangeTag(gpatch->mipmap->grInfo.data, PU_HWRCACHE_UNLOCKED);
@@ -1292,7 +1292,7 @@ GLPatch_t *HWR_GetPic(lumpnum_t lumpnum)
 		grpatch->max_s = (float)newwidth  / (float)blockwidth;
 		grpatch->max_t = (float)newheight / (float)blockheight;
 	}
-	HWD.pfnSetTexture(grpatch->mipmap);
+	HWD_SetTexture(grpatch->mipmap);
 	//CONS_Debug(DBG_RENDER, "picloaded at %x as texture %d\n",grpatch->mipmap.grInfo.data, grpatch->mipmap.downloaded);
 
 	return grpatch;
@@ -1415,7 +1415,7 @@ void HWR_GetFadeMask(lumpnum_t fademasklumpnum)
 	if (!grmip->downloaded && !grmip->grInfo.data)
 		HWR_CacheFadeMask(grmip, fademasklumpnum);
 
-	HWD.pfnSetTexture(grmip);
+	HWD_SetTexture(grmip);
 
 	// The system-memory data can be purged now.
 	Z_ChangeTag(grmip->grInfo.data, PU_HWRCACHE_UNLOCKED);

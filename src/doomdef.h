@@ -29,10 +29,6 @@
 // Use Mixer interface?
 #ifdef HAVE_MIXER
     #define SOUND SOUND_MIXER
-    #define NOHS // No HW3SOUND
-    #ifdef HW3SOUND
-    #undef HW3SOUND
-    #endif
 #endif
 
 // Use generic SDL interface.
@@ -45,10 +41,6 @@
 // Use FMOD?
 #ifdef HAVE_FMOD
     #define SOUND SOUND_FMOD
-    #define NOHS // No HW3SOUND
-    #ifdef HW3SOUND
-    #undef HW3SOUND
-    #endif
 #else
     // No more interfaces. :(
     #define SOUND SOUND_DUMMY
@@ -59,10 +51,6 @@
 
 #ifdef _WINDOWS
 #define NONET
-// judgecutor: 3D sound support
-#if !defined(HW3SOUND) && !defined (NOHS)
-#define HW3SOUND
-#endif
 #endif
 
 #ifdef _WIN32

@@ -47,15 +47,6 @@
 #include "../hardware/r_opengl/r_opengl.h"
 #endif
 
-#ifdef HW3SOUND
-#include "../hardware/hw3dsdrv.h"
-#endif
-
-#define GETFUNC(func) \
-	else if (0 == strcmp(#func, funcName)) \
-		funcPointer = &func \
-//
-//
 /**	\brief	The *hwSym function
 
 	Stupid function to return function addresses
@@ -65,66 +56,21 @@
 
 	\return	void
 */
-//
+
 void *hwSym(const char *funcName,void *handle)
 {
 	void *funcPointer = NULL;
-	if (0 == strcmp("SetPalette", funcName))
-                funcPointer = &OglSdlSetPalette;
-	GETFUNC(Init);
-	GETFUNC(Draw2DLine);
-	GETFUNC(DrawPolygon);
-	GETFUNC(RenderSkyDome);
-	GETFUNC(SetBlend);
-	GETFUNC(ClearBuffer);
-	GETFUNC(SetTexture);
-	GETFUNC(ReadRect);
-	GETFUNC(GClipRect);
-	GETFUNC(ClearMipMapCache);
-	GETFUNC(SetSpecialState);
-	GETFUNC(GetTextureUsed);
-	GETFUNC(DrawModel);
-	GETFUNC(CreateModelVBOs);
-	GETFUNC(SetTransform);
-	GETFUNC(GetRenderVersion);
-	GETFUNC(PostImgRedraw);
-	GETFUNC(FlushScreenTextures);
-	GETFUNC(StartScreenWipe);
-	GETFUNC(EndScreenWipe);
-	GETFUNC(DoScreenWipe);
-	GETFUNC(DrawIntermissionBG);
-	GETFUNC(MakeScreenTexture);
-	GETFUNC(MakeScreenFinalTexture);
-	GETFUNC(DrawScreenFinalTexture);
-#ifdef STATIC3DS
-	GETFUNC(Startup);
-	GETFUNC(AddSfx);
-	GETFUNC(AddSource);
-	GETFUNC(StartSource);
-	GETFUNC(StopSource);
-	GETFUNC(GetHW3DSVersion);
-	GETFUNC(BeginFrameUpdate);
-	GETFUNC(EndFrameUpdate);
-	GETFUNC(IsPlaying);
-	GETFUNC(UpdateListener);
-	GETFUNC(UpdateSourceParms);
-	GETFUNC(SetGlobalSfxVolume);
-	GETFUNC(SetCone);
-	GETFUNC(Update3DSource);
-	GETFUNC(ReloadSource);
-	GETFUNC(KillSource);
-	GETFUNC(Shutdown);
-	GETFUNC(GetHW3DSTitle);
-#endif
+
 #ifdef NOLOADSO
-	else
-		funcPointer = handle;
+	funcPointer = handle;
 #else
-	else if (handle)
+	if (handle)
 		funcPointer = SDL_LoadFunction(handle,funcName);
 #endif
+
 	if (!funcPointer)
 		I_OutputMsg("hwSym for %s: %s\n", funcName, SDL_GetError());
+
 	return funcPointer;
 }
 

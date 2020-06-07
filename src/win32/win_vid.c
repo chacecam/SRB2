@@ -36,11 +36,8 @@
 #include "../command.h"
 #include "../screen.h"
 
-#ifdef HWRENDER
-#include "win_dll.h" // loading the render DLL
 #include "../hardware/hw_drv.h" // calling driver init & shutdown
 #include "../hardware/hw_main.h" // calling HWR module init & shutdown
-#endif
 
 // -------
 // Globals
@@ -223,12 +220,9 @@ void I_StartupGraphics(void)
 {
 	if (graphics_started)
 		return;
-
-#ifdef HWRENDER
 	else if (M_CheckParm("-opengl"))
 		rendermode = render_opengl;
 	else
-#endif
 		rendermode = render_soft;
 
 	if (dedicated)
@@ -249,9 +243,7 @@ void I_StartupOpenGL(void){}
 // ------------------
 void I_ShutdownGraphics(void)
 {
-#ifdef HWRENDER
-	const rendermode_t oldrendermode = rendermode;
-#endif
+	boolean washwrendering = I_HardwareRendering();
 
 // This is BAD because it makes the I_Error box screw up!
 //	rendermode = render_none;
@@ -277,14 +269,11 @@ void I_ShutdownGraphics(void)
 		bmiMain = NULL;
 	}
 
-#ifdef HWRENDER
-	if (oldrendermode != render_soft)
+	if (washwrendering)
 	{
 		HWR_Shutdown(); // free stuff from the hardware renderer
-		HWD.pfnShutdown(); // close 3d card display
-		Shutdown3DDriver(); // free the driver DLL
+		HWD_Shutdown(); // close 3d card display
 	}
-#endif
 
 	// free the last video mode screen buffers
 	if (vid.buffer)
@@ -293,9 +282,7 @@ void I_ShutdownGraphics(void)
 		vid.buffer = NULL;
 	}
 
-#ifdef HWRENDER
 	if (I_SoftwareRendering())
-#endif
 		CloseDirectDraw();
 
 	graphics_started = false;
@@ -388,12 +375,9 @@ void I_FinishUpdate(void)
 		SetDIBitsToDevice(hDCMain, 0, 0, vid.width, vid.height, 0, 0, 0, vid.height, vid.buffer, bmiMain,
 			DIB_RGB_COLORS);
 	}
+	else if (I_HardwareRendering())
+		HWD_FinishUpdate(cv_vidwait.value);
 	else
-#ifdef HWRENDER
-	if (rendermode != render_soft)
-		HWD.pfnFinishUpdate(cv_vidwait.value);
-	else
-#endif
 	{
 		// DIRECT DRAW
 		// copy virtual screen to real screen
@@ -494,10 +478,7 @@ void I_SetPalette(RGBA_t *palette)
 			pColors->rgbBlue = palette->s.blue;
 		}
 	}
-	else
-#ifdef HWRENDER
-	if (I_SoftwareRendering())
-#endif
+	else if (I_SoftwareRendering())
 	{
 		PALETTEENTRY mainpal[256];
 
@@ -689,7 +670,6 @@ static VOID VID_Init(VOID)
 	bDIBMode = TRUE;
 	bAppFullScreen = FALSE;
 
-#ifdef HWRENDER
 	// initialize the appropriate display device
 	if (I_HardwareRendering())
 	{
@@ -699,7 +679,6 @@ static VOID VID_Init(VOID)
 		HWD_GetModeList(&pvidmodes, &numvidmodes);
 	}
 	else if (I_SoftwareRendering())
-#endif
 		if (!bWinParm)
 		{
 			if (!CreateDirectDrawInstance())
@@ -905,14 +884,12 @@ INT32 I_SetVideoMode(INT32 modenum)
 		// we switch to fullscreen
 		bAppFullScreen = TRUE;
 		bDIBMode = FALSE;
-#ifdef HWRENDER
 		if (rendermode != render_soft)
 		{
 			// purge all patch graphics stored in software format
 			//Z_FreeTags (PU_PURGELEVEL, PU_PURGELEVEL+100);
 			HWR_Startup();
 		}
-#endif
 	}
 
 	I_RestartSysMouse();

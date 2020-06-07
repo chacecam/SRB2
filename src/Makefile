@@ -44,7 +44,6 @@
 #     Compile a debug version, add 'DEBUGMODE=1'
 #     Compile with extra warnings, add 'WARNINGMODE=1'
 #     Compile without NASM's tmap.nas, add 'NOASM=1'
-#     Compile without 3D sound support, add 'NOHS=1'
 #     Compile with GDBstubs, add 'RDB=1'
 #     Compile without PNG, add 'NOPNG=1'
 #     Compile without zlib, add 'NOZLIB=1'
@@ -103,7 +102,6 @@ ifdef DUMMY
 NOPNG=1
 NOZLIB=1
 NONET=1
-NOHS=1
 NOASM=1
 NOIPX=1
 EXENAME?=srb2dummy
@@ -124,7 +122,6 @@ endif
 
 ifdef PANDORA
 NONX86=1
-NOHS=1
 endif
 
 ifdef DJGPPDOS
@@ -198,14 +195,6 @@ else
 ifdef NO_IPV6
 	OPTS+=-DNO_IPV6
 endif
-endif
-
-# Lactozilla: HW render files added by hardware/Makefile.cfg
-ifdef NOHS
-	OPTS+=-DNOHS
-else
-	OPTS+=-DHW3SOUND
-	OBJS+=$(OBJDIR)/hw3sound.o
 endif
 
 OPTS += -DCOMPVERSION
@@ -580,12 +569,8 @@ $(OBJDIR)/depend.dep:
 	$(CC) $(CFLAGS) -MM *.c > $(OBJDIR)/depend.ped
 	$(CC) $(CFLAGS) -MM $(INTERFACE)/*.c >> $(OBJDIR)/depend.ped
 	$(CC) $(CFLAGS) -MM hardware/*.c >> $(OBJDIR)/depend.ped
-endif
 ifdef HWRBACKEND
 	$(CC) $(CFLAGS) -MM hardware/r_$(HWRBACKEND)/*.c >> $(OBJDIR)/depend.ped
-endif
-ifdef HWSBACKEND
-	$(CC) $(CFLAGS) -MM hardware/s_$(HWSBACKEND)/*.c >> $(OBJDIR)/depend.ped
 endif
 	$(CC) $(CFLAGS) -MM blua/*.c >> $(OBJDIR)/depend.ped
 	@sed -e 's,\(.*\)\.o: ,$(subst /,\/,$(OBJDIR))\/&,g' < $(OBJDIR)/depend.ped > $(OBJDIR)/depend.dep
@@ -617,14 +602,9 @@ endif
 
 $(OBJDIR)/%.o: hardware/%.c
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
-endif
 
 ifdef HWRBACKEND
 $(OBJDIR)/%.o: hardware/r_$(HWRBACKEND)/%.c
-	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
-
-ifdef HWSBACKEND
-$(OBJDIR)/%.o: hardware/s_$(HWSBACKEND)/%.c
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 endif
 
@@ -648,10 +628,6 @@ ifdef MINGW
 $(OBJDIR)/win_dbg.o: win32/win_dbg.c
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 endif
-endif
-
-ifndef NOHS
-	include hardware/Makefile.hw3sound.cfg
 endif
 
 #############################################################

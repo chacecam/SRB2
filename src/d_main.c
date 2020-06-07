@@ -85,10 +85,6 @@ int	snprintf(char *str, size_t n, const char *fmt, ...);
 #include "win32/win_main.h" // I_DoStartupMouse
 #endif
 
-#ifdef HW3SOUND
-#include "hardware/hw3sound.h"
-#endif
-
 #include "lua_script.h"
 
 // platform independant focus loss
@@ -632,10 +628,6 @@ void D_SRB2Loop(void)
 			continue;
 		}
 
-#ifdef HW3SOUND
-		HW3S_BeginFrameUpdate();
-#endif
-
 		// don't skip more than 10 frames at a time
 		// (fadein / fadeout cause massive frame skip!)
 		if (realtics > 8)
@@ -681,10 +673,6 @@ void D_SRB2Loop(void)
 
 		// check for media change, loop music..
 		I_UpdateCD();
-
-#ifdef HW3SOUND
-		HW3S_EndFrameUpdate();
-#endif
 
 		LUA_Step();
 	}
