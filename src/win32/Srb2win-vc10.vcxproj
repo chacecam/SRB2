@@ -301,6 +301,7 @@
     <ClCompile Include="..\r_main.c" />
     <ClCompile Include="..\r_plane.c" />
     <ClCompile Include="..\r_patch.c" />
+    <ClCompile Include="..\r_rotsprite.c" />
     <ClCompile Include="..\r_portal.c" />
     <ClCompile Include="..\r_segs.c" />
     <ClCompile Include="..\r_sky.c" />
@@ -325,6 +326,7 @@
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\v_video.c" />
+	<ClCompile Include="..\v_draw.c" />
     <ClCompile Include="..\w_wad.c" />
     <ClCompile Include="..\y_inter.c" />
     <ClCompile Include="..\z_zone.c" />
@@ -457,6 +459,7 @@
     <ClInclude Include="..\r_main.h" />
     <ClInclude Include="..\r_plane.h" />
 	<ClInclude Include="..\r_patch.h" />
+	<ClInclude Include="..\r_rotsprite.h" />
     <ClInclude Include="..\r_portal.h" />
     <ClInclude Include="..\r_segs.h" />
     <ClInclude Include="..\r_sky.h" />

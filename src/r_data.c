@@ -432,7 +432,7 @@ static inline void R_DrawBlendFlippedColumnInCache(column_t *patch, UINT8 *cache
 // Allocate space for full size texture, either single patch or 'composite'
 // Build the full textures from patches.
 // The texture caching system is a little more hungry of memory, but has
-// been simplified for the sake of highcolor (lol), dynamic ligthing, & speed.
+// been simplified for the sake of highcolor, dynamic ligthing, & speed.
 //
 // This is not optimised, but it's supposed to be executed only once
 // per level, when enough memory is available.
@@ -799,8 +799,6 @@ Rloadflats (INT32 i, INT32 w)
 			patch->lump = texstart + j;
 			patch->flip = 0;
 
-			Z_Unlock(flatlump);
-
 			texturewidth[i] = texture->width;
 			textureheight[i] = texture->height << FRACBITS;
 			i++;
@@ -899,8 +897,6 @@ Rloadtextures (INT32 i, INT32 w)
 			patch->wad = (UINT16)w;
 			patch->lump = texstart + j;
 			patch->flip = 0;
-
-			Z_Unlock(patchlump);
 
 			texturewidth[i] = texture->width;
 			textureheight[i] = texture->height << FRACBITS;

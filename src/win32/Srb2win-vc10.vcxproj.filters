@@ -444,6 +444,9 @@
     <ClCompile Include="..\v_video.c">
       <Filter>R_Rend</Filter>
     </ClCompile>
+    <ClCompile Include="..\v_draw.c">
+      <Filter>R_Rend</Filter>
+    </ClCompile>
     <ClCompile Include="..\screen.c">
       <Filter>R_Rend</Filter>
     </ClCompile>
@@ -473,6 +476,9 @@
     </ClCompile>
     <ClCompile Include="..\apng.c" />
     <ClCompile Include="..\r_patch.c">
+      <Filter>R_Rend</Filter>
+    </ClCompile>
+    <ClCompile Include="..\r_rotsprite.c">
       <Filter>R_Rend</Filter>
     </ClCompile>
     <ClCompile Include="..\r_portal.c">
@@ -893,6 +899,9 @@
     </ClInclude>
     <ClInclude Include="..\apng.h" />
     <ClInclude Include="..\r_patch.h">
+      <Filter>R_Rend</Filter>
+    </ClInclude>
+    <ClInclude Include="..\r_rotsprite.h">
       <Filter>R_Rend</Filter>
     </ClInclude>
     <ClInclude Include="..\r_portal.h">

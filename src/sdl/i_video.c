@@ -73,6 +73,7 @@
 #include "../console.h"
 #include "../command.h"
 #include "../r_main.h"
+#include "../r_patch.h" // Patch_UpdateReferences
 #include "sdlmain.h"
 #include "../hardware/hw_main.h"
 #include "../hardware/hw_drv.h"
@@ -92,7 +93,7 @@ static INT32 numVidModes = -1;
 static char vidModeName[33][32]; // allow 33 different modes
 
 rendermode_t rendermode = render_soft;
-static rendermode_t chosenrendermode = render_soft; // set by command line arguments
+rendermode_t chosenrendermode = render_none; // set by command line arguments
 
 boolean highcolor = false;
 
@@ -102,9 +103,8 @@ static consvar_t cv_stretch = {"stretch", "Off", CV_SAVE|CV_NOSHOWHELP, CV_OnOff
 static consvar_t cv_alwaysgrabmouse = {"alwaysgrabmouse", "Off", CV_SAVE, CV_OnOff, NULL, 0, NULL, NULL, 0, 0, NULL};
 
 UINT8 graphics_started = 0; // Is used in console.c and screen.c
-INT32 vid_opengl_state = 0;
 
-// To disable fullscreen at startup; is set in VID_PrepareModeList
+// To disable fullscreen at startup; is set in I_PrepareVideoModeList
 boolean allow_fullscreen = false;
 static SDL_bool disable_fullscreen = SDL_FALSE;
 #define USE_FULLSCREEN (disable_fullscreen||!allow_fullscreen)?0:cv_fullscreen.value
@@ -406,7 +406,7 @@ void I_UpdateMouseGrab(void)
 
 static void VID_Command_NumModes_f (void)
 {
-	CONS_Printf(M_GetText("%d video mode(s) available(s)\n"), VID_NumModes());
+	CONS_Printf(M_GetText("%d video mode(s) available(s)\n"), I_NumVideoModes());
 }
 
 // SDL2 doesn't have SDL_GetVideoSurface or a lot of the SDL_Surface flags that SDL 1.2 had
@@ -508,7 +508,7 @@ static void VID_Command_Mode_f (void)
 
 	modenum = atoi(COM_Argv(1));
 
-	if (modenum >= VID_NumModes())
+	if (modenum >= I_NumVideoModes())
 		CONS_Printf(M_GetText("Video mode not present\n"));
 	else
 		setmodeneeded = modenum+1; // request vid mode change
@@ -1280,7 +1280,7 @@ void I_SetPalette(RGBA_t *palette)
 }
 
 // return number of fullscreen + X11 modes
-INT32 VID_NumModes(void)
+INT32 I_NumVideoModes(void)
 {
 	if (USE_FULLSCREEN && numVidModes != -1)
 		return numVidModes - firstEntry;
@@ -1288,7 +1288,7 @@ INT32 VID_NumModes(void)
 		return MAXWINMODES;
 }
 
-const char *VID_GetModeName(INT32 modeNum)
+const char *I_GetVideoModeName(INT32 modeNum)
 {
 #if 0
 	if (USE_FULLSCREEN && numVidModes != -1) // fullscreen modes
@@ -1318,7 +1318,7 @@ const char *VID_GetModeName(INT32 modeNum)
 	return &vidModeName[modeNum][0];
 }
 
-INT32 VID_GetModeForSize(INT32 w, INT32 h)
+INT32 I_GetVideoModeForSize(INT32 w, INT32 h)
 {
 	int i;
 	for (i = 0; i < MAXWINMODES; i++)
@@ -1329,107 +1329,12 @@ INT32 VID_GetModeForSize(INT32 w, INT32 h)
 		}
 	}
 	return -1;
-#if 0
-	INT32 matchMode = -1, i;
-	VID_PrepareModeList();
-	if (USE_FULLSCREEN && numVidModes != -1)
-	{
-		for (i=firstEntry; i<numVidModes; i++)
-		{
-			if (modeList[i]->w == w &&
-			    modeList[i]->h == h)
-			{
-				matchMode = i;
-				break;
-			}
-		}
-		if (-1 == matchMode) // use smaller mode
-		{
-			w -= w%BASEVIDWIDTH;
-			h -= h%BASEVIDHEIGHT;
-			for (i=firstEntry; i<numVidModes; i++)
-			{
-				if (modeList[i]->w == w &&
-				    modeList[i]->h == h)
-				{
-					matchMode = i;
-					break;
-				}
-			}
-			if (-1 == matchMode) // use smallest mode
-				matchMode = numVidModes-1;
-		}
-		matchMode -= firstEntry;
-	}
-	else
-	{
-		for (i=0; i<MAXWINMODES; i++)
-		{
-			if (windowedModes[i][0] == w &&
-			    windowedModes[i][1] == h)
-			{
-				matchMode = i;
-				break;
-			}
-		}
-		if (-1 == matchMode) // use smaller mode
-		{
-			w -= w%BASEVIDWIDTH;
-			h -= h%BASEVIDHEIGHT;
-			for (i=0; i<MAXWINMODES; i++)
-			{
-				if (windowedModes[i][0] == w &&
-				    windowedModes[i][1] == h)
-				{
-					matchMode = i;
-					break;
-				}
-			}
-			if (-1 == matchMode) // use smallest mode
-				matchMode = MAXWINMODES-1;
-		}
-	}
-	return matchMode;
-#endif
-}
-
-void VID_PrepareModeList(void)
-{
-	// Under SDL2, we just use the windowed modes list, and scale in windowed fullscreen.
-	allow_fullscreen = true;
-#if 0
-	INT32 i;
-
-	firstEntry = 0;
-
-	if (rendermode == render_opengl)
-		modeList = SDL_ListModes(NULL, SDL_OPENGL|SDL_FULLSCREEN);
-	else
-		modeList = SDL_ListModes(NULL, surfaceFlagsF|SDL_HWSURFACE); //Alam: At least hardware surface
-
-	if (disable_fullscreen?0:cv_fullscreen.value) // only fullscreen needs preparation
-	{
-		if (-1 != numVidModes)
-		{
-			for (i=0; i<numVidModes; i++)
-			{
-				if (modeList[i]->w <= MAXVIDWIDTH &&
-					modeList[i]->h <= MAXVIDHEIGHT)
-				{
-					firstEntry = i;
-					break;
-				}
-			}
-		}
-	}
-	allow_fullscreen = true;
-#endif
 }
 
 static SDL_bool Impl_CreateContext(void)
 {
 	// Renderer-specific stuff
-	if ((rendermode == render_opengl) && (vid_opengl_state != -1))
+	if ((rendermode == render_opengl) && (vid.glstate != VID_GL_LIBRARY_ERROR))
 	{
 		if (!sdlglcontext)
 			sdlglcontext = SDL_GL_CreateContext(window);
@@ -1460,30 +1365,27 @@ static SDL_bool Impl_CreateContext(void)
 	return SDL_TRUE;
 }
 
-void VID_CheckGLLoaded(rendermode_t oldrender)
+void I_CheckGLLoaded(rendermode_t oldrender)
 {
-	if (vid_opengl_state == -1) // Well, it didn't work the first time anyway.
+	if (vid.glstate == VID_GL_LIBRARY_ERROR) // Well, it didn't work the first time anyway.
 	{
 		rendermode = oldrender;
 		if (chosenrendermode == render_opengl) // fallback to software
 			rendermode = render_soft;
-		if (setrenderneeded)
-		{
-			CV_StealthSetValue(&cv_renderer, oldrender);
-			CV_StealthSetValue(&cv_newrenderer, oldrender);
-			setrenderneeded = 0;
-		}
+
+		CV_StealthSetValue(&cv_renderer, oldrender);
+		CV_StealthSetValue(&cv_newrenderer, oldrender);
 	}
 }
 
-void VID_CheckRenderer(void)
+boolean I_CheckRenderer(void)
 {
 	boolean rendererchanged = false;
 	boolean contextcreated = false;
 	rendermode_t oldrenderer = rendermode;
 
 	if (dedicated)
-		return;
+		return false;
 
 	if (setrenderneeded)
 	{
@@ -1492,15 +1394,16 @@ void VID_CheckRenderer(void)
 
 		if (rendermode == render_opengl)
 		{
-			VID_CheckGLLoaded(oldrenderer);
+			I_CheckGLLoaded(oldrenderer);
 
 			// Initialise OpenGL before calling SDLSetMode!!!
 			// This is because SDLSetMode calls OglSdlSurface.
-			if (vid_opengl_state == 0)
+			if (vid.glstate == VID_GL_LIBRARY_NOTLOADED)
 			{
-				VID_StartupOpenGL();
+				I_StartupOpenGL();
+
 				// Loaded successfully!
-				if (vid_opengl_state == 1)
+				if (vid.glstate == VID_GL_LIBRARY_LOADED)
 				{
 					// Destroy the current window, if it exists.
 					if (window)
@@ -1523,8 +1426,14 @@ void VID_CheckRenderer(void)
 					contextcreated = true;
 				}
 			}
-			else if (vid_opengl_state == -1)
+			else if (vid.glstate == VID_GL_LIBRARY_ERROR)
 				rendererchanged = false;
+		}
+
+		if (rendererchanged)
+		{
+			Patch_UpdateReferences();
+			V_ReloadHUDGraphics();
 		}
 
 		if (!contextcreated)
@@ -1544,24 +1453,21 @@ void VID_CheckRenderer(void)
 			bufSurface = NULL;
 		}
 
-		if (rendererchanged)
-		{
-			if (vid_opengl_state == 1) // Only if OpenGL ever loaded!
-				HWR_FreeTextureCache();
-			SCR_SetDrawFuncs();
-		}
+		if (rendererchanged && vid.glstate == VID_GL_LIBRARY_LOADED) // Only if OpenGL ever loaded!
+			HWR_FreeTextureCache();
+
+		SCR_SetDrawFuncs();
 	}
-	else if (rendermode == render_opengl)
+	else if (rendermode == render_opengl && rendererchanged)
 	{
-		if (rendererchanged)
-		{
-			R_InitHardwareMode();
-			V_SetPalette(0);
-		}
+		HWR_Switch();
+		V_SetPalette(0);
 	}
+
+	return rendererchanged;
 }
 
-INT32 VID_SetMode(INT32 modeNum)
+INT32 I_SetVideoMode(INT32 modeNum)
 {
 	SDLdoUngrabMouse();
 
@@ -1578,7 +1484,7 @@ INT32 VID_SetMode(INT32 modeNum)
 	vid.modenum = modeNum;
 
 	//Impl_SetWindowName("SRB2 "VERSIONSTRING);
-	VID_CheckRenderer();
+	I_CheckRenderer();
 	return SDL_TRUE;
 }
 
@@ -1598,7 +1504,7 @@ static SDL_bool Impl_CreateWindow(SDL_bool fullscreen)
 	if (borderlesswindow)
 		flags |= SDL_WINDOW_BORDERLESS;
 
-	if (vid_opengl_state == 1)
+	if (vid.glstate == VID_GL_LIBRARY_LOADED)
 		flags |= SDL_WINDOW_OPENGL;
 
 	// Create a window
@@ -1718,10 +1624,42 @@ void I_StartupGraphics(void)
 			framebuffer = SDL_TRUE;
 	}
 
-	if (M_CheckParm("-opengl"))
-		chosenrendermode = rendermode = render_opengl;
+	// Renderer choices
+	// Takes priority over the config.
+	if (M_CheckParm("-renderer"))
+	{
+		INT32 i = 0;
+		CV_PossibleValue_t *renderer_list = cv_renderer_t;
+		const char *modeparm = M_GetNextParm();
+		while (renderer_list[i].strvalue)
+		{
+			if (!stricmp(modeparm, renderer_list[i].strvalue))
+			{
+				chosenrendermode = renderer_list[i].value;
+				break;
+			}
+			i++;
+		}
+	}
+
+	// Choose Software renderer
 	else if (M_CheckParm("-software"))
-		chosenrendermode = rendermode = render_soft;
+		chosenrendermode = render_soft;
+
+	// Choose OpenGL renderer
+	else if (M_CheckParm("-opengl"))
+		chosenrendermode = render_opengl;
+
+	// Don't startup OpenGL
+	if (M_CheckParm("-nogl"))
+	{
+		vid.glstate = VID_GL_LIBRARY_ERROR;
+		if (chosenrendermode == render_opengl)
+			chosenrendermode = render_none;
+	}
+
+	if (chosenrendermode != render_none)
+		rendermode = chosenrendermode;
 
 	usesdl2soft = M_CheckParm("-softblit");
 	borderlesswindow = M_CheckParm("-borderless");
@@ -1729,15 +1667,8 @@ void I_StartupGraphics(void)
 	//SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY>>1,SDL_DEFAULT_REPEAT_INTERVAL<<2);
 	VID_Command_ModeList_f();
 
-	if (M_CheckParm("-nogl"))
-		vid_opengl_state = -1; // Don't startup OpenGL
-	else if (chosenrendermode == render_opengl)
-		VID_StartupOpenGL();
-
-	// Window icon
-#ifdef HAVE_IMAGE
-	icoSurface = IMG_ReadXPMFromArray(SDL_icon_xpm);
-#endif
+	 if (rendermode == render_opengl)
+		I_StartupOpenGL();
 
 	// Fury: we do window initialization after GL setup to allow
 	// SDL_GL_LoadLibrary to work well on Windows
@@ -1745,20 +1676,19 @@ void I_StartupGraphics(void)
 	// Create window
 	//Impl_CreateWindow(USE_FULLSCREEN);
 	//Impl_SetWindowName("SRB2 "VERSIONSTRING);
-	VID_SetMode(VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT));
+	I_SetVideoMode(I_GetVideoModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT));
 
 	vid.width = BASEVIDWIDTH; // Default size for startup
 	vid.height = BASEVIDHEIGHT; // BitsPerPixel is the SDL interface's
-	vid.recalc = true; // Set up the console stufff
+	vid.recalc = true; // Set up the console stuff
 	vid.direct = NULL; // Maybe direct access?
 	vid.bpp = 1; // This is the game engine's Bpp
-	vid.WndParent = NULL; //For the window?
 
 #ifdef HAVE_TTF
 	I_ShutdownTTF();
 #endif
 
-	VID_SetMode(VID_GetModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT));
+	I_SetVideoMode(I_GetVideoModeForSize(BASEVIDWIDTH, BASEVIDHEIGHT));
 
 	if (M_CheckParm("-nomousegrab"))
 		mousegrabok = SDL_FALSE;
@@ -1786,12 +1716,12 @@ void I_StartupGraphics(void)
 	graphics_started = true;
 }
 
-void VID_StartupOpenGL(void)
+void I_StartupOpenGL(void)
 {
 	static boolean glstartup = false;
 	if (!glstartup)
 	{
-		CONS_Printf("VID_StartupOpenGL()...\n");
+		CONS_Printf("I_StartupOpenGL()...\n");
 		HWD.pfnInit             = hwSym("Init",NULL);
 		HWD.pfnFinishUpdate     = NULL;
 		HWD.pfnDraw2DLine       = hwSym("Draw2DLine",NULL);
@@ -1824,12 +1754,12 @@ void VID_StartupOpenGL(void)
 		if (HWD.pfnGetRenderVersion() != VERSION)
 		{
 			CONS_Alert(CONS_ERROR, M_GetText("The version of the renderer doesn't match the version of the executable!\nBe sure you have installed SRB2 properly.\n"));
-			vid_opengl_state = -1;
+			vid.glstate = VID_GL_LIBRARY_ERROR;
 		}
 		else
-			vid_opengl_state = HWD.pfnInit(I_Error) ? 1 : -1; // let load the OpenGL library
+			vid.glstate = HWD.pfnInit(I_Error) ? 1 : VID_GL_LIBRARY_ERROR; // let load the OpenGL library
 
-		if (vid_opengl_state == -1)
+		if (vid.glstate == VID_GL_LIBRARY_ERROR)
 		{
 			rendermode = render_soft;
 			setrenderneeded = 0;

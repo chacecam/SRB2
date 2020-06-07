@@ -72,7 +72,10 @@ typedef struct gr_vissprite_s
 	struct gr_vissprite_s *prev;
 	struct gr_vissprite_s *next;
 	float x1, x2;
+	float z1, z2;
 	float tz, ty;
+	float originx, originy, originz;
+	angle_t angle;
 	//lumpnum_t patchlumpnum;
 	GLPatch_t *gpatch;
 	boolean flip;
@@ -83,7 +86,10 @@ typedef struct gr_vissprite_s
    //Hurdler: 25/04/2000: now support colormap in hardware mode
 	UINT8 *colormap;
 	INT32 dispoffset; // copy of info->dispoffset, affects ordering but not drawing
-	float z1, z2;
+#ifdef ROTSPRITE
+	angle_t rollangle;
+	float pivotx, pivoty;
+#endif
 } gr_vissprite_t;
 
 // --------
@@ -111,9 +117,11 @@ void HWR_GetMappedPatch(GLPatch_t *gpatch, const UINT8 *colormap);
 void HWR_UnlockCachedPatch(GLPatch_t *gpatch);
 GLPatch_t *HWR_GetPic(lumpnum_t lumpnum);
 void HWR_SetPalette(RGBA_t *palette);
-GLPatch_t *HWR_GetCachedGLPatchPwad(UINT16 wad, UINT16 lump);
+GLPatch_t *HWR_GetCachedGLPatchPwad(UINT16 wadnum, UINT16 lumpnum, void *hwrcache);
 GLPatch_t *HWR_GetCachedGLPatch(lumpnum_t lumpnum);
 void HWR_GetFadeMask(lumpnum_t fademasklumpnum);
+
+extern boolean gr_leveltexturesloaded;
 
 // --------
 // hw_draw.c

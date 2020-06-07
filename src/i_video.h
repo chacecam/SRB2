@@ -20,26 +20,33 @@
 #pragma interface
 #endif
 
-typedef enum
+typedef enum rendermode_e
 {
-	/// Software
-	render_soft = 1,
+	// No renderer chosen. Used on dedicated mode.
+	render_none = 0,
 
-	/// OpenGL
-	render_opengl = 2,
+	// First renderer choice.
+	// Must start from 1.
+	render_first = 1,
 
-	/// Dedicated
-	render_none = 3  // for dedicated server
+	// Main renderer choices.
+	render_soft = render_first,
+	render_opengl,
+
+	// Last renderer choice.
+	render_last,
+
+	// Renderer count.
+	num_renderers = (render_last - 1),
 } rendermode_t;
 
 /**	\brief current render mode
 */
 extern rendermode_t rendermode;
 
-/**	\brief OpenGL state
-	0 = never loaded, 1 = loaded successfully, -1 = failed loading
+/**	\brief render mode set by command line arguments
 */
-extern INT32 vid_opengl_state;
+extern rendermode_t chosenrendermode;
 
 /**	\brief use highcolor modes if true
 */
@@ -63,19 +70,19 @@ void I_SetPalette(RGBA_t *palette);
 
 /**	\brief return the number of video modes
 */
-INT32 VID_NumModes(void);
+INT32 I_NumVideoModes(void);
 
-/**	\brief	The VID_GetModeForSize function
+/**	\brief	The I_GetVideoModeForSize function
 
 	\param	w	width
 	\param	h	height
 
 	\return	vidmode closest to w : h
 */
-INT32 VID_GetModeForSize(INT32 w, INT32 h);
+INT32 I_GetVideoModeForSize(INT32 w, INT32 h);
 
 
-/**	\brief	The VID_SetMode function
+/**	\brief	The I_SetVideoMode function
 
 	Set the video mode right now,
 	the video mode change is delayed until the start of the next refresh
@@ -87,29 +94,29 @@ INT32 VID_GetModeForSize(INT32 w, INT32 h);
 
 	\return	current video mode
 */
-INT32 VID_SetMode(INT32 modenum);
+INT32 I_SetVideoMode(INT32 modenum);
 
-/**	\brief Checks the render state
-*/
-void VID_CheckRenderer(void);
-
-/**	\brief Load OpenGL mode
-*/
-void VID_StartupOpenGL(void);
-
-/**	\brief Checks if OpenGL loaded
-*/
-void VID_CheckGLLoaded(rendermode_t oldrender);
-
-/**	\brief	The VID_GetModeName function
+/**	\brief	The I_GetVideoModeName function
 
 	\param	modenum	video mode number
 
 	\return	name of video mode
 */
-const char *VID_GetModeName(INT32 modenum);
-void VID_PrepareModeList(void); /// note hack for SDL
+const char *I_GetVideoModeName(INT32 modenum);
 
+/**	\brief Checks the render state
+
+	\return	true if the renderer changed
+*/
+boolean I_CheckRenderer(void);
+
+/**	\brief Load OpenGL mode
+*/
+void I_StartupOpenGL(void);
+
+/**	\brief Checks if OpenGL loaded
+*/
+void I_CheckGLLoaded(rendermode_t oldrender);
 
 /**	\brief can video system do fullscreen
 */

@@ -905,11 +905,6 @@ static void readspriteinfo(MYFILE *f, INT32 num, boolean sprite2)
 	spriteinfo_t *info = Z_Calloc(sizeof(spriteinfo_t), PU_STATIC, NULL);
 	info->available = true;
 
-#ifdef ROTSPRITE
-	if ((sprites != NULL) && (!sprite2))
-		R_FreeSingleRotSprite(&sprites[num]);
-#endif
-
 	do
 	{
 		lastline = f->curpos;
@@ -1025,19 +1020,18 @@ static void readspriteinfo(MYFILE *f, INT32 num, boolean sprite2)
 				if (sprite2)
 				{
 					INT32 i;
+
 					if (!foundskins)
 					{
 						deh_warning("Sprite2 %s: no skins specified", spr2names[num]);
 						break;
 					}
+
 					for (i = 0; i < foundskins; i++)
 					{
 						size_t skinnum = skinnumbers[i];
 						skin_t *skin = &skins[skinnum];
 						spriteinfo_t *sprinfo = skin->sprinfo;
-#ifdef ROTSPRITE
-						R_FreeSkinRotSprite(skinnum);
-#endif
 						M_Memcpy(&sprinfo[num], info, sizeof(spriteinfo_t));
 					}
 				}
@@ -9751,6 +9745,11 @@ struct {
 	{"ANGLE_337h",ANGLE_337h},
 	{"ANGLE_MAX",ANGLE_MAX},
 
+	// Sprite rotation
+	{"ROTANGLES",ROTANGLES},
+	{"ROTANGDIFF",ROTANGDIFF},
+	{"FEETADJUST",FEETADJUST},
+
 	// P_Chase directions (dirtype_t)
 	{"DI_NODIR",DI_NODIR},
 	{"DI_EAST",DI_EAST},
@@ -9763,7 +9762,7 @@ struct {
 	{"DI_SOUTHEAST",DI_SOUTHEAST},
 	{"NUMDIRS",NUMDIRS},
 
-	// Sprite rotation axis (rotaxis_t)
+	// Sprite rotation axes (rotaxis_t)
 	{"ROTAXIS_X",ROTAXIS_X},
 	{"ROTAXIS_Y",ROTAXIS_Y},
 	{"ROTAXIS_Z",ROTAXIS_Z},
