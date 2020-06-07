@@ -21,9 +21,6 @@
 
 extern void *GLUhandle;
 
-boolean OGL_Surface(INT32 w, INT32 h);
-void OGL_FinishUpdate(boolean vidwait);
-
 extern SDL_Renderer *renderer;
 extern SDL_GLContext sdlglcontext;
 extern Uint16      realwidth;

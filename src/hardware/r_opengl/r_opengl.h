@@ -68,11 +68,11 @@ extern FILE             *gllogstream;
 //                                                                     PROTOS
 // ==========================================================================
 
-boolean OGL_LoadLibrary(void);
-void *OGL_GetFunc(const char *proc);
-boolean OGL_SetupFunctionPointers(void);
-boolean OGL_SetupExtraFunctionPointers(void);
-boolean OGL_ExtensionAvailable(const char *extension, const GLubyte *start);
+boolean GL_LoadLibrary(void);
+void *GL_GetFunc(const char *proc);
+boolean GL_SetupFunctionPointers(void);
+boolean GL_SetupExtraFunctionPointers(void);
+boolean GL_ExtensionAvailable(const char *extension, const GLubyte *start);
 
 #ifdef _WINDOWS
 int SetupPixelFormat(INT32 WantColorBits, INT32 WantStencilBits, INT32 WantDepthBits);

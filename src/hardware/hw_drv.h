@@ -36,46 +36,48 @@
 
 void DBG_Printf(const char *lpFmt, ...) /*FUNCPRINTF*/;
 
-boolean HWD_Init(void);
+boolean GL_Init(void);
 
 #ifdef _WINDOWS
-void HWD_Shutdown(void);
-void HWD_GetModeList(vmode_t **pvidmodes, INT32 *numvidmodes);
-void HWD_FinishUpdate(INT32 waitvbl);
+void GL_Shutdown(void);
+void GL_GetModeList(vmode_t **pvidmodes, INT32 *numvidmodes);
 #endif
 
-void HWD_SetTransform(FTransform *ptransform);
-void HWD_SetModelView(int w, int h);
-void HWD_SetStates(void);
-void HWD_SetPalette(RGBA_t *ppal);
+boolean GL_Surface(INT32 w, INT32 h);
+void GL_FinishUpdate(boolean waitvbl);
 
-void HWD_DrawPolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags);
-void HWD_Draw2DLine(F2DCoord *v1, F2DCoord *v2, RGBA_t Color);
-void HWD_RenderSkyDome(INT32 tex, INT32 texture_width, INT32 texture_height, FTransform transform);
-void HWD_DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 *color);
-void HWD_CreateModelVBOs(model_t *model);
+void GL_SetTransform(FTransform *ptransform);
+void GL_SetModelView(int w, int h);
+void GL_SetStates(void);
+void GL_SetPalette(RGBA_t *ppal);
 
-void HWD_SetTexture(FTextureInfo *TexInfo);
-void HWD_SetBlend(FBITFIELD PolyFlags);
-void HWD_SetSpecialState(hwdspecialstate_t IdState, INT32 Value);
+void GL_DrawPolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags);
+void GL_Draw2DLine(F2DCoord *v1, F2DCoord *v2, RGBA_t Color);
+void GL_RenderSkyDome(INT32 tex, INT32 texture_width, INT32 texture_height, FTransform transform);
+void GL_DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 *color);
+void GL_CreateModelVBOs(model_t *model);
 
-void HWD_ClearBuffer(FBOOLEAN ColorMask, FBOOLEAN DepthMask, FRGBAFloat *ClearColor);
-void HWD_ReadRect(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
-void HWD_GClipRect(INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip);
+void GL_SetTexture(FTextureInfo *TexInfo);
+void GL_SetBlend(FBITFIELD PolyFlags);
+void GL_SetSpecialState(hwdspecialstate_t IdState, INT32 Value);
 
-INT32 HWD_GetTextureUsed(void);
-void HWD_ClearMipMapCache(void);
-void HWD_Flush(void);
+void GL_ClearBuffer(FBOOLEAN ColorMask, FBOOLEAN DepthMask, FRGBAFloat *ClearColor);
+void GL_ReadRect(INT32 x, INT32 y, INT32 width, INT32 height, INT32 dst_stride, UINT16 *dst_data);
+void GL_GClipRect(INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip);
 
-void HWD_PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2]);
-void HWD_FlushScreenTextures(void);
-void HWD_StartScreenWipe(void);
-void HWD_EndScreenWipe(void);
-void HWD_DoScreenWipe(void);
-void HWD_DrawIntermissionBG(void);
-void HWD_MakeScreenTexture(void);
-void HWD_MakeScreenFinalTexture(void);
-void HWD_DrawScreenFinalTexture(int width, int height);
+INT32 GL_GetTextureUsed(void);
+void GL_ClearMipMapCache(void);
+void GL_Flush(void);
+
+void GL_PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2]);
+void GL_FlushScreenTextures(void);
+void GL_StartScreenWipe(void);
+void GL_EndScreenWipe(void);
+void GL_DoScreenWipe(void);
+void GL_DrawIntermissionBG(void);
+void GL_MakeScreenTexture(void);
+void GL_MakeScreenFinalTexture(void);
+void GL_DrawScreenFinalTexture(int width, int height);
 
 #endif //__HWR_DRV_H__
 

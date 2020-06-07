@@ -71,7 +71,7 @@ INT32 oglflags = 0;
 void *GLUhandle = NULL;
 SDL_GLContext sdlglcontext = 0;
 
-void *OGL_GetFunc(const char *proc)
+void *GL_GetFunc(const char *proc)
 {
 	if (strncmp(proc, "glu", 3) == 0)
 	{
@@ -83,7 +83,7 @@ void *OGL_GetFunc(const char *proc)
 	return SDL_GL_GetProcAddress(proc);
 }
 
-boolean OGL_LoadLibrary(void)
+boolean GL_LoadLibrary(void)
 {
 #ifndef STATIC_OPENGL
 	const char *OGLLibname = NULL;
@@ -124,7 +124,7 @@ boolean OGL_LoadLibrary(void)
 	{
 		GLUhandle = hwOpen(GLULibname);
 		if (GLUhandle)
-			return OGL_SetupFunctionPointers();
+			return GL_SetupFunctionPointers();
 		else
 		{
 			CONS_Alert(CONS_ERROR, "Could not load GLU Library: %s\n", GLULibname);
@@ -138,10 +138,10 @@ boolean OGL_LoadLibrary(void)
 		CONS_Alert(CONS_ERROR, "If you know what is the GLU library's name, use -GLUlib\n");
 	}
 #endif
-	return OGL_SetupFunctionPointers();
+	return GL_SetupFunctionPointers();
 }
 
-/**	\brief	The OGL_Surface function
+/**	\brief	The GL_Surface function
 
 	\param	w	width
 	\param	h	height
@@ -149,15 +149,15 @@ boolean OGL_LoadLibrary(void)
 
 	\return	if true, changed video mode
 */
-boolean OGL_Surface(INT32 w, INT32 h)
+boolean GL_Surface(INT32 w, INT32 h)
 {
 	INT32 cbpp;
 
-	OGL_SetupExtraFunctionPointers();
+	GL_SetupExtraFunctionPointers();
 	SDL_GL_SetSwapInterval(cv_vidwait.value ? 1 : 0);
 
-	HWD_SetModelView(w, h);
-	HWD_SetStates();
+	GL_SetModelView(w, h);
+	GL_SetStates();
 	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
 	cbpp = cv_scr_depth.value < 16 ? 16 : cv_scr_depth.value;
@@ -166,13 +166,13 @@ boolean OGL_Surface(INT32 w, INT32 h)
 	return true;
 }
 
-/**	\brief	The OGL_FinishUpdate function
+/**	\brief	The GL_FinishUpdate function
 
 	\param	vidwait	wait for video sync
 
 	\return	void
 */
-void OGL_FinishUpdate(boolean waitvbl)
+void GL_FinishUpdate(boolean waitvbl)
 {
 	static boolean oldwaitvbl = false;
 	int sdlw, sdlh;
@@ -189,7 +189,7 @@ void OGL_FinishUpdate(boolean waitvbl)
 	HWR_DrawScreenFinalTexture(sdlw, sdlh);
 	SDL_GL_SwapWindow(window);
 
-	HWD_GClipRect(0, 0, realwidth, realheight, NZCLIP_PLANE);
+	GL_GClipRect(0, 0, realwidth, realheight, NZCLIP_PLANE);
 
 	// Sryder:	We need to draw the final screen texture again into the other buffer in the original position so that
 	//			effects that want to take the old screen can do so after this

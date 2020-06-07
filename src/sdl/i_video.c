@@ -224,7 +224,7 @@ static void SDLSetMode(INT32 width, INT32 height, SDL_bool fullscreen, SDL_bool 
 	}
 
 	if (I_HardwareRendering())
-		OGL_Surface(vid.width, vid.height);
+		GL_Surface(vid.width, vid.height);
 
 	if (I_SoftwareRendering())
 	{
@@ -1142,7 +1142,7 @@ void I_UpdateNoBlit(void)
 	{
 		if (I_HardwareRendering())
 		{
-			OGL_FinishUpdate(cv_vidwait.value);
+			GL_FinishUpdate(cv_vidwait.value);
 		}
 		else if (I_SoftwareRendering())
 		{
@@ -1214,9 +1214,8 @@ void I_FinishUpdate(void)
 		rect.h = vid.height;
 
 		if (!bufSurface) //Double-Check
-		{
 			Impl_VideoSetupSDLBuffer();
-		}
+
 		if (bufSurface)
 		{
 			SDL_BlitSurface(bufSurface, NULL, vidSurface, &rect);
@@ -1225,14 +1224,14 @@ void I_FinishUpdate(void)
 			SDL_UpdateTexture(texture, &rect, vidSurface->pixels, vidSurface->pitch);
 			SDL_UnlockSurface(vidSurface);
 		}
+
 		SDL_RenderClear(renderer);
 		SDL_RenderCopy(renderer, texture, NULL, NULL);
 		SDL_RenderPresent(renderer);
 	}
 	else if (I_HardwareRendering())
-	{
-		OGL_FinishUpdate(cv_vidwait.value);
-	}
+		GL_FinishUpdate(cv_vidwait.value);
+
 	exposevideo = SDL_FALSE;
 }
 
@@ -1733,7 +1732,7 @@ void I_StartupOpenGL(void)
 		CONS_Printf("I_StartupOpenGL()...\n");
 
 		// let load the OpenGL library
-		if (HWD_Init())
+		if (GL_Init())
 			vid.glstate = VID_GL_LIBRARY_LOADED;
 		else
 		{

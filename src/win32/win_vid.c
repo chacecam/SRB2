@@ -272,7 +272,7 @@ void I_ShutdownGraphics(void)
 	if (washwrendering)
 	{
 		HWR_Shutdown(); // free stuff from the hardware renderer
-		HWD_Shutdown(); // close 3d card display
+		GL_Shutdown(); // close 3d card display
 	}
 
 	// free the last video mode screen buffers
@@ -376,7 +376,7 @@ void I_FinishUpdate(void)
 			DIB_RGB_COLORS);
 	}
 	else if (I_HardwareRendering())
-		HWD_FinishUpdate(cv_vidwait.value);
+		GL_FinishUpdate(cv_vidwait.value);
 	else
 	{
 		// DIRECT DRAW
@@ -674,9 +674,9 @@ static VOID VID_Init(VOID)
 	if (I_HardwareRendering())
 	{
 		// perform initialisations
-		HWD_Init(I_Error);
+		GL_Init(I_Error);
 		// get available display modes for the device
-		HWD_GetModeList(&pvidmodes, &numvidmodes);
+		GL_GetModeList(&pvidmodes, &numvidmodes);
 	}
 	else if (I_SoftwareRendering())
 		if (!bWinParm)

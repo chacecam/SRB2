@@ -448,11 +448,11 @@ static PFNglDeleteBuffers pglDeleteBuffers;
 #define GL_STATIC_DRAW 0x88E4
 #endif
 
-boolean OGL_SetupFunctionPointers(void)
+boolean GL_SetupFunctionPointers(void)
 {
 #ifndef STATIC_OPENGL
 #define GETOPENGLFUNC(func, proc) \
-	func = OGL_GetFunc(#proc); \
+	func = GL_GetFunc(#proc); \
 	if (!func) \
 	{ \
 		DBG_Printf("failed to get OpenGL function: %s", #proc); \
@@ -522,7 +522,7 @@ boolean OGL_SetupFunctionPointers(void)
 
 #undef GETOPENGLFUNC
 
-	pgluBuild2DMipmaps = OGL_GetFunc("gluBuild2DMipmaps");
+	pgluBuild2DMipmaps = GL_GetFunc("gluBuild2DMipmaps");
 
 #endif
 	return true;
@@ -530,18 +530,18 @@ boolean OGL_SetupFunctionPointers(void)
 
 // Must be done after window creation.
 // See https://wiki.libsdl.org/SDL_GL_GetProcAddress.
-boolean OGL_SetupExtraFunctionPointers(void)
+boolean GL_SetupExtraFunctionPointers(void)
 {
-	pglActiveTexture = OGL_GetFunc("glActiveTexture");
-	pglMultiTexCoord2f = OGL_GetFunc("glMultiTexCoord2f");
-	pglClientActiveTexture = OGL_GetFunc("glClientActiveTexture");
-	pglMultiTexCoord2fv = OGL_GetFunc("glMultiTexCoord2fv");
+	pglActiveTexture = GL_GetFunc("glActiveTexture");
+	pglMultiTexCoord2f = GL_GetFunc("glMultiTexCoord2f");
+	pglClientActiveTexture = GL_GetFunc("glClientActiveTexture");
+	pglMultiTexCoord2fv = GL_GetFunc("glMultiTexCoord2fv");
 
 	/* 1.5 funcs */
-	pglGenBuffers = OGL_GetFunc("glGenBuffers");
-	pglBindBuffer = OGL_GetFunc("glBindBuffer");
-	pglBufferData = OGL_GetFunc("glBufferData");
-	pglDeleteBuffers = OGL_GetFunc("glDeleteBuffers");
+	pglGenBuffers = GL_GetFunc("glGenBuffers");
+	pglBindBuffer = GL_GetFunc("glBindBuffer");
+	pglBufferData = GL_GetFunc("glBufferData");
+	pglDeleteBuffers = GL_GetFunc("glDeleteBuffers");
 
 	return true;
 }
@@ -634,13 +634,13 @@ static void GLProject(GLfloat objX, GLfloat objY, GLfloat objZ,
 // -----------------+
 // SetModelView     :
 // -----------------+
-void HWD_SetModelView(int w, int h)
+void GL_SetModelView(int w, int h)
 {
 //	DBG_Printf("SetModelView(): %dx%d\n", w, h);
 
 	// The screen textures need to be flushed if the width or height change so that they be remade for the correct size
 	if (screen_width != (GLint)w || screen_height != (GLint)h)
-		HWD_FlushScreenTextures();
+		GL_FlushScreenTextures();
 
 	screen_width = (GLint)w;
 	screen_height = (GLint)h;
@@ -668,13 +668,13 @@ void HWD_SetModelView(int w, int h)
 // -----------------+
 // SetStates        : Set permanent states
 // -----------------+
-void HWD_SetStates(void)
+void GL_SetStates(void)
 {
 #ifdef GL_LIGHT_MODEL_AMBIENT
 	GLfloat LightDiffuse[] = {1.0f, 1.0f, 1.0f, 1.0f};
 #endif
 
-//	DBG_Printf("HWD_SetStates()\n");
+//	DBG_Printf("GL_SetStates()\n");
 
 	// Hurdler: not necessary, is it?
 	pglShadeModel(GL_SMOOTH);      // iterate vertice colors
@@ -701,7 +701,7 @@ void HWD_SetStates(void)
 
 	// this set CurrentPolyFlags to the acctual configuration
 	CurrentPolyFlags = 0xffffffff;
-	HWD_SetBlend(0);
+	GL_SetBlend(0);
 
 	tex_downloaded = 0;
 	SetNoTexture();
@@ -733,9 +733,9 @@ void HWD_SetStates(void)
 // Flush            : flush OpenGL textures
 //                  : Clear list of downloaded mipmaps
 // -----------------+
-void HWD_Flush(void)
+void GL_Flush(void)
 {
-	//DBG_Printf ("HWD_Flush()\n");
+	//DBG_Printf ("GL_Flush()\n");
 
 	while (gr_cachehead)
 	{
@@ -754,7 +754,7 @@ void HWD_Flush(void)
 // ExtensionAvailable   : Look if an OpenGL extension is available
 // Returns              : true if extension available
 // ---------------------+
-boolean OGL_ExtensionAvailable(const char *extension, const GLubyte *start)
+boolean GL_ExtensionAvailable(const char *extension, const GLubyte *start)
 {
 #ifdef HAVE_SDL
 	(void)start;
@@ -790,7 +790,7 @@ boolean OGL_ExtensionAvailable(const char *extension, const GLubyte *start)
 // Init             : Initialise the OpenGL interface API
 // Returns          :
 // -----------------+
-boolean HWD_Init(void)
+boolean GL_Init(void)
 {
 	// Open the debug log stream
 #ifdef DEBUG_TO_FILE
@@ -801,7 +801,7 @@ boolean HWD_Init(void)
 	DBG_Printf("%s %s\n", DRIVER_STRING, VERSIONSTRING);
 
 	// Load the OpenGL library.
-	if (OGL_LoadLibrary())
+	if (GL_LoadLibrary())
 	{
 		const GLvoid *glvendor = NULL, *glrenderer = NULL, *glversion = NULL;
 
@@ -817,7 +817,7 @@ boolean HWD_Init(void)
 
 		gl_extensions = pglGetString(GL_EXTENSIONS);
 
-		if (OGL_ExtensionAvailable("GL_EXT_texture_filter_anisotropic", gl_extensions))
+		if (GL_ExtensionAvailable("GL_EXT_texture_filter_anisotropic", gl_extensions))
 			pglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maximumAnisotropy);
 		else
 			maximumAnisotropy = 1;
@@ -836,10 +836,10 @@ boolean HWD_Init(void)
 // -----------------+
 // ClearMipMapCache : Flush OpenGL textures from memory
 // -----------------+
-void HWD_ClearMipMapCache(void)
+void GL_ClearMipMapCache(void)
 {
 	// DBG_Printf ("HWR_Flush(exe)\n");
-	HWD_Flush();
+	GL_Flush();
 }
 
 
@@ -848,7 +848,7 @@ void HWD_ClearMipMapCache(void)
 //                  : store pixels as 16bit 565 RGB
 // Returns          : 16bit 565 RGB pixel array stored in dst_data
 // -----------------+
-void HWD_ReadRect(INT32 x, INT32 y, INT32 width, INT32 height,
+void GL_ReadRect(INT32 x, INT32 y, INT32 width, INT32 height,
                                 INT32 dst_stride, UINT16 * dst_data)
 {
 	INT32 i;
@@ -898,7 +898,7 @@ void HWD_ReadRect(INT32 x, INT32 y, INT32 width, INT32 height,
 // -----------------+
 // GClipRect        : Defines the 2D hardware clipping window
 // -----------------+
-void HWD_GClipRect(INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip)
+void GL_GClipRect(INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearclip)
 {
 	// DBG_Printf ("GClipRect(%d, %d, %d, %d)\n", minx, miny, maxx, maxy);
 
@@ -920,7 +920,7 @@ void HWD_GClipRect(INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, float nearcli
 // -----------------+
 // ClearBuffer      : Clear the color/alpha/depth buffer(s)
 // -----------------+
-void HWD_ClearBuffer(FBOOLEAN ColorMask,
+void GL_ClearBuffer(FBOOLEAN ColorMask,
                                     FBOOLEAN DepthMask,
                                     FRGBAFloat * ClearColor)
 {
@@ -944,7 +944,7 @@ void HWD_ClearBuffer(FBOOLEAN ColorMask,
 		ClearMask |= GL_DEPTH_BUFFER_BIT;
 	}
 
-	HWD_SetBlend(DepthMask ? PF_Occlude | CurrentPolyFlags : CurrentPolyFlags&~PF_Occlude);
+	GL_SetBlend(DepthMask ? PF_Occlude | CurrentPolyFlags : CurrentPolyFlags&~PF_Occlude);
 
 	pglClear(ClearMask);
 	pglEnableClientState(GL_VERTEX_ARRAY); // We always use this one
@@ -955,7 +955,7 @@ void HWD_ClearBuffer(FBOOLEAN ColorMask,
 // -----------------+
 // HWRAPI Draw2DLine: Render a 2D line
 // -----------------+
-void HWD_Draw2DLine(F2DCoord * v1,
+void GL_Draw2DLine(F2DCoord * v1,
                                    F2DCoord * v2,
                                    RGBA_t Color)
 {
@@ -965,7 +965,7 @@ void HWD_Draw2DLine(F2DCoord * v1,
 	GLfloat angle;
 
 	// BP: we should reflect the new state in our variable
-	//HWD_SetBlend(PF_Modulated|PF_NoTexture);
+	//GL_SetBlend(PF_Modulated|PF_NoTexture);
 
 	pglDisable(GL_TEXTURE_2D);
 
@@ -1003,7 +1003,7 @@ static void Clamp2D(GLenum pname)
 // -----------------+
 // PF_Masked - we could use an ALPHA_TEST of GL_EQUAL, and alpha ref of 0,
 //             is it faster when pixels are discarded ?
-void HWD_SetBlend(FBITFIELD PolyFlags)
+void GL_SetBlend(FBITFIELD PolyFlags)
 {
 	FBITFIELD Xor;
 	Xor = CurrentPolyFlags^PolyFlags;
@@ -1146,21 +1146,21 @@ void HWD_SetBlend(FBITFIELD PolyFlags)
 //                  : in OpenGL, we store values for conversion of paletted graphics when
 //                  : they are downloaded to the 3D card.
 // -----------------+
-void HWD_SetPalette(RGBA_t *palette)
+void GL_SetPalette(RGBA_t *palette)
 {
 	size_t palsize = (sizeof(RGBA_t) * 256);
 	// on a palette change, you have to reload all of the textures
 	if (memcmp(&myPaletteData, palette, palsize))
 	{
 		memcpy(&myPaletteData, palette, palsize);
-		HWD_Flush();
+		GL_Flush();
 	}
 }
 
 // -----------------+
 // SetTexture       : The mipmap becomes the current texture source
 // -----------------+
-void HWD_SetTexture(FTextureInfo *pTexInfo)
+void GL_SetTexture(FTextureInfo *pTexInfo)
 {
 	if (!pTexInfo)
 	{
@@ -1365,7 +1365,7 @@ void HWD_SetTexture(FTextureInfo *pTexInfo)
 // -----------------+
 // DrawPolygon      : Render a polygon, set the texture, set render mode
 // -----------------+
-void HWD_DrawPolygon(FSurfaceInfo  *pSurf,
+void GL_DrawPolygon(FSurfaceInfo  *pSurf,
                                     //FTextureInfo  *pTexInfo,
                                     FOutVector    *pOutVerts,
                                     FUINT         iNumPts,
@@ -1377,7 +1377,7 @@ void HWD_DrawPolygon(FSurfaceInfo  *pSurf,
 	if ((PolyFlags & PF_Corona) && (oglflags & GLF_NOZBUFREAD))
 		PolyFlags &= ~(PF_NoDepthTest|PF_Corona);
 
-	HWD_SetBlend(PolyFlags);    //TODO: inline (#pragma..)
+	GL_SetBlend(PolyFlags);    //TODO: inline (#pragma..)
 
 	// If Modulated, mix the surface colour to the texture
 	if ((CurrentPolyFlags & PF_Modulated) && pSurf)
@@ -1698,20 +1698,20 @@ static void RenderDome(INT32 skytexture)
 	pglDisableClientState(GL_COLOR_ARRAY);
 }
 
-void HWD_RenderSkyDome(INT32 tex, INT32 texture_width, INT32 texture_height, FTransform transform)
+void GL_RenderSkyDome(INT32 tex, INT32 texture_width, INT32 texture_height, FTransform transform)
 {
-	HWD_SetBlend(PF_Translucent|PF_NoDepthTest|PF_Modulated);
-	HWD_SetTransform(&transform);
+	GL_SetBlend(PF_Translucent|PF_NoDepthTest|PF_Modulated);
+	GL_SetTransform(&transform);
 	texw = texture_width;
 	texh = texture_height;
 	RenderDome(tex);
-	HWD_SetBlend(0);
+	GL_SetBlend(0);
 }
 
 // ==========================================================================
 //
 // ==========================================================================
-void HWD_SetSpecialState(hwdspecialstate_t IdState, INT32 Value)
+void GL_SetSpecialState(hwdspecialstate_t IdState, INT32 Value)
 {
 	switch (IdState)
 	{
@@ -1801,13 +1801,13 @@ void HWD_SetSpecialState(hwdspecialstate_t IdState, INT32 Value)
 				MipMap = GL_FALSE;
 				min_filter = GL_LINEAR;
 			}
-			HWD_Flush(); //??? if we want to change filter mode by texture, remove this
+			GL_Flush(); //??? if we want to change filter mode by texture, remove this
 			break;
 
 		case HWD_SET_TEXTUREANISOTROPICMODE:
 			anisotropic_filter = min(Value,maximumAnisotropy);
 			if (maximumAnisotropy)
-				HWD_Flush(); //??? if we want to change filter mode by texture, remove this
+				GL_Flush(); //??? if we want to change filter mode by texture, remove this
 			break;
 
 		default:
@@ -1979,7 +1979,7 @@ static void CreateModelVBOTiny(mesh_t *mesh, tinyframe_t *frame)
 	pglBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void HWD_CreateModelVBOs(model_t *model)
+void GL_CreateModelVBOs(model_t *model)
 {
 	int i;
 	for (i = 0; i < model->numMeshes; i++)
@@ -2115,9 +2115,9 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 			pglColor4ubv((GLubyte*)color);
 
 		if (color[3] < 255)
-			HWD_SetBlend(PF_Translucent|PF_Modulated|PF_Clip);
+			GL_SetBlend(PF_Translucent|PF_Modulated|PF_Clip);
 		else
-			HWD_SetBlend(PF_Masked|PF_Modulated|PF_Occlude|PF_Clip);
+			GL_SetBlend(PF_Masked|PF_Modulated|PF_Occlude|PF_Clip);
 	}
 
 	pglPushMatrix(); // should be the same as glLoadIdentity
@@ -2267,7 +2267,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 // -----------------+
 // HWRAPI DrawMD2   : Draw an MD2 model with glcommands
 // -----------------+
-void HWD_DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 *color)
+void GL_DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 tics, INT32 nextFrameIndex, FTransform *pos, float scale, UINT8 flipped, UINT8 *color)
 {
 	DrawModelEx(model, frameIndex, duration, tics,  nextFrameIndex, pos, scale, flipped, color);
 }
@@ -2275,7 +2275,7 @@ void HWD_DrawModel(model_t *model, INT32 frameIndex, INT32 duration, INT32 tics,
 // -----------------+
 // SetTransform     :
 // -----------------+
-void HWD_SetTransform(FTransform *stransform)
+void GL_SetTransform(FTransform *stransform)
 {
 	static boolean special_splitscreen;
 	float used_fov;
@@ -2325,7 +2325,7 @@ void HWD_SetTransform(FTransform *stransform)
 	pglGetFloatv(GL_MODELVIEW_MATRIX, modelMatrix); // added for new coronas' code (without depth buffer)
 }
 
-INT32 HWD_GetTextureUsed(void)
+INT32 GL_GetTextureUsed(void)
 {
 	FTextureInfo *tmp = gr_cachehead;
 	INT32 res = 0;
@@ -2354,7 +2354,7 @@ INT32 HWD_GetTextureUsed(void)
 	return res;
 }
 
-void HWD_PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2])
+void GL_PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2])
 {
 	INT32 x, y;
 	float float_x, float_y, float_nextx, float_nexty;
@@ -2444,7 +2444,7 @@ void HWD_PostImgRedraw(float points[SCREENVERTS][SCREENVERTS][2])
 
 // Sryder:	This needs to be called whenever the screen changes resolution in order to reset the screen textures to use
 //			a new size
-void HWD_FlushScreenTextures(void)
+void GL_FlushScreenTextures(void)
 {
 	pglDeleteTextures(1, &screentexture);
 	pglDeleteTextures(1, &startScreenWipe);
@@ -2457,7 +2457,7 @@ void HWD_FlushScreenTextures(void)
 }
 
 // Create Screen to fade from
-void HWD_StartScreenWipe(void)
+void GL_StartScreenWipe(void)
 {
 	INT32 texsize = 2048;
 	boolean firstTime = (startScreenWipe == 0);
@@ -2488,7 +2488,7 @@ void HWD_StartScreenWipe(void)
 }
 
 // Create Screen to fade to
-void HWD_EndScreenWipe(void)
+void GL_EndScreenWipe(void)
 {
 	INT32 texsize = 2048;
 	boolean firstTime = (endScreenWipe == 0);
@@ -2520,7 +2520,7 @@ void HWD_EndScreenWipe(void)
 
 
 // Draw the last scene under the intermission
-void HWD_DrawIntermissionBG(void)
+void GL_DrawIntermissionBG(void)
 {
 	float xfix, yfix;
 	INT32 texsize = 2048;
@@ -2568,7 +2568,7 @@ void HWD_DrawIntermissionBG(void)
 }
 
 // Do screen fades!
-void HWD_DoScreenWipe(void)
+void GL_DoScreenWipe(void)
 {
 	INT32 texsize = 2048;
 	float xfix, yfix;
@@ -2616,7 +2616,7 @@ void HWD_DoScreenWipe(void)
 
 	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-	HWD_SetBlend(PF_Modulated|PF_NoDepthTest|PF_Clip|PF_NoZClip);
+	GL_SetBlend(PF_Modulated|PF_NoDepthTest|PF_Clip|PF_NoZClip);
 	pglEnable(GL_TEXTURE_2D);
 
 	// Draw the original screen
@@ -2626,7 +2626,7 @@ void HWD_DoScreenWipe(void)
 	pglVertexPointer(3, GL_FLOAT, 0, screenVerts);
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
-	HWD_SetBlend(PF_Modulated|PF_Translucent|PF_NoDepthTest|PF_Clip|PF_NoZClip);
+	GL_SetBlend(PF_Modulated|PF_Translucent|PF_NoDepthTest|PF_Clip|PF_NoZClip);
 
 	// Draw the end screen that fades in
 	pglActiveTexture(GL_TEXTURE0);
@@ -2659,7 +2659,7 @@ void HWD_DoScreenWipe(void)
 }
 
 // Create a texture from the screen.
-void HWD_MakeScreenTexture(void)
+void GL_MakeScreenTexture(void)
 {
 	INT32 texsize = 2048;
 	boolean firstTime = (screentexture == 0);
@@ -2689,7 +2689,7 @@ void HWD_MakeScreenTexture(void)
 	tex_downloaded = screentexture;
 }
 
-void HWD_MakeScreenFinalTexture(void)
+void GL_MakeScreenFinalTexture(void)
 {
 	INT32 texsize = 2048;
 	boolean firstTime = (finalScreenTexture == 0);
@@ -2719,7 +2719,7 @@ void HWD_MakeScreenFinalTexture(void)
 	tex_downloaded = finalScreenTexture;
 }
 
-void HWD_DrawScreenFinalTexture(int width, int height)
+void GL_DrawScreenFinalTexture(int width, int height)
 {
 	float xfix, yfix;
 	float origaspect, newaspect;
@@ -2779,7 +2779,7 @@ void HWD_DrawScreenFinalTexture(int width, int height)
 
 	clearColour.red = clearColour.green = clearColour.blue = 0;
 	clearColour.alpha = 1;
-	HWD_ClearBuffer(true, false, &clearColour);
+	GL_ClearBuffer(true, false, &clearColour);
 	pglBindTexture(GL_TEXTURE_2D, finalScreenTexture);
 
 	pglColor4ubv(white);

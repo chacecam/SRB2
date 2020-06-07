@@ -114,7 +114,7 @@ static PFNwglMakeCurrent pwglMakeCurrent;
 #endif
 
 #ifndef STATIC_OPENGL
-void *OGL_GetFunc(const char *proc)
+void *GL_GetFunc(const char *proc)
 {
 	void *func = NULL;
 	if (strncmp(proc, "glu", 3) == 0)
@@ -132,7 +132,7 @@ void *OGL_GetFunc(const char *proc)
 }
 #endif
 
-boolean OGL_LoadLibrary(void)
+boolean GL_LoadLibrary(void)
 {
 #ifndef STATIC_OPENGL
 	OGL32 = LoadLibrary("OPENGL32.DLL");
@@ -142,12 +142,12 @@ boolean OGL_LoadLibrary(void)
 
 	GLU32 = LoadLibrary("GLU32.DLL");
 
-	pwglGetProcAddress = OGL_GetFunc("wglGetProcAddress");
-	pwglCreateContext = OGL_GetFunc("wglCreateContext");
-	pwglDeleteContext = OGL_GetFunc("wglDeleteContext");
-	pwglMakeCurrent = OGL_GetFunc("wglMakeCurrent");
+	pwglGetProcAddress = GL_GetFunc("wglGetProcAddress");
+	pwglCreateContext = GL_GetFunc("wglCreateContext");
+	pwglDeleteContext = GL_GetFunc("wglDeleteContext");
+	pwglMakeCurrent = GL_GetFunc("wglMakeCurrent");
 #endif
-	return OGL_SetupFunctionPointers();
+	return GL_SetupFunctionPointers();
 }
 
 // -----------------+
@@ -236,7 +236,7 @@ static INT32 WINAPI SetRes(viddef_t *lvid, vmode_t *pcurrentmode)
 
 	// BP : why flush texture ?
 	//      if important flush also the first one (white texture) and restore it !
-	HWD_Flush();    // Flush textures.
+	GL_Flush();    // Flush textures.
 
 // TODO: if not fullscreen, skip display stuff and just resize viewport stuff ...
 
@@ -333,18 +333,18 @@ static INT32 WINAPI SetRes(viddef_t *lvid, vmode_t *pcurrentmode)
 	DBG_Printf("oglflags   : 0x%X\n", oglflags);
 
 #ifdef USE_WGL_SWAP
-	if (OGL_ExtensionAvailable("WGL_EXT_swap_control",gl_extensions))
-		wglSwapIntervalEXT = OGL_GetFunc("wglSwapIntervalEXT");
+	if (GL_ExtensionAvailable("WGL_EXT_swap_control",gl_extensions))
+		wglSwapIntervalEXT = GL_GetFunc("wglSwapIntervalEXT");
 	else
 		wglSwapIntervalEXT = NULL;
 #endif
 
-	if (OGL_ExtensionAvailable("GL_EXT_texture_filter_anisotropic",gl_extensions))
+	if (GL_ExtensionAvailable("GL_EXT_texture_filter_anisotropic",gl_extensions))
 		pglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maximumAnisotropy);
 	else
 		maximumAnisotropy = 0;
 
-	OGL_SetupExtraFunctionPointers();
+	GL_SetupExtraFunctionPointers();
 
 	screen_depth = (GLbyte)(lvid->bpp*8);
 	if (screen_depth > 16)
@@ -352,8 +352,8 @@ static INT32 WINAPI SetRes(viddef_t *lvid, vmode_t *pcurrentmode)
 	else
 		textureformatGL = GL_RGB5_A1;
 
-	HWD_SetModelView(lvid->width, lvid->height);
-	HWD_SetStates();
+	GL_SetModelView(lvid->width, lvid->height);
+	GL_SetStates();
 	// we need to clear the depth buffer. Very important!!!
 	pglClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
@@ -386,7 +386,7 @@ static void UnSetRes(void)
 // Returns          : pvidmodes   - points to list of detected OpenGL video modes
 //                  : numvidmodes - number of detected OpenGL video modes
 // -----------------+
-EXPORT void HWRAPI(GetModeList) (vmode_t** pvidmodes, INT32 *numvidmodes)
+void GL_GetModeList(vmode_t **pvidmodes, INT32 *numvidmodes)
 {
 	INT32  i;
 
@@ -491,7 +491,7 @@ EXPORT void HWRAPI(GetModeList) (vmode_t** pvidmodes, INT32 *numvidmodes)
 // -----------------+
 // Shutdown         : Shutdown OpenGL, restore the display mode
 // -----------------+
-EXPORT void HWRAPI(Shutdown) (void)
+void GL_Shutdown(void)
 {
 #ifdef DEBUG_TO_FILE
 	long nb_centiemes;
@@ -502,7 +502,7 @@ EXPORT void HWRAPI(Shutdown) (void)
 					nb_frames, nb_centiemes/100.0f, (100*nb_frames)/(double)nb_centiemes);
 #endif
 
-	HWD_Flush();
+	GL_Flush();
 
 	// Exit previous mode
 	if (hGLRC)
@@ -521,7 +521,7 @@ EXPORT void HWRAPI(Shutdown) (void)
 // -----------------+
 // FinishUpdate     : Swap front and back buffers
 // -----------------+
-EXPORT void HWRAPI(FinishUpdate) (INT32 waitvbl)
+void GL_FinishUpdate(boolean waitvbl)
 {
 #ifdef USE_WGL_SWAP
 	static INT32 oldwaitvbl = 0;
@@ -549,7 +549,7 @@ EXPORT void HWRAPI(FinishUpdate) (INT32 waitvbl)
 //                  : in OpenGL, we store values for conversion of paletted graphics when
 //                  : they are downloaded to the 3D card.
 // -----------------+
-EXPORT void HWRAPI(SetPalette) (RGBA_t *pal)
+void GL_SetPalette(RGBA_t *pal)
 {
 	size_t palsize = (sizeof(RGBA_t) * 256);
 	// on a palette change, you have to reload all of the textures
