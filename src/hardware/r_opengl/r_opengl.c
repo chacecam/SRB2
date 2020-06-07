@@ -32,7 +32,7 @@
 #include "r_opengl.h"
 #include "r_vbo.h"
 
-#if defined (HWRENDER) && !defined (NOROPENGL)
+#if !defined (NOROPENGL)
 
 struct GLRGBAFloat
 {
@@ -2707,4 +2707,4 @@ EXPORT void HWRAPI(DrawScreenFinalTexture)(int width, int height)
 	tex_downloaded = finalScreenTexture;
 }
 
-#endif //HWRENDER
+#endif // !defined (NOROPENGL)

@@ -30,9 +30,7 @@
 #include "m_random.h"
 #include "doomstat.h"
 
-#ifdef HWRENDER
 #include "hardware/hw_glob.h"
-#endif
 
 // Each screen is [vid.width*vid.height];
 UINT8 *screens[5];
@@ -417,12 +415,10 @@ void V_SetPalette(INT32 palettenum)
 	if (!pLocalPalette)
 		LoadMapPalette();
 
-#ifdef HWRENDER
 	if (rendermode != render_soft && rendermode != render_none)
 		HWR_SetPalette(&pLocalPalette[palettenum*256]);
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	else
-#endif
 #endif
 	if (rendermode != render_none)
 		I_SetPalette(&pLocalPalette[palettenum*256]);
@@ -431,12 +427,10 @@ void V_SetPalette(INT32 palettenum)
 void V_SetPaletteLump(const char *pal)
 {
 	LoadPalette(pal);
-#ifdef HWRENDER
 	if (rendermode != render_soft && rendermode != render_none)
 		HWR_SetPalette(pLocalPalette);
 #if (defined (__unix__) && !defined (MSDOS)) || defined (UNIXCOMMON) || defined (HAVE_SDL)
 	else
-#endif
 #endif
 	if (rendermode != render_none)
 		I_SetPalette(pLocalPalette);
@@ -527,14 +521,12 @@ void V_DrawStretchyFixedPatch(fixed_t x, fixed_t y, fixed_t pscale, fixed_t vsca
 	if (rendermode == render_none)
 		return;
 
-#ifdef HWRENDER
 	//if (rendermode != render_soft && !con_startup)		// Why?
 	if (rendermode != render_soft)
 	{
 		HWR_DrawStretchyFixedPatch((GLPatch_t *)patch, x, y, pscale, vscale, scrn, colormap);
 		return;
 	}
-#endif
 
 	patchdrawfunc = standardpdraw;
 
@@ -827,14 +819,12 @@ void V_DrawCroppedPatch(fixed_t x, fixed_t y, fixed_t pscale, INT32 scrn, patch_
 	if (rendermode == render_none)
 		return;
 
-#ifdef HWRENDER
 	//if (rendermode != render_soft && !con_startup)		// Not this again
 	if (rendermode != render_soft)
 	{
 		HWR_DrawCroppedPatch((GLPatch_t*)patch,x,y,pscale,scrn,sx,sy,w,h);
 		return;
 	}
-#endif
 
 	patchdrawfunc = standardpdraw;
 
@@ -1088,13 +1078,11 @@ static void V_BlitScaledPic(INT32 px1, INT32 py1, INT32 scrn, pic_t *pic);
 //
 void V_DrawScaledPic(INT32 rx1, INT32 ry1, INT32 scrn, INT32 lumpnum)
 {
-#ifdef HWRENDER
 	if (rendermode != render_soft)
 	{
 		HWR_DrawPic(rx1, ry1, lumpnum);
 		return;
 	}
-#endif
 
 	V_BlitScaledPic(rx1, ry1, scrn, W_CacheLumpNum(lumpnum, PU_CACHE));
 }
@@ -1151,14 +1139,12 @@ void V_DrawFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c)
 	if (rendermode == render_none)
 		return;
 
-#ifdef HWRENDER
 	//if (rendermode != render_soft && !con_startup)		// Not this again
 	if (rendermode != render_soft)
 	{
 		HWR_DrawFill(x, y, w, h, c);
 		return;
 	}
-#endif
 
 	if (splitscreen && (c & V_PERPLAYER))
 	{
@@ -1300,7 +1286,6 @@ void V_DrawFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c)
 		memset(dest, c, w * vid.bpp);
 }
 
-#ifdef HWRENDER
 // This is now a function since it's otherwise repeated 2 times and honestly looks retarded:
 static UINT32 V_GetHWConsBackColor(void)
 {
@@ -1331,7 +1316,6 @@ static UINT32 V_GetHWConsBackColor(void)
 	}
 	return hwcolor;
 }
-#endif
 
 
 // THANK YOU MPC!!!
@@ -1349,14 +1333,12 @@ void V_DrawFillConsoleMap(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c)
 	if (rendermode == render_none)
 		return;
 
-#ifdef HWRENDER
 	if (rendermode != render_soft && rendermode != render_none)
 	{
 		UINT32 hwcolor = V_GetHWConsBackColor();
 		HWR_DrawConsoleFill(x, y, w, h, c, hwcolor);	// we still use the regular color stuff but only for flags. actual draw color is "hwcolor" for this.
 		return;
 	}
-#endif
 
 	if ((alphalevel = ((c & V_ALPHAMASK) >> V_ALPHASHIFT)))
 	{
@@ -1546,14 +1528,12 @@ void V_DrawFadeFill(INT32 x, INT32 y, INT32 w, INT32 h, INT32 c, UINT16 color, U
 	if (rendermode == render_none)
 		return;
 
-#ifdef HWRENDER
 	if (rendermode != render_soft && rendermode != render_none)
 	{
 		// ughhhhh please can someone else do this? thanks ~toast 25/7/19 in 38 degrees centigrade w/o AC
 		HWR_DrawFadeFill(x, y, w, h, c, color, strength); // toast two days later - left above comment in 'cause it's funny
 		return;
 	}
-#endif
 
 	if (splitscreen && (c & V_PERPLAYER))
 	{
@@ -1708,13 +1688,11 @@ void V_DrawFlatFill(INT32 x, INT32 y, INT32 w, INT32 h, lumpnum_t flatnum)
 	UINT8 *flat, *dest;
 	size_t size, lflatsize, flatshift;
 
-#ifdef HWRENDER
 	if (rendermode != render_soft && rendermode != render_none)
 	{
 		HWR_DrawFlatFill(x, y, w, h, flatnum);
 		return;
 	}
-#endif
 
 	size = W_LumpLength(flatnum);
 
@@ -1818,13 +1796,11 @@ void V_DrawPatchFill(patch_t *pat)
 //
 void V_DrawFadeScreen(UINT16 color, UINT8 strength)
 {
-#ifdef HWRENDER
 	if (rendermode != render_soft && rendermode != render_none)
 	{
 		HWR_FadeScreenMenuBack(color, strength);
 		return;
 	}
-#endif
 
 	{
 		const UINT8 *fadetable = ((color & 0xFF00) // Color is not palette index?
@@ -1847,14 +1823,12 @@ void V_DrawFadeConsBack(INT32 plines)
 {
 	UINT8 *deststop, *buf;
 
-#ifdef HWRENDER // not win32 only 19990829 by Kin
 	if (rendermode != render_soft && rendermode != render_none)
 	{
 		UINT32 hwcolor = V_GetHWConsBackColor();
 		HWR_DrawConsoleBack(hwcolor, plines);
 		return;
 	}
-#endif
 
 	// heavily simplified -- we don't need to know x or y position,
 	// just the stop position
@@ -1880,7 +1854,6 @@ void V_DrawPromptBack(INT32 boxheight, INT32 color)
 	if (color == INT32_MAX)
 		color = cons_backcolor.value;
 
-#ifdef HWRENDER
 	if (rendermode != render_soft && rendermode != render_none)
 	{
 		UINT32 hwcolor;
@@ -1911,7 +1884,6 @@ void V_DrawPromptBack(INT32 boxheight, INT32 color)
 		HWR_DrawTutorialBack(hwcolor, boxheight);
 		return;
 	}
-#endif
 
 	CON_SetupBackColormapEx(color, true);
 
@@ -3491,11 +3463,9 @@ void V_DoPostProcessor(INT32 view, postimg_t type, INT32 param)
 #else
 	INT32 height, yoffset;
 
-#ifdef HWRENDER
 	// draw a hardware converted patch
 	if (rendermode != render_soft && rendermode != render_none)
 		return;
-#endif
 
 	if (view < 0 || view >= 2 || (view == 1 && !splitscreen))
 		return;

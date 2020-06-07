@@ -219,16 +219,11 @@ ifdef NO_IPV6
 endif
 endif
 
-ifdef NOHW
-	OPTS+=-DNOHW
-else
-	#Hurdler: not really supported and not tested recently
-	#OPTS+=-DUSE_PALETTED_TEXTURE
-	OPTS+=-DHWRENDER
-	OBJS+=$(OBJDIR)/hw_bsp.o $(OBJDIR)/hw_draw.o $(OBJDIR)/hw_light.o \
-		 $(OBJDIR)/hw_main.o $(OBJDIR)/hw_clip.o $(OBJDIR)/hw_md2.o $(OBJDIR)/hw_cache.o $(OBJDIR)/hw_trick.o \
-		 $(OBJDIR)/hw_md2load.o $(OBJDIR)/hw_md3load.o $(OBJDIR)/hw_model.o $(OBJDIR)/u_list.o
-endif
+#Hurdler: not really supported and not tested recently
+#OPTS+=-DUSE_PALETTED_TEXTURE
+OBJS+=$(OBJDIR)/hw_bsp.o $(OBJDIR)/hw_draw.o $(OBJDIR)/hw_light.o \
+	 $(OBJDIR)/hw_main.o $(OBJDIR)/hw_clip.o $(OBJDIR)/hw_md2.o $(OBJDIR)/hw_cache.o $(OBJDIR)/hw_trick.o \
+	 $(OBJDIR)/hw_md2load.o $(OBJDIR)/hw_md3load.o $(OBJDIR)/hw_model.o $(OBJDIR)/u_list.o
 
 ifdef NOHS
 	OPTS+=-DNOHS

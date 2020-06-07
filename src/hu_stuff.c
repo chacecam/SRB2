@@ -43,9 +43,7 @@
 #include "p_local.h" // camera, camera2
 #include "p_tick.h"
 
-#ifdef HWRENDER
 #include "hardware/hw_main.h"
-#endif
 
 #include "lua_hud.h"
 #include "lua_hook.h"
@@ -1951,11 +1949,9 @@ static inline void HU_DrawCrosshair(void)
 	if ((netgame || multiplayer) && players[displayplayer].spectator)
 		return;
 
-#ifdef HWRENDER
 	if (rendermode != render_soft)
 		y = (INT32)gr_basewindowcentery;
 	else
-#endif
 		y = viewwindowy + (viewheight>>1);
 
 	V_DrawScaledPatch(vid.width>>1, y, V_NOSCALESTART|V_OFFSET|V_TRANSLUCENT, crosshair[i - 1]);
@@ -1972,20 +1968,16 @@ static inline void HU_DrawCrosshair2(void)
 	if ((netgame || multiplayer) && players[secondarydisplayplayer].spectator)
 		return;
 
-#ifdef HWRENDER
 	if (rendermode != render_soft)
 		y = (INT32)gr_basewindowcentery;
 	else
-#endif
 		y = viewwindowy + (viewheight>>1);
 
 	if (splitscreen)
 	{
-#ifdef HWRENDER
 		if (rendermode != render_soft)
 			y += (INT32)gr_viewheight;
 		else
-#endif
 			y += viewheight;
 
 		V_DrawScaledPatch(vid.width>>1, y, V_NOSCALESTART|V_OFFSET|V_TRANSLUCENT, crosshair[i - 1]);
@@ -2256,21 +2248,17 @@ void HU_Erase(void)
 	INT32 topline, bottomline;
 	INT32 y, yoffset;
 
-#ifdef HWRENDER
 	// clear hud msgs on double buffer (OpenGL mode)
 	boolean secondframe;
 	static INT32 secondframelines;
-#endif
 
 	if (con_clearlines == oldclearlines && !con_hudupdate && !chat_on)
 		return;
 
-#ifdef HWRENDER
 	// clear the other frame in double-buffer modes
 	secondframe = (con_clearlines != oldclearlines);
 	if (secondframe)
 		secondframelines = oldclearlines;
-#endif
 
 	// clear the message lines that go away, so use _oldclearlines_
 	bottomline = oldclearlines;
@@ -2299,14 +2287,12 @@ void HU_Erase(void)
 		}
 		con_hudupdate = false; // if it was set..
 	}
-#ifdef HWRENDER
 	else if (rendermode != render_none)
 	{
 		// refresh just what is needed from the view borders
 		HWR_DrawViewBorder(secondframelines);
 		con_hudupdate = secondframe;
 	}
-#endif
 }
 
 //======================================================================

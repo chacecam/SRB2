@@ -39,9 +39,7 @@
 
 #include "lua_hud.h"
 
-#ifdef HWRENDER
 #include "hardware/hw_main.h"
-#endif
 
 #ifdef PC_DOS
 #include <stdio.h> // for snprintf
@@ -365,10 +363,8 @@ void Y_IntermissionDrawer(void)
 				VID_BlitLinearScreen(y_buffer->target_picture, screens[0], vid.width*vid.bpp, vid.height, vid.width*vid.bpp, vid.rowbytes);
 			}
 		}
-#ifdef HWRENDER
 		else if (rendermode != render_soft && usebuffer)
 			HWR_DrawIntermissionBG();
-#endif
 		else
 		{
 			if (widebgpatch && rendermode == render_soft && vid.width / vid.dupx == 400)
@@ -1279,10 +1275,9 @@ void Y_StartIntermission(void)
 			else
 			{
 				useinterpic = false;
-#ifdef HWRENDER
+				// This needs to be here for OpenGL, otherwise usebuffer is never set to true for it, and thus there's no screenshot in the intermission
 				if (rendermode == render_opengl)
-					usebuffer = true; // This needs to be here for OpenGL, otherwise usebuffer is never set to true for it, and thus there's no screenshot in the intermission
-#endif
+					usebuffer = true;
 			}
 			usetile = false;
 

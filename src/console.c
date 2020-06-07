@@ -38,9 +38,7 @@
 #include "win32/win_main.h"
 #endif
 
-#ifdef HWRENDER
 #include "hardware/hw_main.h"
-#endif
 
 #define MAXHUDLINES 20
 

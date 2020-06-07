@@ -22,7 +22,6 @@
 
 #include "../doomdef.h"
 
-#ifdef HWRENDER
 #include "hw_glob.h"
 #include "hw_drv.h"
 
@@ -1531,5 +1530,3 @@ boolean HWR_Screenshot(const char *pathname)
 	free(buf);
 	return ret;
 }
-
-#endif //HWRENDER

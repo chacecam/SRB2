@@ -35,7 +35,6 @@
 
 #include "../doomdef.h"
 
-#ifdef HWRENDER
 #include "../hardware/r_opengl/r_opengl.h"
 #include "ogl_sdl.h"
 #include "../i_system.h"
@@ -233,5 +232,4 @@ EXPORT void HWRAPI( OglSdlSetPalette) (RGBA_t *palette)
 	}
 }
 
-#endif //HWRENDER
 #endif //SDL

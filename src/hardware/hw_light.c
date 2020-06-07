@@ -19,7 +19,6 @@
 
 #include "../doomdef.h"
 
-#ifdef HWRENDER
 #include "hw_light.h"
 #include "hw_drv.h"
 #include "../i_video.h"
@@ -1479,4 +1478,3 @@ void HWR_CreateStaticLightmaps(int bspnum)
   - finalement virer le hack splitscreen, il n'est plus necessaire !
 */
 #endif
-#endif // HWRENDER

@@ -43,12 +43,10 @@
 
 #define  _CREATE_DLL_  // necessary for Unix AND Windows
 
-#ifdef HWRENDER
 #include "../hardware/hw_drv.h"
 #include "ogl_sdl.h"
 #ifdef STATIC_OPENGL
 #include "../hardware/r_opengl/r_opengl.h"
-#endif
 #endif
 
 #ifdef HW3SOUND
@@ -73,7 +71,6 @@
 void *hwSym(const char *funcName,void *handle)
 {
 	void *funcPointer = NULL;
-#ifdef HWRENDER
 	if (0 == strcmp("SetPalette", funcName))
                 funcPointer = &OglSdlSetPalette;
 	GETFUNC(Init);
@@ -101,10 +98,6 @@ void *hwSym(const char *funcName,void *handle)
 	GETFUNC(MakeScreenTexture);
 	GETFUNC(MakeScreenFinalTexture);
 	GETFUNC(DrawScreenFinalTexture);
-#else //HWRENDER
-	if (0 == strcmp("FinishUpdate", funcName))
-		return funcPointer; //&FinishUpdate;
-#endif //!HWRENDER
 #ifdef STATIC3DS
 	GETFUNC(Startup);
 	GETFUNC(AddSfx);

@@ -59,9 +59,6 @@
 
 #ifdef _WINDOWS
 #define NONET
-#if !defined (HWRENDER) && !defined (NOHW)
-#define HWRENDER
-#endif
 // judgecutor: 3D sound support
 #if !defined(HW3SOUND) && !defined (NOHS)
 #define HW3SOUND

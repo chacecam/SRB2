@@ -34,9 +34,7 @@
 #include "m_random.h" // quake camera shake
 #include "r_portal.h"
 
-#ifdef HWRENDER
 #include "hardware/hw_main.h"
-#endif
 
 //profile stuff ---------------------------------------------------------
 //#define TIMING
@@ -900,10 +898,8 @@ void R_ExecuteSetViewSize(void)
 
 	R_InitTextureMapping();
 
-#ifdef HWRENDER
 	if (rendermode != render_soft)
 		HWR_InitTextureMapping();
-#endif
 
 	// thing clipping
 	for (i = 0; i < viewwidth; i++)
@@ -946,10 +942,8 @@ void R_ExecuteSetViewSize(void)
 	}
 
 	// continue to do the software setviewsize as long as we use the reference software view
-#ifdef HWRENDER
 	if (rendermode != render_soft)
 		HWR_SetViewSize();
-#endif
 
 	am_recalc = true;
 }
@@ -1481,7 +1475,6 @@ void R_RenderPlayerView(player_t *player)
 }
 
 // Lactozilla: Renderer switching
-#ifdef HWRENDER
 void R_InitHardwareMode(void)
 {
 	HWR_AddSessionCommands();
@@ -1490,7 +1483,6 @@ void R_InitHardwareMode(void)
 	if (gamestate == GS_LEVEL || (gamestate == GS_TITLESCREEN && titlemapinaction))
 		HWR_SetupLevel();
 }
-#endif
 
 void R_ReloadHUDGraphics(void)
 {

@@ -42,9 +42,7 @@
 
 #include "v_video.h" // video flags (for lua)
 
-#ifdef HWRENDER
 #include "hardware/hw_light.h"
-#endif
 
 #ifdef PC_DOS
 #include <stdio.h> // for snprintf
@@ -241,7 +239,6 @@ INT32 flags;         Bits = 3232              MF_SOLID|MF_SHOOTABLE|MF_DROPOFF|M
 INT32 raisestate;    Respawn frame = 32       S_NULL          // raisestate
                                          }, */
 
-#ifdef HWRENDER
 static INT32 searchvalue(const char *s)
 {
 	while (s[0] != '=' && s[0])
@@ -267,7 +264,6 @@ static float searchfvalue(const char *s)
 		return 0;
 	}
 }
-#endif
 
 // These are for clearing all of various things
 static void clear_conditionsets(void)
@@ -753,7 +749,6 @@ static void readthing(MYFILE *f, INT32 num)
 	Z_Free(s);
 }
 
-#ifdef HWRENDER
 static void readlight(MYFILE *f, INT32 num)
 {
 	char *s = Z_Malloc(MAXLINELEN, PU_STATIC, NULL);
@@ -822,7 +817,6 @@ static void readlight(MYFILE *f, INT32 num)
 
 	Z_Free(s);
 }
-#endif // HWRENDER
 
 static void readspriteframe(MYFILE *f, spriteinfo_t *sprinfo, UINT8 frame)
 {
@@ -902,9 +896,7 @@ static void readspriteinfo(MYFILE *f, INT32 num, boolean sprite2)
 	char *s = Z_Malloc(MAXLINELEN, PU_STATIC, NULL);
 	char *word, *word2;
 	char *tmp;
-#ifdef HWRENDER
 	INT32 value;
-#endif
 	char *lastline;
 	INT32 skinnumbers[MAXSKINS];
 	INT32 foundskins = 0;
@@ -965,7 +957,6 @@ static void readspriteinfo(MYFILE *f, INT32 num, boolean sprite2)
 					break;
 			}
 			strupr(word);
-#ifdef HWRENDER
 			value = atoi(word2); // used for numerical settings
 
 			if (fastcmp(word, "LIGHTTYPE"))
@@ -980,9 +971,7 @@ static void readspriteinfo(MYFILE *f, INT32 num, boolean sprite2)
 					t_lspr[num] = &lspr[value];
 				}
 			}
-			else
-#endif
-			if (fastcmp(word, "SKIN"))
+			else if (fastcmp(word, "SKIN"))
 			{
 				INT32 skinnum = -1;
 				if (!sprite2)
@@ -4568,7 +4557,6 @@ static void DEH_LoadDehackedFile(MYFILE *f, boolean mainfile)
 						ignorelines(f);
 					}
 				}
-#ifdef HWRENDER
 				else if (fastcmp(word, "LIGHT"))
 				{
 					// TODO: Read lights by name
@@ -4580,7 +4568,6 @@ static void DEH_LoadDehackedFile(MYFILE *f, boolean mainfile)
 						ignorelines(f);
 					}
 				}
-#endif
 				else if (fastcmp(word, "SPRITE") || fastcmp(word, "SPRITEINFO"))
 				{
 					if (i == 0 && word2[0] != '0') // If word2 isn't a number

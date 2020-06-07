@@ -26,9 +26,7 @@
 #include "z_zone.h"
 #include "console.h" // Until buffering gets finished
 
-#ifdef HWRENDER
 #include "hardware/hw_main.h"
-#endif
 
 // ==========================================================================
 //                     COMMON DATA FOR 8bpp AND 16bpp
@@ -935,14 +933,12 @@ void R_DrawViewBorder(void)
 
 	if (rendermode == render_none)
 		return;
-#ifdef HWRENDER
 	if (rendermode != render_soft)
 	{
 		HWR_DrawViewBorder(0);
 		return;
 	}
 	else
-#endif
 
 #ifdef DEBUG
 	fprintf(stderr,"RDVB: vidwidth %d vidheight %d scaledviewwidth %d viewheight %d\n",

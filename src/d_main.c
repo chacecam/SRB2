@@ -79,9 +79,7 @@ int	snprintf(char *str, size_t n, const char *fmt, ...);
 #include "config.h.in"
 #endif
 
-#ifdef HWRENDER
 #include "hardware/hw_main.h" // 3D View Rendering
-#endif
 
 #ifdef _WINDOWS
 #include "win32/win_main.h" // I_DoStartupMouse
@@ -259,11 +257,9 @@ static void D_Display(void)
 	if (vid.recalc || setrenderstillneeded)
 	{
 		SCR_Recalc(); // NOTE! setsizeneeded is set by SCR_Recalc()
-#ifdef HWRENDER
 		// Shoot! The screen texture was flushed!
 		if ((rendermode == render_opengl) && (gamestate == GS_INTERMISSION))
 			usebuffer = false;
-#endif
 	}
 
 	if (rendermode == render_soft && !splitscreen)
@@ -417,24 +413,18 @@ static void D_Display(void)
 				{
 					topleft = screens[0] + viewwindowy*vid.width + viewwindowx;
 					objectsdrawn = 0;
-	#ifdef HWRENDER
 					if (rendermode != render_soft)
 						HWR_RenderPlayerView(0, &players[displayplayer]);
-					else
-	#endif
-					if (rendermode != render_none)
+					else if (rendermode != render_none)
 						R_RenderPlayerView(&players[displayplayer]);
 				}
 
 				// render the second screen
 				if (splitscreen && players[secondarydisplayplayer].mo)
 				{
-	#ifdef HWRENDER
 					if (rendermode != render_soft)
 						HWR_RenderPlayerView(1, &players[secondarydisplayplayer]);
-					else
-	#endif
-					if (rendermode != render_none)
+					else if (rendermode != render_none)
 					{
 						viewwindowy = vid.height / 2;
 						M_Memcpy(ylookup, ylookup2, viewheight*sizeof (ylookup[0]));
@@ -1280,12 +1270,10 @@ void D_SRB2Main(void)
 	CONS_Printf("I_StartupGraphics()...\n");
 	I_StartupGraphics();
 
-#ifdef HWRENDER
 	// Lactozilla: Add every hardware mode CVAR and CCMD.
 	// Has to be done before the configuration file loads,
 	// but after the OpenGL library loads.
 	HWR_AddCommands();
-#endif
 
 	//--------------------------------------------------------- CONSOLE
 	// setup loading screen

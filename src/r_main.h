@@ -89,9 +89,7 @@ extern consvar_t cv_tailspickup;
 
 // Called by startup code.
 void R_Init(void);
-#ifdef HWRENDER
 void R_InitHardwareMode(void);
-#endif
 void R_ReloadHUDGraphics(void);
 
 void R_CheckViewMorph(void);

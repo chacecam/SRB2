@@ -34,9 +34,7 @@
 #include "m_misc.h" // M_Memcpy
 #include "lua_script.h"
 
-#ifdef HWRENDER
 #include "hardware/hw_main.h" // For hardware memory info
-#endif
 
 #ifdef HAVE_VALGRIND
 #include "valgrind.h"
@@ -807,7 +805,6 @@ static void Command_Memfree_f(void)
 	CONS_Printf(M_GetText("All purgable      : %7s KB\n"),
 		sizeu1(Z_TagsUsage(PU_PURGELEVEL, INT32_MAX)>>10));
 
-#ifdef HWRENDER
 	if (rendermode != render_soft && rendermode != render_none)
 	{
 		CONS_Printf(M_GetText("Patch info headers: %7s KB\n"), sizeu1(Z_TagUsage(PU_HWRPATCHINFO)>>10));
@@ -817,7 +814,6 @@ static void Command_Memfree_f(void)
 		CONS_Printf(M_GetText("HW model textures : %7s KB\n"), sizeu1(Z_TagUsage(PU_HWRMODELTEXTURE)>>10));
 		CONS_Printf(M_GetText("HW Texture used   : %7d KB\n"), HWR_GetTextureUsed()>>10);
 	}
-#endif
 
 	CONS_Printf("\x82%s", M_GetText("System Memory Info\n"));
 	freebytes = I_GetFreeMem(&totalbytes);

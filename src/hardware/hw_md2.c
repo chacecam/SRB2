@@ -31,7 +31,6 @@
 #include "../doomstat.h"
 #include "../fastcmp.h"
 
-#ifdef HWRENDER
 #include "hw_drv.h"
 #include "hw_light.h"
 #include "hw_md2.h"
@@ -1530,5 +1529,3 @@ boolean HWR_DrawModel(gr_vissprite_t *spr)
 
 	return true;
 }
-
-#endif //HWRENDER

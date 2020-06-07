@@ -285,24 +285,18 @@ void SCR_Startup(void)
 	vid.fdupx = FixedDiv(vid.width*FRACUNIT, BASEVIDWIDTH*FRACUNIT);
 	vid.fdupy = FixedDiv(vid.height*FRACUNIT, BASEVIDHEIGHT*FRACUNIT);
 
-#ifdef HWRENDER
 	if (rendermode != render_opengl && rendermode != render_none) // This was just placing it incorrectly at non aspect correct resolutions in opengl
-#endif
 		vid.fdupx = vid.fdupy = (vid.fdupx < vid.fdupy ? vid.fdupx : vid.fdupy);
 
 	vid.meddupx = (UINT8)(vid.dupx >> 1) + 1;
 	vid.meddupy = (UINT8)(vid.dupy >> 1) + 1;
-#ifdef HWRENDER
 	vid.fmeddupx = vid.meddupx*FRACUNIT;
 	vid.fmeddupy = vid.meddupy*FRACUNIT;
-#endif
 
 	vid.smalldupx = (UINT8)(vid.dupx / 3) + 1;
 	vid.smalldupy = (UINT8)(vid.dupy / 3) + 1;
-#ifdef HWRENDER
 	vid.fsmalldupx = vid.smalldupx*FRACUNIT;
 	vid.fsmalldupy = vid.smalldupy*FRACUNIT;
-#endif
 
 	vid.baseratio = FRACUNIT;
 
@@ -331,30 +325,24 @@ void SCR_Recalc(void)
 	vid.fdupx = FixedDiv(vid.width*FRACUNIT, BASEVIDWIDTH*FRACUNIT);
 	vid.fdupy = FixedDiv(vid.height*FRACUNIT, BASEVIDHEIGHT*FRACUNIT);
 
-#ifdef HWRENDER
 	//if (rendermode != render_opengl && rendermode != render_none) // This was just placing it incorrectly at non aspect correct resolutions in opengl
 	// 13/11/18:
 	// The above is no longer necessary, since we want OpenGL to be just like software now
 	// -- Monster Iestyn
-#endif
-		vid.fdupx = vid.fdupy = (vid.fdupx < vid.fdupy ? vid.fdupx : vid.fdupy);
+	vid.fdupx = vid.fdupy = (vid.fdupx < vid.fdupy ? vid.fdupx : vid.fdupy);
 
 	//vid.baseratio = FixedDiv(vid.height << FRACBITS, BASEVIDHEIGHT << FRACBITS);
 	vid.baseratio = FRACUNIT;
 
 	vid.meddupx = (UINT8)(vid.dupx >> 1) + 1;
 	vid.meddupy = (UINT8)(vid.dupy >> 1) + 1;
-#ifdef HWRENDER
 	vid.fmeddupx = vid.meddupx*FRACUNIT;
 	vid.fmeddupy = vid.meddupy*FRACUNIT;
-#endif
 
 	vid.smalldupx = (UINT8)(vid.dupx / 3) + 1;
 	vid.smalldupy = (UINT8)(vid.dupy / 3) + 1;
-#ifdef HWRENDER
 	vid.fsmalldupx = vid.smalldupx*FRACUNIT;
 	vid.fsmalldupy = vid.smalldupy*FRACUNIT;
-#endif
 
 	// toggle off (then back on) the automap because some screensize-dependent values will
 	// be calculated next time the automap is activated.
@@ -447,7 +435,6 @@ void SCR_ActuallyChangeRenderer(void)
 {
 	setrenderneeded = target_renderer;
 
-#ifdef HWRENDER
 	// Well, it didn't even load anyway.
 	if ((vid_opengl_state == -1) && (setrenderneeded == render_opengl))
 	{
@@ -458,7 +445,6 @@ void SCR_ActuallyChangeRenderer(void)
 		setrenderneeded = 0;
 		return;
 	}
-#endif
 
 	// setting the same renderer twice WILL crash your game, so let's not, please
 	if (rendermode == setrenderneeded)
@@ -473,12 +459,9 @@ void SCR_ChangeRenderer(void)
 	if (con_startup)
 	{
 		target_renderer = cv_renderer.value;
-#ifdef HWRENDER
 		if (M_CheckParm("-opengl") && (vid_opengl_state == 1))
 			target_renderer = rendermode = render_opengl;
-		else
-#endif
-		if (M_CheckParm("-software"))
+		else if (M_CheckParm("-software"))
 			target_renderer = rendermode = render_soft;
 		// set cv_renderer back
 		SCR_ChangeRendererCVars(rendermode);
@@ -499,9 +482,7 @@ void SCR_ChangeRendererCVars(INT32 mode)
 		CV_StealthSetValue(&cv_renderer, 1);
 	else if (mode == render_opengl)
 		CV_StealthSetValue(&cv_renderer, 2);
-#ifdef HWRENDER
 	CV_StealthSetValue(&cv_newrenderer, cv_renderer.value);
-#endif
 }
 
 boolean SCR_IsAspectCorrect(INT32 width, INT32 height)

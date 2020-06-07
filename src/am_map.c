@@ -21,9 +21,7 @@
 #include "r_state.h"
 #include "r_draw.h"
 
-#ifdef HWRENDER
 #include "hardware/hw_main.h"
-#endif
 
 // For use if I do walls with outsides/insides
 static const UINT8 REDS        = (8*16);
@@ -1138,10 +1136,8 @@ void AM_Drawer(void)
 		return;
 
 	AM_drawFline = AM_drawFline_soft;
-#ifdef HWRENDER
 	if (rendermode == render_opengl)
 		AM_drawFline = HWR_drawAMline;
-#endif
 
 	AM_clearFB(BACKGROUND);
 	if (draw_grid) AM_drawGrid(GRIDCOLORS);

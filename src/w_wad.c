@@ -64,11 +64,9 @@
 #endif
 #include "m_misc.h" // M_MapNumber
 
-#ifdef HWRENDER
 #include "r_data.h"
 #include "hardware/hw_main.h"
 #include "hardware/hw_glob.h"
-#endif
 
 #ifdef PC_DOS
 #include <stdio.h> // for snprintf
@@ -828,10 +826,8 @@ UINT16 W_InitFile(const char *filename, boolean mainfile, boolean startup)
 	Z_Calloc(numlumps * sizeof (*wadfile->lumpcache), PU_STATIC, &wadfile->lumpcache);
 	Z_Calloc(numlumps * sizeof (*wadfile->patchcache), PU_STATIC, &wadfile->patchcache);
 
-#ifdef HWRENDER
 	// allocates GLPatch info structures and store them in a tree
 	wadfile->hwrcache = M_AATreeAlloc(AATREE_ZUSER);
-#endif
 
 	//
 	// add the wadfile
@@ -1715,9 +1711,7 @@ void *W_CacheSoftwarePatchNum(lumpnum_t lumpnum, INT32 tag)
 
 void *W_CachePatchNumPwad(UINT16 wad, UINT16 lump, INT32 tag)
 {
-#ifdef HWRENDER
 	GLPatch_t *grPatch;
-#endif
 
 	if (needpatchflush)
 		W_FlushCachedPatches();
@@ -1725,14 +1719,9 @@ void *W_CachePatchNumPwad(UINT16 wad, UINT16 lump, INT32 tag)
 	if (!TestValidLump(wad, lump))
 		return NULL;
 
-#ifdef HWRENDER
 	// Software-only compile cache the data without conversion
 	if (rendermode == render_soft || rendermode == render_none)
-#endif
-	{
 		return W_CacheSoftwarePatchNumPwad(wad, lump, tag);
-	}
-#ifdef HWRENDER
 
 	grPatch = HWR_GetCachedGLPatchPwad(wad, lump);
 
@@ -1757,7 +1746,6 @@ void *W_CachePatchNumPwad(UINT16 wad, UINT16 lump, INT32 tag)
 
 	// return GLPatch_t, which can be casted to (patch_t) with valid patch header info
 	return (void *)grPatch;
-#endif
 }
 
 void *W_CachePatchNum(lumpnum_t lumpnum, INT32 tag)
@@ -1769,11 +1757,9 @@ void W_UnlockCachedPatch(void *patch)
 {
 	// The hardware code does its own memory management, as its patches
 	// have different lifetimes from software's.
-#ifdef HWRENDER
 	if (rendermode != render_soft && rendermode != render_none)
 		HWR_UnlockCachedPatch((GLPatch_t*)patch);
 	else
-#endif
 		Z_Unlock(patch);
 }
 

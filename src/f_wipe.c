@@ -35,9 +35,7 @@
 
 #include "lua_hud.h" // level title
 
-#ifdef HWRENDER
 #include "hardware/hw_main.h"
-#endif
 
 #if NUMSCREENS < 5
 #define NOWIPE // do not enable wipe image post processing for ARM, SH and MIPS CPUs
@@ -430,13 +428,11 @@ static void F_DoColormapWipe(fademask_t *fademask, UINT8 *colormap)
 void F_WipeStartScreen(void)
 {
 #ifndef NOWIPE
-#ifdef HWRENDER
 	if(rendermode != render_soft)
 	{
 		HWR_StartScreenWipe();
 		return;
 	}
-#endif
 	wipe_scr_start = screens[3];
 	I_ReadScreen(wipe_scr_start);
 #endif
@@ -447,13 +443,11 @@ void F_WipeStartScreen(void)
 void F_WipeEndScreen(void)
 {
 #ifndef NOWIPE
-#ifdef HWRENDER
 	if(rendermode != render_soft)
 	{
 		HWR_EndScreenWipe();
 		return;
 	}
-#endif
 	wipe_scr_end = screens[4];
 	I_ReadScreen(wipe_scr_end);
 	V_DrawBlock(0, 0, 0, vid.width, vid.height, wipe_scr_start);
@@ -508,10 +502,8 @@ boolean F_TryColormapFade(UINT8 wipecolor)
 #ifndef NOWIPE
 	if (F_ShouldColormapFade())
 	{
-#ifdef HWRENDER
 		if (rendermode == render_opengl)
 			F_WipeColorFill(wipecolor);
-#endif
 		return true;
 	}
 	else
@@ -560,14 +552,12 @@ void F_RunWipe(UINT8 wipetype, boolean drawMenu)
 		// Wipe styles
 		if (wipestyle == WIPESTYLE_COLORMAP)
 		{
-#ifdef HWRENDER
 			if (rendermode == render_opengl)
 			{
 				// send in the wipe type and wipe frame because we need to cache the graphic
 				HWR_DoTintedWipe(wipetype, wipeframe-1);
 			}
 			else
-#endif
 			{
 				UINT8 *colormap = fadecolormap;
 				if (wipestyleflags & WSF_TOWHITE)
@@ -580,14 +570,12 @@ void F_RunWipe(UINT8 wipetype, boolean drawMenu)
 		}
 		else
 		{
-#ifdef HWRENDER
 			if (rendermode == render_opengl)
 			{
 				// send in the wipe type and wipe frame because we need to cache the graphic
 				HWR_DoWipe(wipetype, wipeframe-1);
 			}
 			else
-#endif
 				F_DoWipe(fmask);
 		}
 

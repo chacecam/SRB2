@@ -71,11 +71,9 @@
 #include <malloc.h>
 #include <math.h>
 #endif
-#ifdef HWRENDER
 #include "hardware/hw_main.h"
 #include "hardware/hw_light.h"
 #include "hardware/hw_model.h"
-#endif
 
 #include "p_slopes.h"
 
@@ -867,7 +865,6 @@ static void P_InitializeSector(sector_t *ss)
 
 	ss->extra_colormap = NULL;
 
-#ifdef HWRENDER // ----- for special tricks with HW renderer -----
 	ss->pseudoSector = false;
 	ss->virtualFloor = false;
 	ss->virtualFloorheight = 0;
@@ -876,7 +873,6 @@ static void P_InitializeSector(sector_t *ss)
 	ss->sectorLines = NULL;
 	ss->stackList = NULL;
 	ss->lineoutLength = -1.0l;
-#endif // ----- end special tricks -----
 
 	ss->gravity = NULL;
 	ss->verticalflip = false;
@@ -1832,7 +1828,6 @@ fixed_t P_SegLength(seg_t *seg)
 	return FixedHypot(dx, dy)<<1;
 }
 
-#ifdef HWRENDER
 /** Computes the length of a seg as a float.
   * This is needed for OpenGL.
   *
@@ -1849,7 +1844,6 @@ static inline float P_SegLengthFloat(seg_t *seg)
 
 	return (float)hypot(dx, dy);
 }
-#endif
 
 static void P_InitializeSeg(seg_t *seg)
 {
@@ -1861,12 +1855,10 @@ static void P_InitializeSeg(seg_t *seg)
 		seg->backsector = (seg->linedef->flags & ML_TWOSIDED) ? sides[seg->linedef->sidenum[seg->side ^ 1]].sector : NULL;
 	}
 
-#ifdef HWRENDER
 	seg->pv1 = seg->pv2 = NULL;
 
 	//Hurdler: 04/12/2000: for now, only used in hardware mode
 	seg->lightmaps = NULL; // list of static lightmap for this seg
-#endif
 
 	seg->numlights = 0;
 	seg->rlights = NULL;
@@ -1894,9 +1886,7 @@ static void P_LoadSegs(UINT8 *data)
 		seg->linedef = &lines[SHORT(ms->linedef)];
 
 		seg->length = P_SegLength(seg);
-#ifdef HWRENDER
 		seg->flength = (rendermode == render_opengl) ? P_SegLengthFloat(seg) : 0;
-#endif
 
 		seg->glseg = false;
 		P_InitializeSeg(seg);
@@ -3201,11 +3191,9 @@ static void P_RunSpecialStageWipe(void)
 	F_WipeStartScreen();
 	wipestyleflags |= (WSF_FADEOUT|WSF_TOWHITE);
 
-#ifdef HWRENDER
 	// uh..........
 	if (rendermode == render_opengl)
 		F_WipeColorFill(0);
-#endif
 
 	F_WipeEndScreen();
 	F_RunWipe(wipedefs[wipe_speclevel_towhite], false);
@@ -3234,11 +3222,9 @@ static void P_RunLevelWipe(void)
 	F_WipeStartScreen();
 	wipestyleflags |= WSF_FADEOUT;
 
-#ifdef HWRENDER
 	// uh..........
 	if (rendermode == render_opengl)
 		F_WipeColorFill(31);
-#endif
 
 	F_WipeEndScreen();
 	// for titlemap: run a specific wipe if specified
@@ -3570,7 +3556,6 @@ boolean P_LoadLevel(boolean fromnetsave)
 	if (!fromnetsave) //  ugly hack for P_NetUnArchiveMisc (and P_LoadNetGame)
 		P_SpawnPrecipitation();
 
-#ifdef HWRENDER // not win32 only 19990829 by Kin
 	// Lactozilla: Free extrasubsectors regardless of renderer.
 	// Maybe we're not in OpenGL anymore.
 	if (extrasubsectors)
@@ -3579,7 +3564,6 @@ boolean P_LoadLevel(boolean fromnetsave)
 	// stuff like HWR_CreatePlanePolygons is called there
 	if (rendermode == render_opengl)
 		HWR_SetupLevel();
-#endif
 
 	// oh god I hope this helps
 	// (addendum: apparently it does!
@@ -3655,7 +3639,6 @@ boolean P_LoadLevel(boolean fromnetsave)
 	return true;
 }
 
-#ifdef HWRENDER
 void HWR_SetupLevel(void)
 {
 	// Lactozilla (December 8, 2019)
@@ -3678,7 +3661,6 @@ void HWR_SetupLevel(void)
 	HWR_CorrectSWTricks();
 	HWR_CreatePlanePolygons((INT32)numnodes - 1);
 }
-#endif
 
 //
 // P_RunSOC
@@ -3943,9 +3925,7 @@ boolean P_AddWadFile(const char *wadfilename)
 
 	R_LoadSpriteInfoLumps(wadnum, numlumps);
 
-#ifdef HWRENDER
 	HWR_ReloadModels();
-#endif
 
 	// reload status bar (warning should have valid player!)
 	if (gamestate == GS_LEVEL)

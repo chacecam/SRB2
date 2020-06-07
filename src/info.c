@@ -21,9 +21,7 @@
 #include "z_zone.h"
 #include "d_player.h"
 #include "lzf.h"
-#ifdef HWRENDER
 #include "hardware/hw_light.h"
-#endif
 
 // Hey, moron! If you change this table, don't forget about the sprite enum in info.h and the sprite lights in hw_light.c!
 // For the sake of constant merge conflicts, let's spread this out
@@ -3361,7 +3359,7 @@ state_t states[NUMSTATES] =
 
 	// CTF Sign
 	{SPR_GFLG, FF_FULLBRIGHT, 2, {NULL}, 0, 0, S_NULL}, // S_GOTFLAG
-	
+
 	// Finish flag
 	{SPR_FNSF,    FF_TRANS30, -1, {NULL}, 0, 0, S_NULL}, // S_FINISHFLAG
 
@@ -18009,7 +18007,7 @@ mobjinfo_t mobjinfo[NUMMOBJTYPES] =
 		MF_NOBLOCKMAP|MF_NOCLIP|MF_NOGRAVITY|MF_SCENERY, // flags
 		S_NULL          // raisestate
 	},
-	
+
 	{           // MT_FINISHFLAG
 		-1,             // doomednum
 		S_FINISHFLAG,   // spawnstate
@@ -19854,7 +19852,7 @@ mobjinfo_t mobjinfo[NUMMOBJTYPES] =
 		MF_SLIDEME|MF_SPECIAL|MF_NOGRAVITY|MF_NOCLIPHEIGHT, // flags
 		S_NULL          // raisestate
 	},
-	
+
 	{           // MT_FLINGNIGHTSSTAR
 		-1,             // doomednum
 		S_NIGHTSSTAR,   // spawnstate
@@ -21638,9 +21636,7 @@ void P_PatchInfoTables(void)
 		tempname[2] = (char)('0' + (char)(((i-SPR_FIRSTFREESLOT+1)/10)%10));
 		tempname[3] = (char)('0' + (char)((i-SPR_FIRSTFREESLOT+1)%10));
 		tempname[4] = '\0';
-#ifdef HWRENDER
 		t_lspr[i] = &lspr[NOLIGHT];
-#endif
 	}
 	sprnames[i][0] = '\0'; // i == NUMSPRITES
 	memset(&states[S_FIRSTFREESLOT], 0, sizeof (state_t) * NUMSTATEFREESLOTS);

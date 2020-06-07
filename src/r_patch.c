@@ -22,9 +22,7 @@
 #include "z_zone.h"
 #include "w_wad.h"
 
-#ifdef HWRENDER
 #include "hardware/hw_glob.h"
-#endif
 
 #ifdef HAVE_PNG
 
@@ -1364,7 +1362,6 @@ void R_CacheRotSprite(spritenum_t sprnum, UINT8 frame, spriteinfo_t *sprinfo, sp
 			newpatch->leftoffset = SHORT(newpatch->leftoffset);
 			newpatch->topoffset = SHORT(newpatch->topoffset);
 
-#ifdef HWRENDER
 			if (rendermode == render_opengl)
 			{
 				GLPatch_t *grPatch = Z_Calloc(sizeof(GLPatch_t), PU_HWRPATCHINFO, NULL);
@@ -1374,7 +1371,6 @@ void R_CacheRotSprite(spritenum_t sprnum, UINT8 frame, spriteinfo_t *sprinfo, sp
 				HWR_MakePatch(newpatch, grPatch, grPatch->mipmap, false);
 			}
 			else
-#endif // HWRENDER
 				sprframe->rotsprite.patch[rot][angle] = newpatch;
 
 			// free rotated image data
@@ -1415,7 +1411,6 @@ void R_FreeSingleRotSprite(spritedef_t *spritedef)
 					patch_t *rotsprite = sprframe->rotsprite.patch[rot][ang];
 					if (rotsprite)
 					{
-#ifdef HWRENDER
 						if (rendermode == render_opengl)
 						{
 							GLPatch_t *grPatch = (GLPatch_t *)rotsprite;
@@ -1435,7 +1430,6 @@ void R_FreeSingleRotSprite(spritedef_t *spritedef)
 								grPatch->mipmap = NULL;
 							}
 						}
-#endif
 						Z_Free(rotsprite);
 					}
 				}

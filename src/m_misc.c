@@ -47,9 +47,7 @@
 // So that the screenshot menu auto-updates...
 #include "m_menu.h"
 
-#ifdef HWRENDER
 #include "hardware/hw_main.h"
-#endif
 
 #ifdef HAVE_SDL
 #include "sdl/hwsym_sdl.h"
@@ -1219,15 +1217,11 @@ void M_SaveFrame(void)
 					linear = screens[2];
 					I_ReadScreen(linear);
 				}
-#ifdef HWRENDER
 				else
 					linear = HWR_GetScreenshot();
-#endif
 				M_PNGFrame(apng_ptr, apng_info_ptr, (png_bytep)linear);
-#ifdef HWRENDER
 				if (rendermode != render_soft && linear)
 					free(linear);
-#endif
 
 				if (apng_frames == PNG_UINT_31_MAX)
 				{
@@ -1534,11 +1528,9 @@ void M_DoScreenShot(void)
 		goto failure;
 
 	// save the pcx file
-#ifdef HWRENDER
 	if (rendermode == render_opengl)
 		ret = HWR_Screenshot(va(pandf,pathname,freename));
 	else
-#endif
 	{
 		M_CreateScreenShotPalette();
 #ifdef USE_PNG

@@ -27,9 +27,7 @@
 #include "p_local.h"
 #include "dehacked.h" // get_number (for thok)
 #include "m_cond.h"
-#ifdef HWRENDER
 #include "hardware/hw_md2.h"
-#endif
 
 #ifdef PC_DOS
 #include <stdio.h> // for snprintf
@@ -690,10 +688,8 @@ next_token:
 		skin_cons_t[numskins].strvalue = skin->name;
 #endif
 
-#ifdef HWRENDER
 		if (rendermode == render_opengl)
 			HWR_AddPlayerModel(numskins);
-#endif
 
 		numskins++;
 	}

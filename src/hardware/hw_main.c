@@ -20,7 +20,6 @@
 
 #include "../doomstat.h"
 
-#ifdef HWRENDER
 #include "hw_glob.h"
 #include "hw_light.h"
 #include "hw_drv.h"
@@ -6769,5 +6768,3 @@ void HWR_DrawScreenFinalTexture(int width, int height)
 {
     HWD.pfnDrawScreenFinalTexture(width, height);
 }
-
-#endif // HWRENDER

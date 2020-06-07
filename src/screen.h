@@ -69,10 +69,8 @@ typedef struct viddef_s
 	DNWH WndParent; // handle of the application's window
 	UINT8 smalldupx, smalldupy; // factor for a little bit of scaling
 	UINT8 meddupx, meddupy; // factor for moderate, but not full, scaling
-#ifdef HWRENDER
 	INT32/*fixed_t*/ fsmalldupx, fsmalldupy;
 	INT32/*fixed_t*/ fmeddupx, fmeddupy;
-#endif
 } viddef_t;
 #define VIDWIDTH vid.width
 #define VIDHEIGHT vid.height
@@ -182,9 +180,7 @@ extern UINT8 *scr_borderpatch; // patch used to fill the view borders
 extern CV_PossibleValue_t cv_renderer_t[];
 
 extern consvar_t cv_scr_width, cv_scr_height, cv_scr_depth, cv_renderview, cv_renderer, cv_fullscreen;
-#ifdef HWRENDER
 extern consvar_t cv_newrenderer;
-#endif
 // wait for page flipping to end or not
 extern consvar_t cv_vidwait;
 

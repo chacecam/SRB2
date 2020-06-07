@@ -21,9 +21,7 @@
 #include "m_misc.h"
 #include "st_stuff.h" // st_palette
 
-#ifdef HWRENDER
 #include "hardware/hw_main.h"
-#endif
 
 // GIFs are always little-endian
 #include "byteptr.h"
@@ -408,11 +406,9 @@ const UINT8 gifhead_nsid[19] = {0x21,0xFF,0x0B, // extension block + size
 static RGBA_t *GIF_getpalette(size_t palnum)
 {
 	// In hardware mode, always returns the local palette
-#ifdef HWRENDER
 	if (rendermode == render_opengl)
 		return pLocalPalette;
 	else
-#endif
 		return (gif_colorprofile ? &pLocalPalette[palnum*256] : &pMasterPalette[palnum*256]);
 }
 
@@ -494,7 +490,6 @@ static size_t gifframe_size = 8192;
 // GIF_rgbconvert
 // converts an RGB frame to a frame with a palette.
 //
-#ifdef HWRENDER
 static void GIF_rgbconvert(UINT8 *linear, UINT8 *scr)
 {
 	UINT8 r, g, b;
@@ -513,7 +508,6 @@ static void GIF_rgbconvert(UINT8 *linear, UINT8 *scr)
 		dest += scrbuf_downscaleamt;
 	}
 }
-#endif
 
 //
 // GIF_framewrite
@@ -553,14 +547,12 @@ static void GIF_framewrite(void)
 		// blit to temp screen
 		if (rendermode == render_soft)
 			I_ReadScreen(movie_screen);
-#ifdef HWRENDER
 		else if (rendermode == render_opengl)
 		{
 			UINT8 *linear = HWR_GetScreenshot();
 			GIF_rgbconvert(linear, movie_screen);
 			free(linear);
 		}
-#endif
 	}
 	else
 	{
@@ -568,7 +560,6 @@ static void GIF_framewrite(void)
 		blitw = vid.width;
 		blith = vid.height;
 
-#ifdef HWRENDER
 		// Copy the current OpenGL frame into the base screen
 		if (rendermode == render_opengl)
 		{
@@ -576,7 +567,6 @@ static void GIF_framewrite(void)
 			GIF_rgbconvert(linear, screens[0]);
 			free(linear);
 		}
-#endif
 
 		// Copy the first frame into the movie screen
 		// OpenGL already does the same above.

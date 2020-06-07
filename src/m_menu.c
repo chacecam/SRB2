@@ -45,9 +45,7 @@
 #include "p_setup.h"
 #include "f_finale.h"
 
-#ifdef HWRENDER
 #include "hardware/hw_main.h"
-#endif
 
 #include "d_net.h"
 #include "mserv.h"
@@ -314,10 +312,8 @@ static void M_ChangeControl(INT32 choice);
 // Video & Sound
 static void M_VideoOptions(INT32 choice);
 menu_t OP_VideoOptionsDef, OP_VideoModeDef, OP_ColorOptionsDef;
-#ifdef HWRENDER
 static void M_OpenGLOptionsMenu(void);
 menu_t OP_OpenGLOptionsDef, OP_OpenGLFogDef;
-#endif
 menu_t OP_SoundOptionsDef;
 menu_t OP_SoundAdvancedDef;
 
@@ -364,9 +360,7 @@ static void M_DrawVideoMode(void);
 static void M_DrawColorMenu(void);
 static void M_DrawScreenshotMenu(void);
 static void M_DrawMonitorToggles(void);
-#ifdef HWRENDER
 static void M_OGL_DrawFogMenu(void);
-#endif
 #ifndef NONET
 static void M_DrawConnectMenu(void);
 static void M_DrawMPMainMenu(void);
@@ -390,18 +384,14 @@ static boolean M_CancelConnect(void);
 static void M_HandleConnectIP(INT32 choice);
 #endif
 static void M_HandleSetupMultiPlayer(INT32 choice);
-#ifdef HWRENDER
 static void M_HandleFogColor(INT32 choice);
-#endif
 static void M_HandleVideoMode(INT32 choice);
 
 static void M_ResetCvars(void);
 
 // Consvar onchange functions
 static void Newgametype_OnChange(void);
-#ifdef HWRENDER
 static void Newrenderer_OnChange(void);
-#endif
 static void Dummymares_OnChange(void);
 
 // ==========================================================================
@@ -426,10 +416,8 @@ CV_PossibleValue_t gametype_cons_t[NUMGAMETYPES+1];
 
 consvar_t cv_newgametype = {"newgametype", "Co-op", CV_HIDEN|CV_CALL, gametype_cons_t, Newgametype_OnChange, 0, NULL, NULL, 0, 0, NULL};
 
-#ifdef HWRENDER
 consvar_t cv_newrenderer = {"newrenderer", "Software", CV_HIDEN|CV_CALL, cv_renderer_t, Newrenderer_OnChange, 0, NULL, NULL, 0, 0, NULL};
 static int newrenderer_set = 1;/* Software doesn't need confirmation! */
-#endif
 
 static CV_PossibleValue_t serversort_cons_t[] = {
 	{0,"Ping"},
@@ -1308,11 +1296,7 @@ static menuitem_t OP_VideoOptionsMenu[] =
 	{IT_STRING|IT_CVAR,      NULL, "Fullscreen",             &cv_fullscreen,         11},
 #endif
 	{IT_STRING | IT_CVAR, NULL, "Vertical Sync",                &cv_vidwait,         16},
-#ifdef HWRENDER
 	{IT_STRING | IT_CVAR, NULL, "Renderer",                     &cv_newrenderer,        21},
-#else
-	{IT_TRANSTEXT | IT_PAIR, "Renderer", "Software",            &cv_renderer,           21},
-#endif
 
 	{IT_HEADER, NULL, "Color Profile", NULL, 30},
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Brightness (F11)", &cv_globalgamma,36},
@@ -1353,10 +1337,8 @@ static menuitem_t OP_VideoOptionsMenu[] =
 	{IT_STRING | IT_CVAR, NULL, "Clear Before Redraw",       &cv_homremoval,      195},
 	{IT_STRING | IT_CVAR, NULL, "Show \"FOCUS LOST\"",       &cv_showfocuslost,   200},
 
-#ifdef HWRENDER
 	{IT_HEADER, NULL, "Renderer", NULL, 208},
 	{IT_CALL | IT_STRING, NULL, "OpenGL Options...",         M_OpenGLOptionsMenu, 214},
-#endif
 };
 
 static menuitem_t OP_VideoModeMenu[] =
@@ -1405,7 +1387,6 @@ static menuitem_t OP_ColorOptionsMenu[] =
 	{IT_STRING | IT_CVAR | IT_CV_SLIDER, NULL, "Brightness",   &cv_mgamma,      150},
 };
 
-#ifdef HWRENDER
 static menuitem_t OP_OpenGLOptionsMenu[] =
 {
 	{IT_HEADER, NULL, "3D Models", NULL, 0},
@@ -1446,7 +1427,6 @@ static menuitem_t OP_OpenGLFogMenu[] =
 	{IT_STRING|IT_CVAR,       NULL, "Fog density", &cv_grfogdensity, 30},
 	{IT_STRING|IT_CVAR,       NULL, "Software Fog",&cv_grsoftwarefog,40},
 };
-#endif
 
 static menuitem_t OP_SoundOptionsMenu[] =
 {
@@ -2104,7 +2084,6 @@ menu_t OP_PlaystyleDef = {
 static void M_VideoOptions(INT32 choice)
 {
 	(void)choice;
-#ifdef HWRENDER
 	if (vid_opengl_state == -1)
 	{
 		OP_VideoOptionsMenu[op_video_renderer].status = (IT_TRANSTEXT | IT_PAIR);
@@ -2112,7 +2091,6 @@ static void M_VideoOptions(INT32 choice)
 		OP_VideoOptionsMenu[op_video_renderer].text = "Software";
 	}
 
-#endif
 	M_SetupNextMenu(&OP_VideoOptionsDef);
 }
 
@@ -2176,7 +2154,6 @@ menu_t OP_MonitorToggleDef =
 	NULL
 };
 
-#ifdef HWRENDER
 static void M_OpenGLOptionsMenu(void)
 {
 	if (rendermode == render_opengl)
@@ -2205,7 +2182,7 @@ menu_t OP_OpenGLFogDef =
 	0,
 	NULL
 };
-#endif
+
 menu_t OP_DataOptionsDef = DEFAULTMENUSTYLE(
 	MTREE2(MN_OP_MAIN, MN_OP_DATA),
 	"M_DATA", OP_DataOptionsMenu, &OP_MainDef, 60, 30);
@@ -2390,7 +2367,6 @@ static void Newgametype_OnChange(void)
 	}
 }
 
-#ifdef HWRENDER
 static void Newrenderer_AREYOUSURE(INT32 c)
 {
 	int n;
@@ -2428,7 +2404,6 @@ static void Newrenderer_OnChange(void)
 		);
 	}
 }
-#endif/*HWRENDER*/
 
 void Screenshot_option_Onchange(void)
 {
@@ -11539,7 +11514,6 @@ static void M_SetupScreenshotMenu(void)
 {
 	menuitem_t *item = &OP_ScreenshotOptionsMenu[op_screenshot_colorprofile];
 
-#ifdef HWRENDER
 	// Hide some options based on render mode
 	if (rendermode == render_opengl)
 	{
@@ -11548,7 +11522,6 @@ static void M_SetupScreenshotMenu(void)
 			itemOn = op_screenshot_storagelocation;
 	}
 	else
-#endif
 		item->status = (IT_STRING | IT_CVAR);
 }
 
@@ -12493,7 +12466,6 @@ static void M_HandleVideoMode(INT32 ch)
 static void M_DrawScreenshotMenu(void)
 {
 	M_DrawGenericScrollMenu();
-#ifdef HWRENDER
 	if ((rendermode == render_opengl) && (itemOn < 7)) // where it starts to go offscreen; change this number if you change the layout of the screenshot menu
 	{
 		INT32 y = currentMenu->y+currentMenu->menuitems[op_screenshot_colorprofile].alphaKey*2;
@@ -12501,7 +12473,6 @@ static void M_DrawScreenshotMenu(void)
 			y -= 10;
 		V_DrawRightAlignedString(BASEVIDWIDTH - currentMenu->x, y, V_REDMAP, "Yes");
 	}
-#endif
 }
 
 // ===============
@@ -12602,7 +12573,6 @@ static void M_QuitSRB2(INT32 choice)
 	M_StartMessage(quitmsg[M_RandomKey(NUM_QUITMESSAGES)], M_QuitResponse, MM_YESNO);
 }
 
-#ifdef HWRENDER
 // =====================================================================
 // OpenGL specific options
 // =====================================================================
@@ -12682,4 +12652,3 @@ static void M_HandleFogColor(INT32 choice)
 			M_ClearMenus(true);
 	}
 }
-#endif

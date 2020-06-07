@@ -38,9 +38,7 @@
 // item finder
 #include "m_cond.h"
 
-#ifdef HWRENDER
 #include "hardware/hw_main.h"
-#endif
 
 #include "lua_hud.h"
 
@@ -210,10 +208,8 @@ void ST_doPaletteStuff(void)
 	else
 		palette = 0;
 
-#ifdef HWRENDER
 	if (rendermode == render_opengl)
 		palette = 0; // No flashpals here in OpenGL
-#endif
 
 	palette = min(max(palette, 0), 13);
 
@@ -2789,12 +2785,10 @@ void ST_Drawer(void)
 		st_palette = -1;
 
 	// Do red-/gold-shifts from damage/items
-#ifdef HWRENDER
 	//25/08/99: Hurdler: palette changes is done for all players,
 	//                   not only player1! That's why this part
 	//                   of code is moved somewhere else.
 	if (rendermode == render_soft)
-#endif
 		if (rendermode != render_none) ST_doPaletteStuff();
 
 	// Blindfold!

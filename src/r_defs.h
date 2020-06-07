@@ -24,9 +24,7 @@
 
 #include "screen.h" // MAXVIDWIDTH, MAXVIDHEIGHT
 
-#ifdef HWRENDER
 #include "m_aatree.h"
-#endif
 
 //
 // ClipWallSegment
@@ -348,7 +346,6 @@ typedef struct sector_s
 	// per-sector colormaps!
 	extracolormap_t *extra_colormap;
 
-#ifdef HWRENDER // ----- for special tricks with HW renderer -----
 	boolean pseudoSector;
 	boolean virtualFloor;
 	fixed_t virtualFloorheight;
@@ -357,7 +354,6 @@ typedef struct sector_s
 	linechain_t *sectorLines;
 	struct sector_s **stackList;
 	double lineoutLength;
-#endif // ----- end special tricks -----
 
 	// This points to the master's floorheight, so it can be changed in realtime!
 	fixed_t *gravity; // per-sector gravity
@@ -564,14 +560,13 @@ typedef struct seg_s
 	sector_t *backsector;
 
 	fixed_t length;	// precalculated seg length
-#ifdef HWRENDER
+
 	// new pointers so that AdjustSegs doesn't mess with v1/v2
 	void *pv1; // polyvertex_t
 	void *pv2; // polyvertex_t
 	float flength; // length of the seg, used by hardware renderer
 
 	lightmap_t *lightmaps; // for static lightmap
-#endif
 
 	// Why slow things down by calculating lightlists for every thick side?
 	size_t numlights;

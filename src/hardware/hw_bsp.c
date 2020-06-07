@@ -18,7 +18,6 @@
 
 #include "../doomdef.h"
 #include "../doomstat.h"
-#ifdef HWRENDER
 #include "hw_glob.h"
 #include "../r_local.h"
 #include "../z_zone.h"
@@ -1029,5 +1028,3 @@ void HWR_CreatePlanePolygons(INT32 bspnum)
 
 	//CONS_Debug(DBG_RENDER, "done: %u total subsector convex polygons\n", totalsubsecpolys);
 }
-
-#endif //HWRENDER
