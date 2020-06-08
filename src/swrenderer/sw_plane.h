@@ -11,12 +11,12 @@
 /// \file  r_plane.h
 /// \brief Refresh, visplane stuff (floor, ceilings)
 
-#ifndef __R_PLANE__
-#define __R_PLANE__
+#ifndef __SW_PLANE__
+#define __SW_PLANE__
 
-#include "screen.h" // needs MAXVIDWIDTH/MAXVIDHEIGHT
-#include "r_data.h"
-#include "p_polyobj.h"
+#include "../screen.h" // needs MAXVIDWIDTH/MAXVIDHEIGHT
+#include "../r_data.h"
+#include "../p_polyobj.h"
 
 #define MAXVISPLANES 512
 
@@ -70,23 +70,23 @@ extern fixed_t basexscale, baseyscale;
 extern fixed_t *yslope;
 extern lighttable_t **planezlight;
 
-void R_InitPlanes(void);
-void R_ClearPlanes(void);
-void R_ClearFFloorClips (void);
+void SWR_InitPlanes(void);
+void SWR_ClearPlanes(void);
+void SWR_ClearFFloorClips (void);
 
-void R_MapPlane(INT32 y, INT32 x1, INT32 x2);
-void R_MakeSpans(INT32 x, INT32 t1, INT32 b1, INT32 t2, INT32 b2);
-void R_DrawPlanes(void);
-visplane_t *R_FindPlane(fixed_t height, INT32 picnum, INT32 lightlevel, fixed_t xoff, fixed_t yoff, angle_t plangle,
+void SWR_MapPlane(INT32 y, INT32 x1, INT32 x2);
+void SWR_MakeSpans(INT32 x, INT32 t1, INT32 b1, INT32 t2, INT32 b2);
+void SWR_DrawPlanes(void);
+visplane_t *SWR_FindPlane(fixed_t height, INT32 picnum, INT32 lightlevel, fixed_t xoff, fixed_t yoff, angle_t plangle,
 	extracolormap_t *planecolormap, ffloor_t *ffloor, polyobj_t *polyobj, pslope_t *slope);
-visplane_t *R_CheckPlane(visplane_t *pl, INT32 start, INT32 stop);
-void R_ExpandPlane(visplane_t *pl, INT32 start, INT32 stop);
-void R_PlaneBounds(visplane_t *plane);
+visplane_t *SWR_CheckPlane(visplane_t *pl, INT32 start, INT32 stop);
+void SWR_ExpandPlane(visplane_t *pl, INT32 start, INT32 stop);
+void SWR_PlaneBounds(visplane_t *plane);
 
 // Draws a single visplane.
-void R_DrawSinglePlane(visplane_t *pl);
-void R_CheckFlatLength(size_t size);
-boolean R_CheckPowersOfTwo(void);
+void SWR_DrawSinglePlane(visplane_t *pl);
+void SWR_CheckFlatLength(size_t size);
+boolean SWR_CheckPowersOfTwo(void);
 
 typedef struct planemgr_s
 {

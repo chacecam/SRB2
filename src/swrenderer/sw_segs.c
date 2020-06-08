@@ -8,23 +8,26 @@
 // terms of the GNU General Public License, version 2.
 // See the 'LICENSE' file for more details.
 //-----------------------------------------------------------------------------
-/// \file  r_segs.c
+/// \file  sw_segs.c
 /// \brief All the clipping: columns, horizontal spans, sky columns
 
-#include "doomdef.h"
-#include "r_local.h"
-#include "r_sky.h"
+#include "../doomdef.h"
+#include "../r_local.h"
+#include "../r_sky.h"
 
-#include "r_portal.h"
-#include "r_splats.h"
+#include "../r_portal.h"
+#include "../r_splats.h"
 
-#include "w_wad.h"
-#include "z_zone.h"
-#include "d_netcmd.h"
-#include "m_misc.h"
-#include "p_local.h" // Camera...
-#include "p_slopes.h"
-#include "console.h" // con_clipviewtop
+#include "../w_wad.h"
+#include "../z_zone.h"
+#include "../d_netcmd.h"
+#include "../m_misc.h"
+#include "../p_local.h" // Camera...
+#include "../p_slopes.h"
+#include "../console.h" // con_clipviewtop
+
+#include "sw_local.h"
+#include "sw_masked.h"
 
 // OPTIMIZE: closed two sided lines as single sided
 
@@ -71,7 +74,7 @@ static fixed_t *maskedtextureheight = NULL;
 static INT16 last_ceilingclip[MAXVIDWIDTH];
 static INT16 last_floorclip[MAXVIDWIDTH];
 
-static void R_DrawSplatColumn(column_t *column)
+static void SWR_DrawSplatColumn(column_t *column)
 {
 	INT32 topscreen, bottomscreen;
 	fixed_t basetexturemid;
@@ -110,7 +113,7 @@ static void R_DrawSplatColumn(column_t *column)
 	dc_texturemid = basetexturemid;
 }
 
-static void R_DrawWallSplats(void)
+static void SWR_DrawWallSplats(void)
 {
 	wallsplat_t *splat;
 	seg_t *seg;
@@ -218,7 +221,7 @@ static void R_DrawWallSplats(void)
 
 			// draw the texture
 			col = (column_t *)((UINT8 *)patch + LONG(patch->columnofs[texturecolumn]));
-			R_DrawSplatColumn(col);
+			SWR_DrawSplatColumn(col);
 		}
 	} // next splat
 
@@ -237,7 +240,7 @@ static void R_DrawWallSplats(void)
 //  multi-patch textures. They are not normally needed as multi-patch
 //  textures don't have holes in it. At least not for now.
 
-static void R_Render2sidedMultiPatchColumn(column_t *column)
+static void SWR_Render2sidedMultiPatchColumn(column_t *column)
 {
 	INT32 topscreen, bottomscreen;
 
@@ -274,7 +277,7 @@ static void R_Render2sidedMultiPatchColumn(column_t *column)
 	}
 }
 
-void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
+void SWR_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 {
 	size_t pindex;
 	column_t *col;
@@ -342,21 +345,22 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 	// Texture must be cached before setting colfunc_2s,
 	// otherwise texture[texnum]->holes may be false when it shouldn't be
 	R_CheckTextureCache(texnum);
+
 	// handle case where multipatch texture is drawn on a 2sided wall, multi-patch textures
 	// are not stored per-column with post info in SRB2
 	if (textures[texnum]->holes)
 	{
 		if (textures[texnum]->flip & 2) // vertically flipped?
 		{
-			colfunc_2s = R_DrawFlippedMaskedColumn;
+			colfunc_2s = SWR_DrawFlippedMaskedColumn;
 			lengthcol = textures[texnum]->height;
 		}
 		else
-			colfunc_2s = R_DrawMaskedColumn; // render the usual 2sided single-patch packed texture
+			colfunc_2s = SWR_DrawMaskedColumn; // render the usual 2sided single-patch packed texture
 	}
 	else
 	{
-		colfunc_2s = R_Render2sidedMultiPatchColumn; // render multipatch with no holes (no post_t info)
+		colfunc_2s = SWR_Render2sidedMultiPatchColumn; // render multipatch with no holes (no post_t info)
 		lengthcol = textures[texnum]->height;
 	}
 
@@ -671,11 +675,11 @@ void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2)
 	colfunc = colfuncs[BASEDRAWFUNC];
 }
 
-// Loop through R_DrawMaskedColumn calls
-static void R_DrawRepeatMaskedColumn(column_t *col)
+// Loop through SWR_DrawMaskedColumn calls
+static void SWR_DrawRepeatMaskedColumn(column_t *col)
 {
 	while (sprtopscreen < sprbotscreen) {
-		R_DrawMaskedColumn(col);
+		SWR_DrawMaskedColumn(col);
 		if ((INT64)sprtopscreen + dc_texheight*spryscale > (INT64)INT32_MAX) // prevent overflow
 			sprtopscreen = INT32_MAX;
 		else
@@ -683,18 +687,19 @@ static void R_DrawRepeatMaskedColumn(column_t *col)
 	}
 }
 
-static void R_DrawRepeatFlippedMaskedColumn(column_t *col)
+static void SWR_DrawRepeatFlippedMaskedColumn(column_t *col)
 {
 	do {
-		R_DrawFlippedMaskedColumn(col);
+		SWR_DrawFlippedMaskedColumn(col);
 		sprtopscreen += dc_texheight*spryscale;
 	} while (sprtopscreen < sprbotscreen);
 }
 
 //
-// R_RenderThickSideRange
+// SWR_RenderThickSideRange
 // Renders all the thick sides in the given range.
-void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
+//
+void SWR_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 {
 	size_t          pindex;
 	column_t *      col;
@@ -974,21 +979,22 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 	// Texture must be cached before setting colfunc_2s,
 	// otherwise texture[texnum]->holes may be false when it shouldn't be
 	R_CheckTextureCache(texnum);
+
 	//faB: handle case where multipatch texture is drawn on a 2sided wall, multi-patch textures
 	//     are not stored per-column with post info anymore in Doom Legacy
 	if (textures[texnum]->holes)
 	{
 		if (textures[texnum]->flip & 2) // vertically flipped?
 		{
-			colfunc_2s = R_DrawRepeatFlippedMaskedColumn;
+			colfunc_2s = SWR_DrawRepeatFlippedMaskedColumn;
 			lengthcol = textures[texnum]->height;
 		}
 		else
-			colfunc_2s = R_DrawRepeatMaskedColumn; // render the usual 2sided single-patch packed texture
+			colfunc_2s = SWR_DrawRepeatMaskedColumn; // render the usual 2sided single-patch packed texture
 	}
 	else
 	{
-		colfunc_2s = R_Render2sidedMultiPatchColumn;        //render multipatch with no holes (no post_t info)
+		colfunc_2s = SWR_Render2sidedMultiPatchColumn;        //render multipatch with no holes (no post_t info)
 		lengthcol = textures[texnum]->height;
 	}
 
@@ -1207,11 +1213,11 @@ void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pfloor)
 #undef CLAMPMIN
 }
 
-// R_ExpandPlaneY
+// SWR_ExpandPlaneY
 //
 // A simple function to modify a vsplane's top and bottom for a particular column
-// Sort of like R_ExpandPlane in r_plane.c, except this is vertical expansion
-static inline void R_ExpandPlaneY(visplane_t *pl, INT32 x, INT16 top, INT16 bottom)
+// Sort of like SWR_ExpandPlane in sw_plane.c, except this is vertical expansion
+static inline void SWR_ExpandPlaneY(visplane_t *pl, INT32 x, INT16 top, INT16 bottom)
 {
 	// Expand the plane, don't shrink it!
 	// note: top and bottom default to 0xFFFF and 0x0000 respectively, which is totally compatible with this
@@ -1220,7 +1226,7 @@ static inline void R_ExpandPlaneY(visplane_t *pl, INT32 x, INT16 top, INT16 bott
 }
 
 //
-// R_RenderSegLoop
+// SWR_RenderSegLoop
 // Draws zero, one, or two textures (and possibly a masked
 //  texture) for walls.
 // Can draw or mark the starting pixel of floor and ceiling
@@ -1234,7 +1240,7 @@ static inline void R_ExpandPlaneY(visplane_t *pl, INT32 x, INT16 top, INT16 bott
 //profile stuff ---------------------------------------------------------
 //#define TIMING
 #ifdef TIMING
-#include "p5prof.h"
+#include "../p5prof.h"
 INT64 mycount;
 INT64 mytotal = 0;
 UINT32 nombre = 100000;
@@ -1242,7 +1248,7 @@ UINT32 nombre = 100000;
 #endif
 //profile stuff ---------------------------------------------------------
 
-static void R_RenderSegLoop (void)
+static void SWR_RenderSegLoop (void)
 {
 	angle_t angle;
 	size_t  pindex;
@@ -1281,7 +1287,7 @@ static void R_RenderSegLoop (void)
 
 			if (top <= --bottom && ceilingplane)
 #endif
-				R_ExpandPlaneY(ceilingplane, rw_x, top, bottom);
+				SWR_ExpandPlaneY(ceilingplane, rw_x, top, bottom);
 		}
 
 
@@ -1297,7 +1303,7 @@ static void R_RenderSegLoop (void)
 			top = yh < ceilingclip[rw_x] ? ceilingclip[rw_x] : yh;
 
 			if (++top <= bottom && floorplane)
-				R_ExpandPlaneY(floorplane, rw_x, top, bottom);
+				SWR_ExpandPlaneY(floorplane, rw_x, top, bottom);
 		}
 
 		if (numffloors)
@@ -1586,7 +1592,7 @@ static void R_RenderSegLoop (void)
 }
 
 // Uses precalculated seg->length
-static INT64 R_CalcSegDist(seg_t* seg, INT64 x2, INT64 y2)
+static INT64 SWR_CalcSegDist(seg_t* seg, INT64 x2, INT64 y2)
 {
 	if (!seg->linedef->dy)
 		return llabs(y2 - seg->v1->y);
@@ -1603,11 +1609,11 @@ static INT64 R_CalcSegDist(seg_t* seg, INT64 x2, INT64 y2)
 }
 
 //
-// R_StoreWallRange
+// SWR_StoreWallRange
 // A wall segment will be drawn
 //  between start and stop pixels (inclusive).
 //
-void R_StoreWallRange(INT32 start, INT32 stop)
+void SWR_StoreWallRange(INT32 start, INT32 stop)
 {
 	fixed_t       hyp;
 	fixed_t       sineval;
@@ -1663,7 +1669,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 
 	// big room fix
 	if (longboi)
-		rw_distance = (fixed_t)R_CalcSegDist(curline,viewx,viewy);
+		rw_distance = (fixed_t)SWR_CalcSegDist(curline,viewx,viewy);
 
 	ds_p->x1 = rw_x = start;
 	ds_p->x2 = stop;
@@ -1702,11 +1708,11 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 	}  // end of code to remove limits on openings
 
 	// calculate scale at both ends and step
-	ds_p->scale1 = rw_scale = R_ScaleFromGlobalAngle(viewangle + xtoviewangle[start]);
+	ds_p->scale1 = rw_scale = SWR_ScaleFromGlobalAngle(viewangle + xtoviewangle[start]);
 
 	if (stop > start)
 	{
-		ds_p->scale2 = R_ScaleFromGlobalAngle(viewangle + xtoviewangle[stop]);
+		ds_p->scale2 = SWR_ScaleFromGlobalAngle(viewangle + xtoviewangle[stop]);
 		range = stop-start;
 	}
 	else
@@ -2762,7 +2768,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 	if (markceiling)
 	{
 		if (ceilingplane) //SoM: 3/29/2000: Check for null ceiling planes
-			ceilingplane = R_CheckPlane (ceilingplane, rw_x, rw_stopx-1);
+			ceilingplane = SWR_CheckPlane (ceilingplane, rw_x, rw_stopx-1);
 		else
 			markceiling = false;
 
@@ -2776,7 +2782,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 	if (markfloor)
 	{
 		if (floorplane) //SoM: 3/29/2000: Check for null planes
-			floorplane = R_CheckPlane (floorplane, rw_x, rw_stopx-1);
+			floorplane = SWR_CheckPlane (floorplane, rw_x, rw_stopx-1);
 		else
 			markfloor = false;
 
@@ -2796,7 +2802,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			for (i = 0; i < numffloors; i++)
 			{
 				ds_p->ffloorplanes[i] = ffloor[i].plane =
-					R_CheckPlane(ffloor[i].plane, rw_x, rw_stopx - 1);
+					SWR_CheckPlane(ffloor[i].plane, rw_x, rw_stopx - 1);
 			}
 
 			firstseg = ds_p;
@@ -2804,7 +2810,7 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 		else
 		{
 			for (i = 0; i < numffloors; i++)
-				R_ExpandPlane(ffloor[i].plane, rw_x, rw_stopx - 1);
+				SWR_ExpandPlane(ffloor[i].plane, rw_x, rw_stopx - 1);
 		}
 		// FIXME hack to fix planes disappearing when a seg goes behind the camera. This NEEDS to be changed to be done properly. -Red
 		if (curline->polyseg)
@@ -2830,12 +2836,12 @@ void R_StoreWallRange(INT32 start, INT32 stop)
 			sizeof (INT16) * (ds_p->x2 - ds_p->x1 + 1));
 		M_Memcpy(last_floorclip + ds_p->x1, floorclip + ds_p->x1,
 			sizeof (INT16) * (ds_p->x2 - ds_p->x1 + 1));
-		R_RenderSegLoop();
-		R_DrawWallSplats();
+		SWR_RenderSegLoop();
+		SWR_DrawWallSplats();
 	}
 	else
 #endif
-		R_RenderSegLoop();
+		SWR_RenderSegLoop();
 	colfunc = colfuncs[BASEDRAWFUNC];
 
 	if (portalline) // if curline is a portal, set portalrender for drawseg

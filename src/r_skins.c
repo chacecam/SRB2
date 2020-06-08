@@ -688,8 +688,7 @@ next_token:
 		skin_cons_t[numskins].strvalue = skin->name;
 #endif
 
-		if (I_HardwareRendering())
-			HWR_AddPlayerModel(numskins);
+		HWR_AddPlayerModel(numskins);
 
 		numskins++;
 	}

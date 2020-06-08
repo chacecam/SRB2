@@ -6046,7 +6046,7 @@ if (0)
 // ==========================================================================
 //
 // ==========================================================================
-void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
+void HWR_RenderPlayerView(player_t *player)
 {
 	const float fpov = FIXED_TO_FLOAT(cv_fov.value+player->fovadd);
 	postimg_t *type;
@@ -6054,6 +6054,7 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 	const boolean skybox = (skyboxmo[0] && cv_skybox.value); // True if there's a skybox object and skyboxes are on
 
 	FRGBAFloat ClearColor;
+	INT32 viewnumber = (INT32)(player - players);
 
 	if (splitscreen && player == &players[secondarydisplayplayer])
 		type = &postimgtype2;

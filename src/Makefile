@@ -300,6 +300,7 @@ CFLAGS+=-DHAVE_MINIUPNPC
 endif
 endif
 
+include swrenderer/Makefile.cfg
 include hardware/Makefile.cfg
 
 include blua/Makefile.cfg
@@ -427,8 +428,6 @@ OBJS:=$(i_main_o) \
 		$(OBJDIR)/r_data.o   \
 		$(OBJDIR)/r_draw.o   \
 		$(OBJDIR)/r_main.o   \
-		$(OBJDIR)/r_plane.o  \
-		$(OBJDIR)/r_segs.o   \
 		$(OBJDIR)/r_skins.o  \
 		$(OBJDIR)/r_sky.o    \
 		$(OBJDIR)/r_splats.o \
@@ -568,6 +567,7 @@ $(OBJDIR)/depend.dep:
 	-$(MKDIR) $(OBJDIR)
 	$(CC) $(CFLAGS) -MM *.c > $(OBJDIR)/depend.ped
 	$(CC) $(CFLAGS) -MM $(INTERFACE)/*.c >> $(OBJDIR)/depend.ped
+	$(CC) $(CFLAGS) -MM swrenderer/*.c >> $(OBJDIR)/depend.ped
 	$(CC) $(CFLAGS) -MM hardware/*.c >> $(OBJDIR)/depend.ped
 ifdef HWRBACKEND
 	$(CC) $(CFLAGS) -MM hardware/r_$(HWRBACKEND)/*.c >> $(OBJDIR)/depend.ped
@@ -599,6 +599,9 @@ ifdef MACOSX
 $(OBJDIR)/%.o: sdl/macosx/%.c
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 endif
+
+$(OBJDIR)/%.o: swrenderer/%.c
+	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@
 
 $(OBJDIR)/%.o: hardware/%.c
 	$(CC) $(CFLAGS) $(WFLAGS) -c $< -o $@

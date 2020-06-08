@@ -8,18 +8,18 @@
 // terms of the GNU General Public License, version 2.
 // See the 'LICENSE' file for more details.
 //-----------------------------------------------------------------------------
-/// \file  r_segs.h
+/// \file  sw_segs.h
 /// \brief Refresh module, drawing LineSegs from BSP
 
-#ifndef __R_SEGS__
-#define __R_SEGS__
+#ifndef __SW_SEGS__
+#define __SW_SEGS__
 
 #ifdef __GNUG__
 #pragma interface
 #endif
 
-void R_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2);
-void R_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pffloor);
-void R_StoreWallRange(INT32 start, INT32 stop);
+void SWR_RenderMaskedSegRange(drawseg_t *ds, INT32 x1, INT32 x2);
+void SWR_RenderThickSideRange(drawseg_t *ds, INT32 x1, INT32 x2, ffloor_t *pffloor);
+void SWR_StoreWallRange(INT32 start, INT32 stop);
 
 #endif

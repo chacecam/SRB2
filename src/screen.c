@@ -214,6 +214,8 @@ void SCR_SetMode(void)
 	V_SetPalette(0);
 
 	SCR_SetDrawFuncs();
+	R_SetRenderFuncs();
+	//V_SetDrawFuncs();
 
 	// set the apprpriate drawer for the sky (tall or INT16)
 	setmodeneeded = 0;

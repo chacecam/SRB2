@@ -79,7 +79,8 @@ int	snprintf(char *str, size_t n, const char *fmt, ...);
 #include "config.h.in"
 #endif
 
-#include "hardware/hw_main.h" // 3D View Rendering
+#include "swrenderer/sw_main.h"
+#include "hardware/hw_main.h"
 
 #ifdef _WINDOWS
 #include "win32/win_main.h" // I_DoStartupMouse
@@ -226,7 +227,7 @@ static void D_Display(void)
 
 	// View morph
 	if (I_SoftwareRendering() && !splitscreen)
-		R_CheckViewMorph();
+		SWR_CheckViewMorph();
 
 	// Change the view size if needed
 	// Set by changing video mode or renderer
@@ -367,7 +368,6 @@ static void D_Display(void)
 		if (gamestate == GS_LEVEL || (gamestate == GS_TITLESCREEN && titlemapinaction && curbghide && (!hidetitlemap)))
 		{
 			// draw the view directly
-
 			if (!automapactive && !dedicated && cv_renderview.value)
 			{
 				if (players[displayplayer].mo || players[displayplayer].playerstate == PST_DEAD)
@@ -375,36 +375,32 @@ static void D_Display(void)
 					topleft = screens[0] + viewwindowy*vid.width + viewwindowx;
 					objectsdrawn = 0;
 
-					if (rendermode != render_soft)
-						HWR_RenderPlayerView(0, &players[displayplayer]);
-					else if (rendermode != render_none)
-						R_RenderPlayerView(&players[displayplayer]);
+					R_RenderPlayerView(&players[displayplayer]);
 				}
 
 				// render the second screen
 				if (splitscreen && players[secondarydisplayplayer].mo)
 				{
-					if (rendermode != render_soft)
-						HWR_RenderPlayerView(1, &players[secondarydisplayplayer]);
-					else if (rendermode != render_none)
-					{
-						viewwindowy = vid.height / 2;
+					viewwindowy = vid.height / 2;
+
+					if (I_SoftwareRendering())
 						M_Memcpy(ylookup, ylookup2, viewheight*sizeof (ylookup[0]));
 
-						topleft = screens[0] + viewwindowy*vid.width + viewwindowx;
+					topleft = screens[0] + viewwindowy*vid.width + viewwindowx;
 
-						R_RenderPlayerView(&players[secondarydisplayplayer]);
+					R_RenderPlayerView(&players[secondarydisplayplayer]);
 
-						viewwindowy = 0;
+					viewwindowy = 0;
+
+					if (I_SoftwareRendering())
 						M_Memcpy(ylookup, ylookup1, viewheight*sizeof (ylookup[0]));
-					}
 				}
 
 				// Image postprocessing effect
 				if (I_SoftwareRendering())
 				{
 					if (!splitscreen)
-						R_ApplyViewMorph();
+						SWR_ApplyViewMorph();
 
 					if (postimgtype)
 						V_DoPostProcessor(0, postimgtype, postimgparam);

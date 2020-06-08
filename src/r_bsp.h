@@ -18,27 +18,7 @@
 #pragma interface
 #endif
 
-extern seg_t *curline;
-extern side_t *sidedef;
-extern line_t *linedef;
-extern sector_t *frontsector;
-extern sector_t *backsector;
-extern boolean portalline; // is curline a portal seg?
-
-// drawsegs are allocated on the fly... see r_segs.c
-
 extern INT32 checkcoord[12][4];
-
-extern drawseg_t *curdrawsegs;
-extern drawseg_t *drawsegs;
-extern drawseg_t *ds_p;
-extern INT32 doorclosed;
-
-// BSP?
-void R_ClearClipSegs(void);
-void R_PortalClearClipSegs(INT32 start, INT32 end);
-void R_ClearDrawSegs(void);
-void R_RenderBSPNode(INT32 bspnum);
 
 void R_SortPolyObjects(subsector_t *sub);
 

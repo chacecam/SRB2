@@ -2274,12 +2274,12 @@ void HU_Erase(void)
 		for (y = topline, yoffset = y*vid.width; y < bottomline; y++, yoffset += vid.width)
 		{
 			if (y < viewwindowy || y >= viewwindowy + viewheight)
-				R_VideoErase(yoffset, vid.width); // erase entire line
+				SWR_VideoErase(yoffset, vid.width); // erase entire line
 			else
 			{
-				R_VideoErase(yoffset, viewwindowx); // erase left border
+				SWR_VideoErase(yoffset, viewwindowx); // erase left border
 				// erase right border
-				R_VideoErase(yoffset + viewwindowx + viewwidth, viewwindowx);
+				SWR_VideoErase(yoffset + viewwindowx + viewwidth, viewwindowx);
 			}
 		}
 		con_hudupdate = false; // if it was set..

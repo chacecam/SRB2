@@ -12,11 +12,12 @@
 
 #include "r_draw.h"
 #include "r_main.h"
-#include "r_plane.h"
 #include "r_splats.h"
 #include "w_wad.h"
 #include "z_zone.h"
 #include "d_netcmd.h"
+
+#include "swrenderer/sw_plane.h"
 
 #ifdef WALLSPLATS
 static wallsplat_t wallsplats[MAXLEVELSPLATS]; // WALL splats

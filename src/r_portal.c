@@ -12,13 +12,14 @@
 /// \brief Software renderer portals.
 
 #include "r_portal.h"
-#include "r_plane.h"
 #include "r_main.h"
 #include "doomstat.h"
 #include "p_spec.h" // Skybox viewpoints
 #include "z_zone.h"
 #include "r_things.h"
 #include "r_sky.h"
+
+#include "swrenderer/sw_plane.h" // visplanes
 
 UINT8 portalrender;			/**< When rendering a portal, it establishes the depth of the current BSP traversal. */
 
