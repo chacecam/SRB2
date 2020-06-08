@@ -1677,6 +1677,11 @@ void I_StartupGraphics(void)
 	if (I_HardwareRendering())
 		I_StartupOpenGL();
 
+	// Window icon
+#ifdef HAVE_IMAGE
+	icoSurface = IMG_ReadXPMFromArray(SDL_icon_xpm);
+#endif
+
 	// Fury: we do window initialization after GL setup to allow
 	// SDL_GL_LoadLibrary to work well on Windows
 
