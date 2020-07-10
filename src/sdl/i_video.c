@@ -1660,7 +1660,7 @@ static void Impl_SetWindowName(const char *title)
 static void Impl_SetWindowIcon(void)
 {
 	if (window && icoSurface)
-		SDL_SetWindowIcon(window, icoSurface);	
+		SDL_SetWindowIcon(window, icoSurface);
 }
 
 static void Impl_VideoSetupSDLBuffer(void)
@@ -1770,7 +1770,7 @@ void I_StartupGraphics(void)
 	// Window icon
 #ifdef HAVE_IMAGE
 	icoSurface = IMG_ReadXPMFromArray(SDL_icon_xpm);
-#endif	
+#endif
 
 	// Fury: we do window initialization after GL setup to allow
 	// SDL_GL_LoadLibrary to work well on Windows
@@ -1850,6 +1850,7 @@ void VID_StartupOpenGL(void)
 		HWD.pfnStartScreenWipe  = hwSym("StartScreenWipe",NULL);
 		HWD.pfnEndScreenWipe    = hwSym("EndScreenWipe",NULL);
 		HWD.pfnDoScreenWipe     = hwSym("DoScreenWipe",NULL);
+		HWD.pfnDoTintedWipe     = hwSym("DoTintedWipe",NULL);
 		HWD.pfnDrawIntermissionBG=hwSym("DrawIntermissionBG",NULL);
 		HWD.pfnMakeScreenTexture= hwSym("MakeScreenTexture",NULL);
 		HWD.pfnMakeScreenFinalTexture=hwSym("MakeScreenFinalTexture",NULL);

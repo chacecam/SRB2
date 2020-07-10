@@ -104,6 +104,23 @@ extern float gr_viewwindowx, gr_basewindowcentery;
 extern fixed_t *hwbbox;
 extern FTransform atransform;
 
+enum
+{
+	SHADER_DEFAULT = 0,
+
+	SHADER_FLOOR,
+	SHADER_WALL,
+	SHADER_SPRITE,
+	SHADER_MODEL,
+	SHADER_WATER,
+	SHADER_FOG,
+	SHADER_SKY,
+
+	SHADER_FADEMASK,
+	SHADER_FADEMASK_ADDITIVEANDSUBTRACTIVE,
+
+	NUMSHADERS,
+};
 
 // Render stats
 extern int rs_hw_nodesorttime;

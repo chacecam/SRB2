@@ -178,7 +178,7 @@ void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *col
 	fade_color.rgba = (colormap != NULL) ? (UINT32)colormap->fadergba : GL_DEFAULTFOG;
 
 	// Crappy backup coloring if you can't do shaders
-	if (!cv_grshaders.value || !gr_shadersavailable)
+	if (!cv_grshaders.value)
 	{
 		// be careful, this may get negative for high lightlevel values.
 		float tint_alpha, fade_alpha;
@@ -212,6 +212,9 @@ void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *col
 		poly_color.s.red = (UINT8)red;
 		poly_color.s.green = (UINT8)green;
 		poly_color.s.blue = (UINT8)blue;
+
+		tint_color.rgba = GL_DEFAULTMIX;
+		fade_color.rgba = GL_DEFAULTFOG;
 	}
 
 	Surface->PolyColor.rgba = poly_color.rgba;
@@ -559,11 +562,11 @@ static void HWR_RenderPlane(subsector_t *subsector, extrasubsector_t *xsub, bool
 		PolyFlags |= PF_Masked|PF_Modulated;
 
 	if (PolyFlags & PF_Fog)
-		shader = 6;	// fog shader
+		shader = SHADER_FOG;	// fog shader
 	else if (PolyFlags & PF_Ripple)
-		shader = 5;	// water shader
+		shader = SHADER_WATER;	// water shader
 	else
-		shader = 1;	// floor shader
+		shader = SHADER_FLOOR;	// floor shader
 
 	HWR_ProcessPolygon(&Surf, planeVerts, nrPlaneVerts, PolyFlags, shader, false);
 
@@ -687,7 +690,7 @@ static void HWR_RenderSkyPlane(extrasubsector_t *xsub, fixed_t fixedheight)
 	}
 
 	HWD.pfnDrawPolygon(NULL, planeVerts, nrPlaneVerts,
-	 PF_Clip|PF_Invisible|PF_NoTexture|PF_Occlude);
+	 PF_Invisible|PF_NoTexture|PF_Occlude);
 }
 #endif //polysky
 
@@ -760,7 +763,7 @@ static void HWR_DrawSegsSplats(FSurfaceInfo * pSurf)
 				break;
 		}
 
-		HWD.pfnSetShader(2);	// wall shader
+		HWD.pfnSetShader(SHADER_WALL);	// wall shader
 		HWD.pfnDrawPolygon(&pSurf, wallVerts, 4, i|PF_Modulated|PF_Decal);
 	}
 }
@@ -2847,10 +2850,10 @@ static void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling, 
 	if (blendmode & PF_Translucent)
 	{
 		Surf.PolyColor.s.alpha = (UINT8)alpha;
-		blendmode |= PF_Modulated|PF_Occlude|PF_Clip;
+		blendmode |= PF_Modulated|PF_Occlude;
 	}
 	else
-		blendmode |= PF_Masked|PF_Modulated|PF_Clip;
+		blendmode |= PF_Masked|PF_Modulated;
 
 	HWR_ProcessPolygon(&Surf, planeVerts, nrPlaneVerts, blendmode, 1, false); // floor shader
 }
@@ -3615,7 +3618,7 @@ static void HWR_DrawDropShadow(mobj_t *thing, fixed_t scale)
 	HWR_Lighting(&sSurf, 0, colormap);
 	sSurf.PolyColor.s.alpha = alpha;
 
-	HWR_ProcessPolygon(&sSurf, shadowVerts, 4, PF_Translucent|PF_Modulated|PF_Clip, 3, false); // sprite shader
+	HWR_ProcessPolygon(&sSurf, shadowVerts, 4, PF_Translucent|PF_Modulated, SHADER_SPRITE, false); // sprite shader
 }
 
 // This is expecting a pointer to an array containing 4 wallVerts for a sprite
@@ -3878,7 +3881,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 
 		Surf.PolyColor.s.alpha = alpha;
 
-		HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated|PF_Clip, 3, false); // sprite shader
+		HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated, SHADER_SPRITE, false); // sprite shader
 
 		top = bot;
 		endtop = endbot;
@@ -3904,7 +3907,7 @@ static void HWR_SplitSprite(gr_vissprite_t *spr)
 
 	Surf.PolyColor.s.alpha = alpha;
 
-	HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated|PF_Clip, 3, false); // sprite shader
+	HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated, SHADER_SPRITE, false); // sprite shader
 }
 
 // -----------------+
@@ -4049,7 +4052,7 @@ static void HWR_DrawSprite(gr_vissprite_t *spr)
 			blend = PF_Translucent|PF_Occlude;
 		}
 
-		HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated|PF_Clip, 3, false); // sprite shader
+		HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated, SHADER_SPRITE, false); // sprite shader
 	}
 }
 
@@ -4148,7 +4151,7 @@ static inline void HWR_DrawPrecipitationSprite(gr_vissprite_t *spr)
 		blend = PF_Translucent|PF_Occlude;
 	}
 
-	HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated|PF_Clip, 3, false); // sprite shader
+	HWR_ProcessPolygon(&Surf, wallVerts, 4, blend|PF_Modulated, SHADER_SPRITE, false); // sprite shader
 }
 #endif
 
@@ -4449,7 +4452,7 @@ static void HWR_CreateDrawNodes(void)
 
 	// Okay! Let's draw it all! Woo!
 	HWD.pfnSetTransform(&atransform);
-	HWD.pfnSetShader(0);
+	HWD.pfnSetShader(SHADER_DEFAULT);
 
 	for (i = 0; i < p; i++)
 	{
@@ -5061,6 +5064,7 @@ static void HWR_DrawSkyBackground(player_t *player)
 		dometransform.splitscreen = splitscreen;
 
 		HWR_GetTexture(texturetranslation[skytexture]);
+		HWD.pfnSetShader(SHADER_SKY);
 		HWD.pfnRenderSkyDome(skytexture, textures[skytexture]->width, textures[skytexture]->height, dometransform);
 	}
 	else
@@ -5142,9 +5146,9 @@ static void HWR_DrawSkyBackground(player_t *player)
 			v[0].t = v[1].t -= ((float) angle / angleturn);
 		}
 
-		HWD.pfnSetShader(7); // sky shader
+		HWD.pfnSetTransform(NULL);
+		HWD.pfnUnSetShader();
 		HWD.pfnDrawPolygon(NULL, v, 4, 0);
-		HWD.pfnSetShader(0);
 	}
 }
 
@@ -5349,7 +5353,7 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 
 	// Reset the shader state.
 	HWD.pfnSetSpecialState(HWD_SET_SHADERS, cv_grshaders.value);
-	HWD.pfnSetShader(0);
+	HWD.pfnSetShader(SHADER_DEFAULT);
 
 	validcount++;
 
@@ -5873,7 +5877,7 @@ void HWR_RenderWall(FOutVector *wallVerts, FSurfaceInfo *pSurf, FBITFIELD blend,
 
 	pSurf->PolyColor.s.alpha = alpha; // put the alpha back after lighting
 
-	shader = 2;	// wall shader
+	shader = SHADER_WALL;	// wall shader
 
 	if (blend & PF_Environment)
 		blendmode |= PF_Occlude;	// PF_Occlude must be used for solid objects
@@ -5881,7 +5885,7 @@ void HWR_RenderWall(FOutVector *wallVerts, FSurfaceInfo *pSurf, FBITFIELD blend,
 	if (fogwall)
 	{
 		blendmode |= PF_Fog;
-		shader = 6;	// fog shader
+		shader = SHADER_FOG;	// fog shader
 	}
 
 	blendmode |= PF_Modulated;	// No PF_Occlude means overlapping (incorrect) transparency
@@ -5904,6 +5908,7 @@ void HWR_DoPostProcessor(player_t *player)
 	postimg_t *type;
 
 	HWD.pfnUnSetShader();
+	HWD.pfnSetTransform(NULL);
 
 	if (splitscreen && player == &players[secondarydisplayplayer])
 		type = &postimgtype2;
@@ -5932,7 +5937,7 @@ void HWR_DoPostProcessor(player_t *player)
 
 		Surf.PolyColor.s.alpha = 0xc0; // match software mode
 
-		HWD.pfnDrawPolygon(&Surf, v, 4, PF_Modulated|PF_Additive|PF_NoTexture|PF_NoDepthTest|PF_Clip|PF_NoZClip);
+		HWD.pfnDrawPolygon(&Surf, v, 4, PF_Modulated|PF_Additive|PF_NoTexture|PF_NoDepthTest);
 	}
 
 	// Capture the screen for intermission and screen waving
@@ -6051,8 +6056,11 @@ void HWR_DoWipe(UINT8 wipenum, UINT8 scrnnum)
 
 void HWR_DoTintedWipe(UINT8 wipenum, UINT8 scrnnum)
 {
-	// It does the same thing
-	HWR_DoWipe(wipenum, scrnnum);
+	if (!HWR_WipeCheck(wipenum, scrnnum))
+		return;
+
+	HWR_GetFadeMask(wipelumpnum);
+	HWD.pfnDoTintedWipe((wipestyleflags & WSF_FADEIN), (wipestyleflags & WSF_TOWHITE));
 }
 
 void HWR_MakeScreenFinalTexture(void)
@@ -6104,13 +6112,13 @@ void HWR_ReadShaders(UINT16 wadnum, boolean PK3)
 	#define SHADER_TYPES 7
 	shaderxlat_t shaderxlat[SHADER_TYPES] =
 	{
-		{"Flat", 1},
-		{"WallTexture", 2},
-		{"Sprite", 3},
-		{"Model", 4},
-		{"WaterRipple", 5},
-		{"Fog", 6},
-		{"Sky", 7},
+		{"Flat", SHADER_FLOOR},
+		{"WallTexture", SHADER_WALL},
+		{"Sprite", SHADER_SPRITE},
+		{"Model", SHADER_MODEL},
+		{"WaterRipple", SHADER_WATER},
+		{"Fog", SHADER_FOG},
+		{"Sky", SHADER_SKY},
 	};
 
 	lump = HWR_CheckShader(wadnum);
