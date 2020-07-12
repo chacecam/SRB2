@@ -24,7 +24,7 @@
 #include "r_opengl.h"
 #include "r_vbo.h"
 
-#include "../cglm/cglm.h"
+#include "../lzml.h"
 
 #if defined (HWRENDER) && !defined (NOROPENGL)
 
@@ -54,6 +54,10 @@ static float NEAR_CLIPPING_PLANE =   NZCLIP_PLANE;
 
 #define Deg2Rad(x) ((x) * ((float)M_PIl / 180.0f))
 
+typedef float fvector3_t[3];
+typedef float fvector4_t[4];
+typedef fvector4_t fmatrix4_t[4];
+
 // **************************************************************************
 //                                                                    GLOBALS
 // **************************************************************************
@@ -82,9 +86,9 @@ const GLubyte *gl_version = NULL;
 const GLubyte *gl_renderer = NULL;
 const GLubyte *gl_extensions = NULL;
 
-static mat4 projMatrix;
-static mat4 viewMatrix;
-static mat4 modelMatrix;
+static fmatrix4_t projMatrix;
+static fmatrix4_t viewMatrix;
+static fmatrix4_t modelMatrix;
 
 static GLint viewport[4];
 
@@ -488,9 +492,9 @@ typedef struct gl_shaderprogram_s
 	boolean custom;
 	GLint uniforms[gluniform_max+1];
 
-	mat4 projMatrix;
-	mat4 viewMatrix;
-	mat4 modelMatrix;
+	fmatrix4_t projMatrix;
+	fmatrix4_t viewMatrix;
+	fmatrix4_t modelMatrix;
 } gl_shaderprogram_t;
 static gl_shaderprogram_t gl_shaderprograms[MAXSHADERPROGRAMS];
 
@@ -1001,9 +1005,9 @@ EXPORT boolean HWRAPI(LoadShaders) (void)
 			continue;
 		}
 
-		memset(shader->projMatrix, 0x00, sizeof(mat4));
-		memset(shader->viewMatrix, 0x00, sizeof(mat4));
-		memset(shader->modelMatrix, 0x00, sizeof(mat4));
+		memset(shader->projMatrix, 0x00, sizeof(fmatrix4_t));
+		memset(shader->viewMatrix, 0x00, sizeof(fmatrix4_t));
+		memset(shader->modelMatrix, 0x00, sizeof(fmatrix4_t));
 
 		// 09072020 / 13062019
 #define GETUNI(uniform) pglGetUniformLocation(shader->program, uniform);
@@ -1141,9 +1145,9 @@ static void SetNoTexture(void)
 
 static void GLPerspective(GLfloat fovy, GLfloat aspect)
 {
-	mat4 perspectiveMatrix;
-	glm_perspective(Deg2Rad((float)fovy), (float)aspect, NEAR_CLIPPING_PLANE, FAR_CLIPPING_PLANE, perspectiveMatrix);
-	glm_mat4_mul(projMatrix, perspectiveMatrix, projMatrix);
+	fmatrix4_t perspectiveMatrix;
+	lzml_matrix4_perspective(perspectiveMatrix, Deg2Rad((float)fovy), (float)aspect, NEAR_CLIPPING_PLANE, FAR_CLIPPING_PLANE);
+	lzml_matrix4_multiply(projMatrix, perspectiveMatrix);
 }
 
 static void GLProject(GLfloat objX, GLfloat objY, GLfloat objZ,
@@ -1202,9 +1206,9 @@ void SetModelView(GLint w, GLint h)
 
 	pglViewport(0, 0, w, h);
 
-	glm_mat4_identity(projMatrix);
-	glm_mat4_identity(viewMatrix);
-	glm_mat4_identity(modelMatrix);
+	lzml_matrix4_identity(projMatrix);
+	lzml_matrix4_identity(viewMatrix);
+	lzml_matrix4_identity(modelMatrix);
 
 	Shader_SetTransform();
 }
@@ -1370,9 +1374,9 @@ EXPORT void HWRAPI(GClipRect) (INT32 minx, INT32 miny, INT32 maxx, INT32 maxy, f
 	pglViewport(minx, screen_height-maxy, maxx-minx, maxy-miny);
 	NEAR_CLIPPING_PLANE = nearclip;
 
-	glm_mat4_identity(projMatrix);
-	glm_mat4_identity(viewMatrix);
-	glm_mat4_identity(modelMatrix);
+	lzml_matrix4_identity(projMatrix);
+	lzml_matrix4_identity(viewMatrix);
+	lzml_matrix4_identity(modelMatrix);
 
 	Shader_SetTransform();
 }
@@ -1761,21 +1765,21 @@ static void Shader_SetTransform(void)
 	if (shader_current == NULL)
 		return;
 
-	if (memcmp(projMatrix, shader_current->projMatrix, sizeof(mat4)))
+	if (memcmp(projMatrix, shader_current->projMatrix, sizeof(fmatrix4_t)))
 	{
-		memcpy(shader_current->projMatrix, projMatrix, sizeof(mat4));
+		memcpy(shader_current->projMatrix, projMatrix, sizeof(fmatrix4_t));
 		pglUniformMatrix4fv(shader_current->uniforms[gluniform_projection], 1, GL_FALSE, (float *)projMatrix);
 	}
 
-	if (memcmp(viewMatrix, shader_current->viewMatrix, sizeof(mat4)))
+	if (memcmp(viewMatrix, shader_current->viewMatrix, sizeof(fmatrix4_t)))
 	{
-		memcpy(shader_current->viewMatrix, viewMatrix, sizeof(mat4));
+		memcpy(shader_current->viewMatrix, viewMatrix, sizeof(fmatrix4_t));
 		pglUniformMatrix4fv(shader_current->uniforms[gluniform_view], 1, GL_FALSE, (float *)viewMatrix);
 	}
 
-	if (memcmp(modelMatrix, shader_current->modelMatrix, sizeof(mat4)))
+	if (memcmp(modelMatrix, shader_current->modelMatrix, sizeof(fmatrix4_t)))
 	{
-		memcpy(shader_current->modelMatrix, modelMatrix, sizeof(mat4));
+		memcpy(shader_current->modelMatrix, modelMatrix, sizeof(fmatrix4_t));
 		pglUniformMatrix4fv(shader_current->uniforms[gluniform_model], 1, GL_FALSE, (float *)modelMatrix);
 	}
 }
@@ -2131,7 +2135,7 @@ static void RenderDome(INT32 skytexture)
 	int vbosize;
 	GLSkyVBO *vbo = &sky_vbo;
 
-	vec3 scale;
+	fvector3_t scale;
 	scale[0] = scale[2] = 1.0f;
 
 	rows = 4;
@@ -2177,8 +2181,8 @@ static void RenderDome(INT32 skytexture)
 
 	// set transforms
 	scale[1] = ((float)texh / 230.0f);
-	glm_scale(viewMatrix, scale);
-	glm_rotate_y(viewMatrix, Deg2Rad(270.0f), viewMatrix);
+	lzml_matrix4_scale(viewMatrix, scale);
+	lzml_matrix4_rotate_y(viewMatrix, Deg2Rad(270.0f));
 
 	Shader_SetTransform();
 
@@ -2495,8 +2499,8 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 
 	boolean useTinyFrames;
 
-	vec3 v_scale;
-	vec3 translate;
+	fvector3_t v_scale;
+	fvector3_t translate;
 
 	int i;
 
@@ -2566,33 +2570,27 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	}
 #endif
 
-	glm_mat4_identity(modelMatrix);
+	lzml_matrix4_identity(modelMatrix);
 
 	translate[0] = pos->x;
 	translate[1] = pos->z;
 	translate[2] = pos->y;
-	glm_translate(modelMatrix, translate);
+	lzml_matrix4_translate(modelMatrix, translate);
 
 	if (flipped)
 		v_scale[1] = -v_scale[1];
 	if (hflipped)
 		v_scale[2] = -v_scale[2];
 
-#ifdef USE_FTRANSFORM_ANGLEZ
-	glm_rotate_z(modelMatrix, -Deg2Rad(pos->anglez), modelMatrix); // rotate by slope from Kart
-#endif
-	glm_rotate_y(modelMatrix, -Deg2Rad(pos->angley), modelMatrix);
-	glm_rotate_x(modelMatrix, Deg2Rad(pos->anglex), modelMatrix);
-
 	if (pos->roll)
 	{
 		float roll = (1.0f * pos->rollflip);
-		vec3 rotate;
+		fvector3_t rotate;
 
 		translate[0] = pos->centerx;
 		translate[1] = pos->centery;
 		translate[2] = 0.0f;
-		glm_translate(modelMatrix, translate);
+		lzml_matrix4_translate(modelMatrix, translate);
 
 		rotate[0] = rotate[1] = rotate[2] = 0.0f;
 
@@ -2603,20 +2601,26 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 		else // X
 			rotate[0] = roll;
 
-		glm_rotate(modelMatrix, Deg2Rad(pos->rollangle), rotate);
+		lzml_matrix4_rotate_by_vector(modelMatrix, rotate, Deg2Rad(pos->rollangle));
 
 		translate[0] = -translate[0];
 		translate[1] = -translate[1];
-		glm_translate(modelMatrix, translate);
+		lzml_matrix4_translate(modelMatrix, translate);
 	}
 
-	glm_scale(modelMatrix, v_scale);
+#ifdef USE_FTRANSFORM_ANGLEZ
+	lzml_matrix4_rotate_z(modelMatrix, -Deg2Rad(pos->anglez)); // rotate by slope from Kart
+#endif
+	lzml_matrix4_rotate_y(modelMatrix, -Deg2Rad(pos->angley));
+	lzml_matrix4_rotate_x(modelMatrix, Deg2Rad(pos->anglex));
+
+	lzml_matrix4_scale(modelMatrix, v_scale);
 
 	useTinyFrames = (model->meshes[0].tinyframes != NULL);
 	if (useTinyFrames)
 	{
 		v_scale[0] = v_scale[1] = v_scale[2] = (1 / 64.0f);
-		glm_scale(modelMatrix, v_scale);
+		lzml_matrix4_scale(modelMatrix, v_scale);
 	}
 
 	Shader_SetTransform();
@@ -2718,7 +2722,7 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 		}
 	}
 
-	glm_mat4_identity(modelMatrix);
+	lzml_matrix4_identity(modelMatrix);
 	Shader_SetTransform();
 
 	pglDisableVertexAttribArray(LOC_NORMAL);
@@ -2744,11 +2748,10 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 	boolean shearing = false;
 	float used_fov;
 
-	vec3 scale;
-	vec3 translate;
+	fvector3_t scale;
 
-	glm_mat4_identity(viewMatrix);
-	glm_mat4_identity(modelMatrix);
+	lzml_matrix4_identity(viewMatrix);
+	lzml_matrix4_identity(modelMatrix);
 
 	if (stransform)
 	{
@@ -2777,17 +2780,16 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 			scale[2] = -stransform->scalez;
 		}
 
-		glm_scale(viewMatrix, scale);
+		lzml_matrix4_scale(viewMatrix, scale);
 
 		if (stransform->roll)
-			glm_rotate_z(viewMatrix, Deg2Rad(stransform->rollangle), viewMatrix);
-		glm_rotate_x(viewMatrix, Deg2Rad(stransform->anglex), viewMatrix);
-		glm_rotate_y(viewMatrix, Deg2Rad(stransform->angley + 270.0f), viewMatrix);
+			lzml_matrix4_rotate_z(viewMatrix, Deg2Rad(stransform->rollangle));
+		lzml_matrix4_rotate_x(viewMatrix, Deg2Rad(stransform->anglex));
+		lzml_matrix4_rotate_y(viewMatrix, Deg2Rad(stransform->angley + 270.0f));
 
-		translate[0] = -stransform->x;
-		translate[1] = -stransform->z;
-		translate[2] = -stransform->y;
-		glm_translate(viewMatrix, translate);
+		lzml_matrix4_translate_x(viewMatrix, -stransform->x);
+		lzml_matrix4_translate_y(viewMatrix, -stransform->z);
+		lzml_matrix4_translate_z(viewMatrix, -stransform->y);
 
 		special_splitscreen = stransform->splitscreen;
 		shearing = stransform->shearing;
@@ -2795,7 +2797,7 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 	else
 		used_fov = fov;
 
-	glm_mat4_identity(projMatrix);
+	lzml_matrix4_identity(projMatrix);
 
 	if (stransform)
 	{
@@ -2807,9 +2809,7 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 			float fdy = stransform->viewaiming * 2;
 			if (stransform->flip)
 				fdy *= -1.0f;
-			translate[0] = translate[2] = 0.0f;
-			translate[1] = (-fdy / BASEVIDHEIGHT);
-			glm_translate(projMatrix, translate);
+			lzml_matrix4_translate_y(projMatrix, (-fdy / BASEVIDHEIGHT));
 		}
 
 		if (special_splitscreen)
