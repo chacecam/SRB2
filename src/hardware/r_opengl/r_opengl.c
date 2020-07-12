@@ -2805,6 +2805,8 @@ EXPORT void HWRAPI(SetTransform) (FTransform *stransform)
 		if (shearing)
 		{
 			float fdy = stransform->viewaiming * 2;
+			if (stransform->flip)
+				fdy *= -1.0f;
 			translate[0] = translate[2] = 0.0f;
 			translate[1] = (-fdy / BASEVIDHEIGHT);
 			glm_translate(projMatrix, translate);
