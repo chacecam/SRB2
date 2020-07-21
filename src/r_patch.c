@@ -337,7 +337,7 @@ void RotSprite_AllocCurrentPatchInfo(patchinfo_t *patchinfo, UINT16 lumpnum)
 void *GetRotatedPatchInfo(UINT16 wadnum, UINT16 lumpnum, rendermode_t mode, boolean flip)
 {
 	lumpcache_t *tree = Patch_GetRendererRotatedSubTree(wadnum, mode, flip);
-	return &(tree[lumpnum]);
+	return tree[lumpnum];
 }
 
 // Set renderer rotated patch info.
