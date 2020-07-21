@@ -82,10 +82,10 @@ static boolean headsupactive = false;
 boolean hu_showscores; // draw rankings
 static char hu_tick;
 
-patch_t **rflagico;
-patch_t **bflagico;
-patch_t **rmatcico;
-patch_t **bmatcico;
+patchpointer_t rflagico;
+patchpointer_t bflagico;
+patchpointer_t rmatcico;
+patchpointer_t bmatcico;
 patch_t *tagico;
 patch_t *tallminus;
 patch_t *tallinfin;
@@ -2465,9 +2465,9 @@ static void HU_Draw32TeamTabRankings(playersort_t *tab, INT32 whiteplayer)
 		if (gametyperules & GTR_TEAMFLAGS)
 		{
 			if (players[tab[i].num].gotflag & GF_REDFLAG) // Red
-				V_DrawFixedPatch((x-10)*FRACUNIT, (y)*FRACUNIT, FRACUNIT/4, 0, *rflagico, 0);
+				V_DrawFixedPatch((x-10)*FRACUNIT, (y)*FRACUNIT, FRACUNIT/4, 0, Patch_Dereference(rflagico), 0);
 			else if (players[tab[i].num].gotflag & GF_BLUEFLAG) // Blue
-				V_DrawFixedPatch((x-10)*FRACUNIT, (y)*FRACUNIT, FRACUNIT/4, 0, *bflagico, 0);
+				V_DrawFixedPatch((x-10)*FRACUNIT, (y)*FRACUNIT, FRACUNIT/4, 0, Patch_Dereference(bflagico), 0);
 		}
 
 		// Draw emeralds
@@ -2593,9 +2593,9 @@ void HU_DrawTeamTabRankings(playersort_t *tab, INT32 whiteplayer)
 		if (gametyperules & GTR_TEAMFLAGS)
 		{
 			if (players[tab[i].num].gotflag & GF_REDFLAG) // Red
-				V_DrawSmallScaledPatch(x-28, y-4, 0, *rflagico);
+				V_DrawSmallScaledPatch(x-28, y-4, 0, Patch_Dereference(rflagico));
 			else if (players[tab[i].num].gotflag & GF_BLUEFLAG) // Blue
-				V_DrawSmallScaledPatch(x-28, y-4, 0, *bflagico);
+				V_DrawSmallScaledPatch(x-28, y-4, 0, Patch_Dereference(bflagico));
 		}
 
 		// Draw emeralds

@@ -602,43 +602,46 @@ void HWR_InitTextureCache(void)
 	gl_flats = NULL;
 }
 
-// Callback function for HWR_FreeTextureCache.
-static void FreeMipmapColormap(INT32 patchnum, void *patch)
+static void HWR_FreeMipmapColormap(lumpcache_t *tree, UINT16 numlumps)
 {
-	GLPatch_t* const pat = patch;
-	(void)patchnum; //unused
+	UINT16 i;
 
-	// The patch must be valid, obviously
-	if (!pat)
-		return;
-
-	// The mipmap must be valid, obviously
-	while (pat->mipmap)
+	for (i = 0; i < numlumps; i++)
 	{
-		// Confusing at first, but pat->mipmap->nextcolormap
-		// at the beginning of the loop is the first colormap
-		// from the linked list of colormaps.
-		GLMipmap_t *next = NULL;
+		GLPatch_t *pat = tree[i];
 
-		// No mipmap in this patch, break out of the loop.
-		if (!pat->mipmap)
-			break;
+		// The patch must be valid, obviously
+		if (!pat)
+			continue;
 
-		// No colormap mipmap either.
-		if (!pat->mipmap->nextcolormap)
-			break;
+		// The mipmap must be valid, obviously
+		while (pat->mipmap)
+		{
+			// Confusing at first, but pat->mipmap->nextcolormap
+			// at the beginning of the loop is the first colormap
+			// from the linked list of colormaps.
+			GLMipmap_t *next = NULL;
 
-		// Set the first colormap to the one that comes after it.
-		next = pat->mipmap->nextcolormap;
-		pat->mipmap->nextcolormap = next->nextcolormap;
+			// No mipmap in this patch, break out of the loop.
+			if (!pat->mipmap)
+				break;
 
-		// Free image data from memory.
-		if (next->data)
-			Z_Free(next->data);
-		next->data = NULL;
+			// No colormap mipmap either.
+			if (!pat->mipmap->nextcolormap)
+				break;
 
-		// Free the old colormap mipmap from memory.
-		free(next);
+			// Set the first colormap to the one that comes after it.
+			next = pat->mipmap->nextcolormap;
+			pat->mipmap->nextcolormap = next->nextcolormap;
+
+			// Free image data from memory.
+			if (next->data)
+				Z_Free(next->data);
+			next->data = NULL;
+
+			// Free the old colormap mipmap from memory.
+			free(next);
+		}
 	}
 }
 
@@ -658,14 +661,16 @@ void HWR_FreeMipmapCache(void)
 	// free all patch colormaps after each level: must be done after ClearMipMapCache!
 	for (i = 0; i < numwadfiles; i++)
 	{
-		M_AATreeIterate(Patch_GetRendererBaseSubTree(i, render_opengl), FreeMipmapColormap);
+		UINT16 numlumps = wadfiles[i]->numlumps;
+
+		HWR_FreeMipmapColormap(Patch_GetRendererBaseSubTree(i, render_opengl), numlumps);
 
 #ifdef ROTSPRITE
 		// free non-flipped rotated subtree
-		M_AATreeIterate(Patch_GetRendererRotatedSubTree(i, render_opengl, false), FreeMipmapColormap);
+		HWR_FreeMipmapColormap(Patch_GetRendererRotatedSubTree(i, render_opengl, false), numlumps);
 
 		// free flipped rotated subtree
-		M_AATreeIterate(Patch_GetRendererRotatedSubTree(i, render_opengl, true), FreeMipmapColormap);
+		HWR_FreeMipmapColormap(Patch_GetRendererRotatedSubTree(i, render_opengl, true), numlumps);
 #endif
 	}
 }
@@ -1125,14 +1130,14 @@ GLPatch_t *HWR_GetPic(lumpnum_t lumpnum)
 GLPatch_t *HWR_GetCachedGLPatchPwad(UINT16 wadnum, UINT16 lumpnum, void *hwrcache)
 {
 	GLPatch_t *grpatch;
+	lumpcache_t *cache = (lumpcache_t *)hwrcache;
 
-	if (!(grpatch = M_AATreeGet((aatree_t *)hwrcache, lumpnum)))
+	if (!(grpatch = cache[lumpnum]))
 	{
-		grpatch = Z_Calloc(sizeof(GLPatch_t), PU_HWRPATCHINFO, NULL);
+		grpatch = Z_Calloc(sizeof(GLPatch_t), PU_HWRPATCHINFO, &cache[lumpnum]);
 		grpatch->wadnum = wadnum;
 		grpatch->lumpnum = lumpnum;
 		grpatch->mipmap = Z_Calloc(sizeof(GLMipmap_t), PU_HWRPATCHINFO, NULL);
-		M_AATreeSet((aatree_t *)hwrcache, lumpnum, grpatch);
 	}
 
 	return grpatch;

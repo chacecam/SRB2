@@ -22,8 +22,6 @@
 #pragma interface
 #endif
 
-#define lumpcache_t void *
-
 // a raw entry of the wad directory
 // NOTE: This sits here and not in w_wad.c because p_setup.c makes use of it to load map WADs inside PK3s.
 #if defined(_MSC_VER)

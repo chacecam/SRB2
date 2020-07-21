@@ -31,6 +31,7 @@
 #include "i_video.h" // rendermode
 #include "z_zone.h"
 #include "m_misc.h" // M_Memcpy
+#include "r_patch.h" // Patch_FreeTags
 #include "lua_script.h"
 
 #ifdef HWRENDER
@@ -254,6 +255,7 @@ static void *xm(size_t size)
 	if (p == NULL)
 	{
 		// Oh crumbs: we're out of heap. Try purging the cache and reallocating.
+		Patch_FreeTags(PU_PURGELEVEL, INT32_MAX);
 		Z_FreeTags(PU_PURGELEVEL, INT32_MAX);
 		p = malloc(padedsize);
 

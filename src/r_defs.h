@@ -24,10 +24,6 @@
 
 #include "screen.h" // MAXVIDWIDTH, MAXVIDHEIGHT
 
-#ifdef HWRENDER
-#include "m_aatree.h"
-#endif
-
 //
 // ClipWallSegment
 // Clips the given range of columns
@@ -687,6 +683,10 @@ typedef struct
 #if defined(_MSC_VER)
 #pragma pack()
 #endif
+
+typedef patch_t ** patchpointer_t;
+#define Patch_Dereference(deref) ((patch_t *)(*(deref)))
+#define Patch_CanDereference(deref) (((deref) != NULL) && (Patch_Dereference((deref)) != NULL))
 
 typedef struct
 {

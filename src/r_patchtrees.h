@@ -13,8 +13,6 @@
 #ifndef __R_PATCHTREES__
 #define __R_PATCHTREES__
 
-#include "m_aatree.h"
-
 // Renderer tree types
 typedef enum patchtreetype_e
 {
@@ -27,9 +25,9 @@ typedef enum patchtreetype_e
 // Renderer patch trees
 typedef struct patchtree_s
 {
-	aatree_t *base;
+	lumpcache_t *base;
 #ifdef ROTSPRITE
-	aatree_t *rotated[2]; // Sprite rotation stores flipped and non-flipped variants of a patch.
+	lumpcache_t *rotated[2]; // Sprite rotation stores flipped and non-flipped variants of a patch.
 #endif
 } patchtree_t;
 

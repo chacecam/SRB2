@@ -66,7 +66,7 @@ typedef union
 		INT32 passedx2;
 
 		y_bonus_t bonuses[4];
-		patch_t **bonuspatches[4];
+		patchpointer_t bonuspatches[4];
 
 		SINT8 gotperfbonus; // Used for visitation flags.
 
@@ -74,7 +74,7 @@ typedef union
 		UINT32 tics; // time
 
 		UINT8 actnum; // act number being displayed
-		patch_t **ptotal; // TOTAL
+		patchpointer_t ptotal; // TOTAL
 		UINT8 gotlife; // Number of extra lives obtained
 	} coop;
 
@@ -90,14 +90,14 @@ typedef union
 		INT32 passedx4;
 
 		y_bonus_t bonuses[2];
-		patch_t **bonuspatches[2];
+		patchpointer_t bonuspatches[2];
 
-		patch_t **pscore; // SCORE
+		patchpointer_t pscore; // SCORE
 		UINT32 score; // fake score
 
 		// Continues
 		UINT8 continues;
-		patch_t **pcontinues;
+		patchpointer_t pcontinues;
 		INT32 *playerchar; // Continue HUD
 		UINT16 *playercolor;
 
@@ -112,9 +112,9 @@ typedef union
 		INT32 *character[MAXPLAYERS]; // Winner's character #
 		INT32 num[MAXPLAYERS]; // Winner's player #
 		char *name[MAXPLAYERS]; // Winner's name
-		patch_t **result; // RESULT
-		patch_t **blueflag;
-		patch_t **redflag; // int_ctf uses this struct too.
+		patchpointer_t result; // RESULT
+		patchpointer_t blueflag;
+		patchpointer_t redflag; // int_ctf uses this struct too.
 		INT32 numplayers; // Number of players being displayed
 		char levelstring[40]; // holds levelnames up to 32 characters
 	} match;
@@ -140,10 +140,10 @@ typedef union
 static y_data data;
 
 // graphics
-static patch_t **bgpatch = NULL;     // INTERSCR
-static patch_t **widebgpatch = NULL; // INTERSCW
-static patch_t **bgtile = NULL;      // SPECTILE/SRB2BACK
-static patch_t **interpic = NULL;    // custom picture defined in map header
+static patchpointer_t bgpatch = NULL;     // INTERSCR
+static patchpointer_t widebgpatch = NULL; // INTERSCW
+static patchpointer_t bgtile = NULL;      // SPECTILE/SRB2BACK
+static patchpointer_t interpic = NULL;    // custom picture defined in map header
 static boolean usetile;
 static INT32 timer;
 
@@ -418,7 +418,7 @@ dontdrawbg:
 		// Total
 		if (safetorender)
 		{
-			V_DrawScaledPatch(152, bonusy, 0, *data.coop.ptotal);
+			V_DrawScaledPatch(152, bonusy, 0, Patch_Dereference(data.coop.ptotal));
 			V_DrawTallNum(BASEVIDWIDTH - 68, bonusy + 1, 0, data.coop.total);
 		}
 		bonusy -= (3*SHORT(tallnum[0]->height)/2) + 1;
@@ -428,7 +428,7 @@ dontdrawbg:
 		{
 			if (data.coop.bonuses[i].display && safetorender)
 			{
-				V_DrawScaledPatch(152, bonusy, 0, *data.coop.bonuspatches[i]);
+				V_DrawScaledPatch(152, bonusy, 0, Patch_Dereference(data.coop.bonuspatches[i]));
 				V_DrawTallNum(BASEVIDWIDTH - 68, bonusy + 1, 0, data.coop.bonuses[i].points);
 			}
 			bonusy -= (3*SHORT(tallnum[0]->height)/2) + 1;
@@ -531,18 +531,18 @@ dontdrawbg:
 				V_DrawLevelTitle(data.spec.passedx2 + xoffset1, ttheight, 0, data.spec.passed2);
 			}
 
-			V_DrawScaledPatch(152 + xoffset3, 108, 0, *data.spec.bonuspatches[0]);
+			V_DrawScaledPatch(152 + xoffset3, 108, 0, Patch_Dereference(data.spec.bonuspatches[0]));
 			V_DrawTallNum(BASEVIDWIDTH + xoffset3 - 68, 109, 0, data.spec.bonuses[0].points);
 			if (data.spec.bonuses[1].display)
 			{
-				V_DrawScaledPatch(152 + xoffset4, 124, 0, *data.spec.bonuspatches[1]);
+				V_DrawScaledPatch(152 + xoffset4, 124, 0, Patch_Dereference(data.spec.bonuspatches[1]));
 				V_DrawTallNum(BASEVIDWIDTH + xoffset4 - 68, 125, 0, data.spec.bonuses[1].points);
 				yoffset = 16;
 				// hack; pass the buck along...
 				xoffset4 = xoffset5;
 				xoffset5 = xoffset6;
 			}
-			V_DrawScaledPatch(152 + xoffset4, 124+yoffset, 0, *data.spec.pscore);
+			V_DrawScaledPatch(152 + xoffset4, 124+yoffset, 0, Patch_Dereference(data.spec.pscore));
 			V_DrawTallNum(BASEVIDWIDTH + xoffset4 - 68, 125+yoffset, 0, data.spec.score);
 
 			// Draw continues!
@@ -550,7 +550,7 @@ dontdrawbg:
 			{
 				UINT8 continues = data.spec.continues & 0x7F;
 
-				V_DrawScaledPatch(152 + xoffset5, 150+yoffset, 0, *data.spec.pcontinues);
+				V_DrawScaledPatch(152 + xoffset5, 150+yoffset, 0, Patch_Dereference(data.spec.pcontinues));
 				if (continues > 5)
 				{
 					INT32 leftx = (continues >= 10) ? 216 : 224;
@@ -656,7 +656,7 @@ dontdrawbg:
 
 		// draw the header
 		if (safetorender)
-			V_DrawScaledPatch(112, 2, 0, *data.match.result);
+			V_DrawScaledPatch(112, 2, 0, Patch_Dereference(data.match.result));
 
 		// draw the level name
 		V_DrawCenteredString(BASEVIDWIDTH/2, 20, 0, data.match.levelstring);
@@ -769,10 +769,10 @@ dontdrawbg:
 		char name[MAXPLAYERNAME+1];
 
 		// Show the team flags and the team score at the top instead of "RESULTS"
-		V_DrawSmallScaledPatch(128 - SHORT((*data.match.blueflag)->width)/4, 2, 0, *data.match.blueflag);
+		V_DrawSmallScaledPatch(128 - SHORT((Patch_Dereference(data.match.blueflag))->width)/4, 2, 0, Patch_Dereference(data.match.blueflag));
 		V_DrawCenteredString(128, 16, 0, va("%u", bluescore));
 
-		V_DrawSmallScaledPatch(192 - SHORT((*data.match.redflag)->width)/4, 2, 0, *data.match.redflag);
+		V_DrawSmallScaledPatch(192 - SHORT((Patch_Dereference(data.match.redflag))->width)/4, 2, 0, Patch_Dereference(data.match.redflag));
 		V_DrawCenteredString(192, 16, 0, va("%u", redscore));
 
 		// draw the level name
@@ -1251,20 +1251,20 @@ void Y_StartIntermission(void)
 			data.coop.tics = players[consoleplayer].realtime;
 
 			for (i = 0; i < 4; ++i)
-				data.coop.bonuspatches[i] = (patch_t **)W_GetPatchPointerFromName(data.coop.bonuses[i].patch, PU_PATCH);
-			data.coop.ptotal = (patch_t **)W_GetPatchPointerFromName("YB_TOTAL", PU_PATCH);
+				data.coop.bonuspatches[i] = (patchpointer_t)W_GetPatchPointerFromName(data.coop.bonuses[i].patch, PU_PATCH);
+			data.coop.ptotal = (patchpointer_t)W_GetPatchPointerFromName("YB_TOTAL", PU_PATCH);
 
 			// get act number
 			data.coop.actnum = mapheaderinfo[gamemap-1]->actnum;
 
 			// get background patches
-			widebgpatch = (patch_t **)W_GetPatchPointerFromName("INTERSCW", PU_PATCH);
-			bgpatch = (patch_t **)W_GetPatchPointerFromName("INTERSCR", PU_PATCH);
+			widebgpatch = (patchpointer_t)W_GetPatchPointerFromName("INTERSCW", PU_PATCH);
+			bgpatch = (patchpointer_t)W_GetPatchPointerFromName("INTERSCR", PU_PATCH);
 
 			// grab an interscreen if appropriate
 			if (mapheaderinfo[gamemap-1]->interscreen[0] != '#')
 			{
-				interpic = (patch_t **)W_GetPatchPointerFromName(mapheaderinfo[gamemap-1]->interscreen, PU_PATCH);
+				interpic = (patchpointer_t)W_GetPatchPointerFromName(mapheaderinfo[gamemap-1]->interscreen, PU_PATCH);
 				useinterpic = true;
 				usebuffer = false;
 			}
@@ -1322,18 +1322,18 @@ void Y_StartIntermission(void)
 			Y_AwardSpecialStageBonus();
 
 			for (i = 0; i < 2; ++i)
-				data.spec.bonuspatches[i] = (patch_t **)W_GetPatchPointerFromName(data.spec.bonuses[i].patch, PU_PATCH);
+				data.spec.bonuspatches[i] = (patchpointer_t)W_GetPatchPointerFromName(data.spec.bonuses[i].patch, PU_PATCH);
 
-			data.spec.pscore = (patch_t **)W_GetPatchPointerFromName("YB_SCORE", PU_PATCH);
-			data.spec.pcontinues = (patch_t **)W_GetPatchPointerFromName("YB_CONTI", PU_PATCH);
+			data.spec.pscore = (patchpointer_t)W_GetPatchPointerFromName("YB_SCORE", PU_PATCH);
+			data.spec.pcontinues = (patchpointer_t)W_GetPatchPointerFromName("YB_CONTI", PU_PATCH);
 
 			// get background tile
-			bgtile = (patch_t **)W_GetPatchPointerFromName("SPECTILE", PU_PATCH);
+			bgtile = (patchpointer_t)W_GetPatchPointerFromName("SPECTILE", PU_PATCH);
 
 			// grab an interscreen if appropriate
 			if (mapheaderinfo[gamemap-1]->interscreen[0] != '#')
 			{
-				interpic = (patch_t **)W_GetPatchPointerFromName(mapheaderinfo[gamemap-1]->interscreen, PU_PATCH);
+				interpic = (patchpointer_t)W_GetPatchPointerFromName(mapheaderinfo[gamemap-1]->interscreen, PU_PATCH);
 				useinterpic = true;
 			}
 			else
@@ -1345,14 +1345,14 @@ void Y_StartIntermission(void)
 			// get special stage specific patches
 /*			if (!stagefailed && ALL7EMERALDS(emeralds))
 			{
-				data.spec.cemerald = (patch_t **)W_GetPatchPointerFromName("GOTEMALL", PU_PATCH);
+				data.spec.cemerald = (patchpointer_t)W_GetPatchPointerFromName("GOTEMALL", PU_PATCH);
 				data.spec.headx = 70;
 				data.spec.nowsuper = players[consoleplayer].skin
-					? NULL : W_GetPatchPointerFromName("NOWSUPER", PU_PATCH);
+					? NULL : (patchpointer_t)W_GetPatchPointerFromName("NOWSUPER", PU_PATCH);
 			}
 			else
 			{
-				data.spec.cemerald = (patch_t **)W_GetPatchPointerFromName("CEMERALD", PU_PATCH);
+				data.spec.cemerald = (patchpointer_t)W_GetPatchPointerFromName("CEMERALD", PU_PATCH);
 				data.spec.headx = 48;
 				data.spec.nowsuper = NULL;
 			} */
@@ -1429,9 +1429,9 @@ void Y_StartIntermission(void)
 			data.match.levelstring[sizeof data.match.levelstring - 1] = '\0';
 
 			// get RESULT header
-			data.match.result = (patch_t **)W_GetPatchPointerFromName("RESULT", PU_PATCH);
+			data.match.result = (patchpointer_t)W_GetPatchPointerFromName("RESULT", PU_PATCH);
 
-			bgtile = (patch_t **)W_GetPatchPointerFromName("SRB2BACK", PU_PATCH);
+			bgtile = (patchpointer_t)W_GetPatchPointerFromName("SRB2BACK", PU_PATCH);
 			usetile = true;
 			useinterpic = false;
 			break;
@@ -1457,9 +1457,9 @@ void Y_StartIntermission(void)
 			data.match.levelstring[sizeof data.match.levelstring - 1] = '\0';
 
 			// get RESULT header
-			data.match.result = (patch_t **)W_GetPatchPointerFromName("RESULT", PU_PATCH);
+			data.match.result = (patchpointer_t)W_GetPatchPointerFromName("RESULT", PU_PATCH);
 
-			bgtile = (patch_t **)W_GetPatchPointerFromName("SRB2BACK", PU_PATCH);
+			bgtile = (patchpointer_t)W_GetPatchPointerFromName("SRB2BACK", PU_PATCH);
 			usetile = true;
 			useinterpic = false;
 			break;
@@ -1496,7 +1496,7 @@ void Y_StartIntermission(void)
 				data.match.blueflag = bmatcico;
 			}
 
-			bgtile = (patch_t **)W_GetPatchPointerFromName("SRB2BACK", PU_PATCH);
+			bgtile = (patchpointer_t)W_GetPatchPointerFromName("SRB2BACK", PU_PATCH);
 			usetile = true;
 			useinterpic = false;
 			break;
@@ -1522,7 +1522,7 @@ void Y_StartIntermission(void)
 			data.competition.levelstring[sizeof data.competition.levelstring - 1] = '\0';
 
 			// get background tile
-			bgtile = (patch_t **)W_GetPatchPointerFromName("SRB2BACK", PU_PATCH);
+			bgtile = (patchpointer_t)W_GetPatchPointerFromName("SRB2BACK", PU_PATCH);
 			usetile = true;
 			useinterpic = false;
 			break;

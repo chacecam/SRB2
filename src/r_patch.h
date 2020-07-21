@@ -17,7 +17,6 @@
 #include "r_defs.h"
 #include "r_patchtrees.h"
 #include "w_wad.h"
-#include "m_aatree.h"
 #include "i_video.h"
 #include "doomdef.h"
 
@@ -28,9 +27,9 @@ void *Patch_CacheGL(UINT16 wad, UINT16 lump, INT32 tag, boolean store);
 
 patchtreetype_t Patch_GetTreeType(rendermode_t mode);
 patchtree_t *Patch_GetRendererTree(UINT16 wadnum, rendermode_t mode);
-aatree_t *Patch_GetRendererBaseSubTree(UINT16 wadnum, rendermode_t mode);
+lumpcache_t *Patch_GetRendererBaseSubTree(UINT16 wadnum, rendermode_t mode);
 #ifdef ROTSPRITE
-aatree_t *Patch_GetRendererRotatedSubTree(UINT16 wadnum, rendermode_t mode, boolean flip);
+lumpcache_t *Patch_GetRendererRotatedSubTree(UINT16 wadnum, rendermode_t mode, boolean flip);
 #endif
 
 void *GetRendererPatchInfo(UINT16 wadnum, UINT16 lumpnum, rendermode_t mode);
@@ -56,9 +55,14 @@ typedef struct patchreference_s patchreference_t;
 
 patchreference_t *Patch_FindReference(UINT16 wad, UINT16 lump, INT32 rollangle, boolean flip);
 patchreference_t *Patch_StoreReference(UINT16 wad, UINT16 lump, INT32 tag, void *ptr, INT32 rollangle, boolean flip);
+void Patch_RemoveReference(UINT16 wad, UINT16 lump);
+void Patch_DirectlyRemoveReference(patchreference_t *patch, boolean free);
 
 void Patch_UpdateReferences(void);
 void Patch_FreeReferences(void);
+void Patch_FreeTags(INT32 lowtag, INT32 hightag);
+void Patch_Free(patch_t *ptr);
+void Patch_FreeDereference(patchpointer_t deref);
 
 // This should be in r_rotsprite.h, but that file
 // includes this one, so this file can't include that one.

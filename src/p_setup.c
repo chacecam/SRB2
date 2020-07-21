@@ -3640,6 +3640,7 @@ boolean P_LoadLevel(boolean fromnetsave)
 	// Clear pointers that would be left dangling by the purge
 	R_FlushTranslationColormapCache();
 
+	Patch_FreeTags(PU_LEVEL, PU_PURGELEVEL - 1);
 	Z_FreeTags(PU_LEVEL, PU_PURGELEVEL - 1);
 
 #if defined (WALLSPLATS) || defined (FLOORSPLATS)

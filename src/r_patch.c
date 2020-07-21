@@ -80,7 +80,7 @@ patchreference_t *Patch_FindReference(UINT16 wad, UINT16 lump, INT32 rollangle, 
 
 	while (patch)
 	{
-		patchreference_t *prev = NULL, *next = NULL;
+		patchreference_t *next = patch->next;
 
 		if (patch->wad == wad && patch->lump == lump && patch->rollangle == rollangle && patch->flip == flip)
 		{
@@ -88,18 +88,12 @@ patchreference_t *Patch_FindReference(UINT16 wad, UINT16 lump, INT32 rollangle, 
 			return patch;
 		}
 
-		// Lazy memory deallocation.
-		// References aren't removed until an iteration
-		// knows the pointer isn't valid anymore.
-		next = patch->next;
 		if (patch->ptr == NULL)
 		{
 			CONS_Debug(DBG_RENDER, "freeing %s (%d) in the list\n", W_CheckNameForNumPwad(patch->wad, patch->lump), patch->rollangle);
-			prev = patch->prev;
-			if (prev)
-				prev->next = next;
-			Z_Free(patch);
+			Patch_DirectlyRemoveReference(patch, true);
 		}
+
 		patch = next;
 	}
 
@@ -144,6 +138,97 @@ patchreference_t *Patch_StoreReference(UINT16 wad, UINT16 lump, INT32 tag, void 
 	}
 }
 
+// Remove patch in list
+void Patch_RemoveReference(UINT16 wad, UINT16 lump)
+{
+	patchreference_t *patch = patchlist_head;
+
+	CONS_Debug(DBG_RENDER, "Patch_RemoveReference: removing %s\n", W_CheckNameForNumPwad(wad, lump));
+
+	while (patch)
+	{
+		patchreference_t *next = patch->next;
+
+		if (patch->wad == wad && patch->lump == lump)
+		{
+			CONS_Debug(DBG_RENDER, "found\n");
+			Patch_DirectlyRemoveReference(patch, true);
+			break;
+		}
+
+		patch = next;
+	}
+}
+
+// Directly remove patch in list
+void Patch_DirectlyRemoveReference(patchreference_t *patch, boolean free)
+{
+	patchreference_t *prev = patch->prev;
+	patchreference_t *next = patch->next;
+
+	CONS_Debug(DBG_RENDER, "Patch_DirectlyRemoveReference: removing %s\n", W_CheckNameForNumPwad(patch->wad, patch->lump));
+
+	if (prev)
+		prev->next = next;
+	if (next)
+		next->prev = prev;
+
+	// Clear the tail and the head
+	if (patchlist_head == patch && patchlist_tail == patch)
+		patchlist_head = patchlist_tail = NULL;
+	// Update the tail
+	else if (patchlist_tail == patch)
+		patchlist_tail = prev;
+	// Update the head
+	else if (patchlist_head == patch)
+		patchlist_head = next;
+
+	if (free)
+	{
+		INT32 r = render_first;
+		for (; r < render_last; r++)
+		{
+			lumpcache_t *tree = Patch_GetRendererBaseSubTree(patch->wad, r);
+			if (tree[patch->lump])
+			{
+				Z_Free(tree[patch->lump]);
+				tree[patch->lump] = NULL;
+			}
+		}
+		wadfiles[patch->wad]->patchinfo.current[patch->lump] = NULL;
+	}
+
+	Z_Free(patch);
+}
+
+// Frees a patch, and removes it from the reference list.
+void Patch_Free(patch_t *ptr)
+{
+	patchreference_t *patch = patchlist_head;
+
+	CONS_Debug(DBG_RENDER, "Patch_Free: freeing %p\n", ptr);
+
+	while (patch)
+	{
+		patchreference_t *next = patch->next;
+
+		if (patch->ptr == ptr)
+		{
+			CONS_Debug(DBG_RENDER, "found\n");
+			Patch_DirectlyRemoveReference(patch, true);
+			break;
+		}
+
+		patch = next;
+	}
+}
+
+// Dereferences a patch, and then frees it.
+void Patch_FreeDereference(patchpointer_t deref)
+{
+	Patch_Free(Patch_Dereference(deref));
+}
+
 // Get patch tree type from a render mode.
 patchtreetype_t Patch_GetTreeType(rendermode_t mode)
 {
@@ -157,14 +242,14 @@ patchtree_t *Patch_GetRendererTree(UINT16 wadnum, rendermode_t mode)
 }
 
 // Get patch base subtree.
-aatree_t *Patch_GetRendererBaseSubTree(UINT16 wadnum, rendermode_t mode)
+lumpcache_t *Patch_GetRendererBaseSubTree(UINT16 wadnum, rendermode_t mode)
 {
 	return Patch_GetRendererTree(wadnum, mode)->base;
 }
 
 #ifdef ROTSPRITE
 // Get rotated patch subtree.
-aatree_t *Patch_GetRendererRotatedSubTree(UINT16 wadnum, rendermode_t mode, boolean flip)
+lumpcache_t *Patch_GetRendererRotatedSubTree(UINT16 wadnum, rendermode_t mode, boolean flip)
 {
 	UINT8 f = (flip == true) ? 1 : 0;
 	return Patch_GetRendererTree(wadnum, mode)->rotated[f];
@@ -201,10 +286,10 @@ void Patch_InitInfo(wadfile_t *wadfile)
 		if (rcache->base)
 			continue;
 
-		rcache->base = M_AATreeAlloc(AATREE_ZUSER);
+		Z_Calloc(wadfile->numlumps * sizeof(lumpcache_t), PU_STATIC, &rcache->base);
 
 #ifdef ROTSPRITE
-		RotSprite_InitPatchTree(rcache);
+		RotSprite_InitPatchTree(rcache, wadfile->numlumps);
 #endif
 	}
 }
@@ -212,13 +297,15 @@ void Patch_InitInfo(wadfile_t *wadfile)
 // Get renderer patch info.
 void *GetRendererPatchInfo(UINT16 wadnum, UINT16 lumpnum, rendermode_t mode)
 {
-	return M_AATreeGet(Patch_GetRendererBaseSubTree(wadnum, mode), lumpnum);
+	lumpcache_t *tree = Patch_GetRendererBaseSubTree(wadnum, mode);
+	return tree[lumpnum];
 }
 
 // Set renderer patch info.
 void SetRendererPatchInfo(UINT16 wadnum, UINT16 lumpnum, rendermode_t mode, void *ptr)
 {
-	M_AATreeSet(Patch_GetRendererBaseSubTree(wadnum, mode), lumpnum, ptr);
+	lumpcache_t *tree = Patch_GetRendererBaseSubTree(wadnum, mode);
+	tree[lumpnum] = ptr;
 }
 
 // Update current patch info.
@@ -228,11 +315,11 @@ void UpdateCurrentPatchInfo(UINT16 wadnum, UINT16 lumpnum, rendermode_t mode)
 }
 
 #ifdef ROTSPRITE
-void RotSprite_InitPatchTree(patchtree_t *rcache)
+void RotSprite_InitPatchTree(patchtree_t *rcache, UINT16 numlumps)
 {
 	INT32 i;
 	for (i = 0; i < 2; i++)
-		rcache->rotated[i] = M_AATreeAlloc(AATREE_ZUSER);
+		Z_Calloc(numlumps * sizeof(lumpcache_t), PU_STATIC, &rcache->rotated[i]);
 }
 
 int RotSprite_GetCurrentPatchInfoIdx(INT32 rollangle, boolean flip)
@@ -249,13 +336,15 @@ void RotSprite_AllocCurrentPatchInfo(patchinfo_t *patchinfo, UINT16 lumpnum)
 // Get renderer rotated patch info.
 void *GetRotatedPatchInfo(UINT16 wadnum, UINT16 lumpnum, rendermode_t mode, boolean flip)
 {
-	return M_AATreeGet(Patch_GetRendererRotatedSubTree(wadnum, mode, flip), lumpnum);
+	lumpcache_t *tree = Patch_GetRendererRotatedSubTree(wadnum, mode, flip);
+	return &(tree[lumpnum]);
 }
 
 // Set renderer rotated patch info.
 void SetRotatedPatchInfo(UINT16 wadnum, UINT16 lumpnum, rendermode_t mode, boolean flip, void *ptr)
 {
-	M_AATreeSet(Patch_GetRendererRotatedSubTree(wadnum, mode, flip), lumpnum, ptr);
+	lumpcache_t *tree = Patch_GetRendererRotatedSubTree(wadnum, mode, flip);
+	tree[lumpnum] = ptr;
 }
 
 // Update current rotated patch info.
@@ -270,8 +359,8 @@ void UpdateCurrentRotatedPatchInfo(UINT16 wadnum, UINT16 lumpnum, rendermode_t m
 
 void *Patch_CacheSoftware(UINT16 wad, UINT16 lump, INT32 tag, boolean store)
 {
-	void *cache = GetRendererPatchInfo(wad, lump, render_soft);
-	if (!GetRendererPatchInfo(wad, lump, render_soft))
+	lumpcache_t *cache = Patch_GetRendererBaseSubTree(wad, render_soft);
+	if (!cache[lump])
 	{
 		size_t len = W_LumpLengthPwad(wad, lump);
 		void *ptr, *lumpdata;
@@ -279,7 +368,7 @@ void *Patch_CacheSoftware(UINT16 wad, UINT16 lump, INT32 tag, boolean store)
 		void *converted = NULL;
 #endif
 
-		ptr = Z_Malloc(len, tag, &cache);
+		ptr = Z_Malloc(len, tag, &cache[lump]);
 		lumpdata = Z_Malloc(len, tag, NULL);
 
 		// read the lump in full
@@ -311,7 +400,7 @@ void *Patch_CacheSoftware(UINT16 wad, UINT16 lump, INT32 tag, boolean store)
 	else
 		Z_ChangeTag(cache, tag);
 
-	return cache;
+	return cache[lump];
 }
 
 #ifdef HWRENDER
@@ -397,6 +486,29 @@ void Patch_FreeReferences(void)
 	{
 		patchreference_t *next = patch->next;
 		Z_Free(patch);
+		patch = next;
+	}
+}
+
+//
+// Free patches within a specified zone memory tag range.
+//
+void Patch_FreeTags(INT32 lowtag, INT32 hightag)
+{
+	patchreference_t *patch = patchlist_head;
+
+	CONS_Debug(DBG_RENDER, "Patch_FreeTags: freeing tag range %d-%d\n", lowtag, hightag);
+
+	while (patch)
+	{
+		patchreference_t *next = patch->next;
+
+		if (patch->tag >= lowtag && patch->tag <= hightag)
+		{
+			CONS_Debug(DBG_RENDER, "Patch_FreeTags: freeing %s (%d) in the list\n", W_CheckNameForNumPwad(patch->wad, patch->lump), patch->rollangle);
+			Patch_DirectlyRemoveReference(patch, true);
+		}
+
 		patch = next;
 	}
 }
