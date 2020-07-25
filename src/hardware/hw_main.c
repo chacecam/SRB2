@@ -802,7 +802,7 @@ static void HWR_ProjectWall(FOutVector *wallVerts, FSurfaceInfo *pSurf, FBITFIEL
 {
 	HWR_Lighting(pSurf, lightlevel, wallcolormap);
 
-	HWR_ProcessPolygon(pSurf, wallVerts, 4, blendmode|PF_Modulated|PF_Occlude, 2, false); // wall shader
+	HWR_ProcessPolygon(pSurf, wallVerts, 4, blendmode|PF_Modulated|PF_Occlude, SHADER_WALL, false); // wall shader
 
 #ifdef WALLSPLATS
 	if (gl_curline->linedef->splats && cv_splats.value)
@@ -2861,7 +2861,7 @@ static void HWR_RenderPolyObjectPlane(polyobj_t *polysector, boolean isceiling, 
 	else
 		blendmode |= PF_Masked|PF_Modulated;
 
-	HWR_ProcessPolygon(&Surf, planeVerts, nrPlaneVerts, blendmode, 1, false); // floor shader
+	HWR_ProcessPolygon(&Surf, planeVerts, nrPlaneVerts, blendmode, SHADER_FLOOR, false); // floor shader
 }
 
 static void HWR_AddPolyObjectPlanes(void)
@@ -4581,7 +4581,7 @@ static void HWR_CreateDrawNodes(void)
 
 	// Okay! Let's draw it all! Woo!
 	HWD.pfnSetTransform(&atransform);
-	HWD.pfnSetShader(SHADER_DEFAULT);
+	HWD.pfnUnSetShader();
 
 	for (i = 0; i < p; i++)
 	{
@@ -5538,7 +5538,7 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 
 	// Reset the shader state.
 	HWD.pfnSetSpecialState(HWD_SET_SHADERS, cv_glshaders.value);
-	HWD.pfnSetShader(SHADER_DEFAULT);
+	HWD.pfnUnSetShader();
 
 	validcount++;
 
