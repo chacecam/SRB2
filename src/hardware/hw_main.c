@@ -178,7 +178,7 @@ void HWR_Lighting(FSurfaceInfo *Surface, INT32 light_level, extracolormap_t *col
 	fade_color.rgba = (colormap != NULL) ? (UINT32)colormap->fadergba : GL_DEFAULTFOG;
 
 	// Crappy backup coloring if you can't do shaders
-	if (!cv_glshaders.value)
+	if (!cv_glshaders.value || !gl_shadersavailable)
 	{
 		// be careful, this may get negative for high lightlevel values.
 		float tint_alpha, fade_alpha;
@@ -5538,7 +5538,6 @@ void HWR_RenderSkyboxView(INT32 viewnumber, player_t *player)
 
 	// Reset the shader state.
 	HWD.pfnSetSpecialState(HWD_SET_SHADERS, cv_glshaders.value);
-	HWD.pfnUnSetShader();
 
 	validcount++;
 
@@ -5751,7 +5750,6 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 
 	// Reset the shader state.
 	HWD.pfnSetSpecialState(HWD_SET_SHADERS, cv_glshaders.value);
-	HWD.pfnSetShader(0);
 
 	rs_numbspcalls = 0;
 	rs_numpolyobjects = 0;
@@ -5840,6 +5838,7 @@ void HWR_RenderPlayerView(INT32 viewnumber, player_t *player)
 	// added by Hurdler for correct splitscreen
 	// moved here by hurdler so it works with the new near clipping plane
 	HWD.pfnGClipRect(0, 0, vid.width, vid.height, NZCLIP_PLANE);
+	HWD.pfnSetBlend(PF_Modulated|PF_Translucent|PF_NoDepthTest);
 }
 
 // ==========================================================================
