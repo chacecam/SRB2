@@ -1787,6 +1787,10 @@ static void Shader_SetTransform(void)
 static void Shader_SetUniforms(FSurfaceInfo *Surface, GLRGBAFloat *poly, GLRGBAFloat *tint, GLRGBAFloat *fade)
 {
 	gl_shaderprogram_t *shader = shader_current;
+
+	if (shader_current == NULL)
+		return;
+
 	if (!shader->program)
 		return;
 
