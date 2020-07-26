@@ -1432,6 +1432,9 @@ EXPORT void HWRAPI(Draw2DLine) (F2DCoord * v1,
 
 	GLRGBAFloat fcolor = {byte2float(Color.s.red), byte2float(Color.s.green), byte2float(Color.s.blue), byte2float(Color.s.alpha)};
 
+	if (shader_current == NULL)
+		return;
+
 	SetNoTexture();
 
 	// This is the preferred, 'modern' way of rendering lines -- creating a polygon.
@@ -1936,6 +1939,9 @@ static void PreparePolygon(FSurfaceInfo *pSurf, FOutVector *pOutVerts, FBITFIELD
 // -----------------+
 EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags)
 {
+	if (shader_current == NULL)
+		return;
+
 	PreparePolygon(pSurf, pOutVerts, PolyFlags);
 
 	pglBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -1957,6 +1963,9 @@ EXPORT void HWRAPI(DrawPolygon) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUI
 
 EXPORT void HWRAPI(DrawIndexedTriangles) (FSurfaceInfo *pSurf, FOutVector *pOutVerts, FUINT iNumPts, FBITFIELD PolyFlags, UINT32 *IndexArray)
 {
+	if (shader_current == NULL)
+		return;
+
 	PreparePolygon(pSurf, pOutVerts, PolyFlags);
 
 	pglBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -2171,6 +2180,13 @@ static void RenderDome(INT32 skytexture)
 			// upload data to VBO
 			pglBufferData(GL_ARRAY_BUFFER, vbosize * sizeof(vbo->data[0]), vbo->data, GL_STATIC_DRAW);
 		}
+	}
+
+	if (shader_current == NULL)
+	{
+		if (gl_ext_arb_vertex_buffer_object)
+			pglBindBuffer(GL_ARRAY_BUFFER, 0);
+		return;
 	}
 
 	// bind VBO in order to use
@@ -2507,6 +2523,9 @@ static void DrawModelEx(model_t *model, INT32 frameIndex, INT32 duration, INT32 
 	fvector3_t translate;
 
 	int i;
+
+	if (shader_current == NULL)
+		return;
 
 	// Affect input model scaling
 	scale *= 0.5f;
@@ -2868,6 +2887,9 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 		16.0f, -16.0f, 6.0f
 	};
 
+	if (shader_current == NULL)
+		return;
+
 	// Use a power of two texture, dammit
 	if(screen_width <= 1024)
 		texsize = 1024;
@@ -3035,6 +3057,9 @@ EXPORT void HWRAPI(DrawIntermissionBG)(void)
 
 	float fix[8];
 
+	if (shader_current == NULL)
+		return;
+
 	if(screen_width <= 1024)
 		texsize = 1024;
 	if(screen_width <= 512)
@@ -3094,6 +3119,9 @@ static void DoWipe(boolean tinted, boolean isfadingin, boolean istowhite)
 		1.0f, 0.0f,
 		1.0f, 1.0f
 	};
+
+	if (shader_current == NULL)
+		return;
 
 	// Use a power of two texture, dammit
 	if(screen_width <= 1024)
@@ -3247,6 +3275,9 @@ EXPORT void HWRAPI(DrawScreenFinalTexture)(int width, int height)
 
 	float off[12];
 	float fix[8];
+
+	if (shader_current == NULL)
+		return;
 
 	if(screen_width <= 1024)
 		texsize = 1024;
