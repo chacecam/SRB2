@@ -540,12 +540,12 @@ enum
 	"out vec2 TexCoord;\n" \
 	"out vec3 Normal;\n" \
 	"out vec4 Colors;\n" \
-	"uniform mat4 model;\n" \
-	"uniform mat4 view;\n" \
-	"uniform mat4 projection;\n" \
+	"uniform mat4 Model;\n" \
+	"uniform mat4 View;\n" \
+	"uniform mat4 Projection;\n" \
 	"void main()\n" \
 	"{\n" \
-		"gl_Position = projection * view * model * vec4(aPos, 1.0f);\n" \
+		"gl_Position = Projection * View * Model * vec4(aPos, 1.0f);\n" \
 		"TexCoord = vec2(aTexCoord.x, aTexCoord.y);\n" \
 		"Normal = aNormal;\n" \
 		"Colors = aColors;\n" \
@@ -562,10 +562,10 @@ enum
 	"layout (location = 2) in vec2 aFadeMaskTexCoord;\n" \
 	"out vec2 TexCoord;\n" \
 	"out vec2 FadeMaskTexCoord;\n" \
-	"uniform mat4 projection;\n" \
+	"uniform mat4 Projection;\n" \
 	"void main()\n" \
 	"{\n" \
-		"gl_Position = projection * vec4(aPos, 1.0f);\n" \
+		"gl_Position = Projection * vec4(aPos, 1.0f);\n" \
 		"TexCoord = vec2(aTexCoord.x, aTexCoord.y);\n" \
 		"FadeMaskTexCoord = vec2(aFadeMaskTexCoord.x, aFadeMaskTexCoord.y);\n" \
 	"}\0"
@@ -1015,9 +1015,9 @@ EXPORT boolean HWRAPI(LoadShaders) (void)
 #define GETUNI(uniform) pglGetUniformLocation(shader->program, uniform);
 
 		// transform
-		shader->uniforms[gluniform_model] = GETUNI("model");
-		shader->uniforms[gluniform_view] = GETUNI("view");
-		shader->uniforms[gluniform_projection] = GETUNI("projection");
+		shader->uniforms[gluniform_model] = GETUNI("Model");
+		shader->uniforms[gluniform_view] = GETUNI("View");
+		shader->uniforms[gluniform_projection] = GETUNI("Projection");
 
 		// samplers
 		shader->uniforms[gluniform_startscreen] = GETUNI("StartScreen");
