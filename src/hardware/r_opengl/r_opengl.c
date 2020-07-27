@@ -547,6 +547,8 @@ enum
 	"{\n" \
 		"gl_Position = projection * view * model * vec4(aPos, 1.0f);\n" \
 		"TexCoord = vec2(aTexCoord.x, aTexCoord.y);\n" \
+		"Normal = aNormal;\n" \
+		"Colors = aColors;\n" \
 	"}\0"
 
 //
@@ -845,7 +847,7 @@ static const char *fragment_shaders[] = {
 	GLSL_FOG_FRAGMENT_SHADER,
 
 	// Sky fragment shader
-	GLSL_DEFAULT_FRAGMENT_SHADER,
+	GLSL_SKY_FRAGMENT_SHADER,
 
 	// Fade mask vertex shader
 	GLSL_FADEMASK_FRAGMENT_SHADER, GLSL_FADEMASK_ADDITIVEANDSUBTRACTIVE_FRAGMENT_SHADER,
@@ -2219,7 +2221,6 @@ static void RenderDome(INT32 skytexture)
 		}
 	}
 
-	Shader_SetUniforms(NULL, &white, NULL, NULL);
 	pglDisableVertexAttribArray(LOC_COLORS);
 
 	// bind with 0, so, switch back to normal pointer operation

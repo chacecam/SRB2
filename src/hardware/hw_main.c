@@ -5249,7 +5249,10 @@ static void HWR_DrawSkyBackground(player_t *player)
 		dometransform.splitscreen = splitscreen;
 
 		HWR_GetTexture(texturetranslation[skytexture]);
+
+		HWD.pfnSetSpecialState(HWD_SET_SHADERS, 1);
 		HWD.pfnSetShader(SHADER_SKY);
+
 		HWD.pfnRenderSkyDome(skytexture, textures[skytexture]->width, textures[skytexture]->height, dometransform);
 	}
 	else
