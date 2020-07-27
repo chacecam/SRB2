@@ -2881,10 +2881,10 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 
 	const float blackBack[16] =
 	{
-		-16.0f, -16.0f, 6.0f,
-		-16.0f, 16.0f, 6.0f,
-		16.0f, 16.0f, 6.0f,
-		16.0f, -16.0f, 6.0f
+		-4.0f, -4.0f, 1.0f,
+		-4.0f, 4.0f, 1.0f,
+		4.0f, 4.0f, 1.0f,
+		4.0f, -4.0f, 1.0f
 	};
 
 	if (shader_current == NULL)
@@ -2912,6 +2912,7 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 	pglDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
 	pglEnableVertexAttribArray(LOC_TEXCOORD);
+	Shader_SetUniforms(NULL, &white, NULL, NULL);
 
 	for(x=0;x<SCREENVERTS-1;x++)
 	{
@@ -2941,18 +2942,18 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 			pglVertexAttribPointer(LOC_TEXCOORD, 2, GL_FLOAT, GL_FALSE, 0, stCoords);
 
 			// float vertCoords[12];
-			vertCoords[0] = points[x][y][0];
-			vertCoords[1] = points[x][y][1];
-			vertCoords[2] = 4.4f;
-			vertCoords[3] = points[x][y + 1][0];
-			vertCoords[4] = points[x][y + 1][1];
-			vertCoords[5] = 4.4f;
-			vertCoords[6] = points[x + 1][y + 1][0];
-			vertCoords[7] = points[x + 1][y + 1][1];
-			vertCoords[8] = 4.4f;
-			vertCoords[9] = points[x + 1][y][0];
-			vertCoords[10] = points[x + 1][y][1];
-			vertCoords[11] = 4.4f;
+			vertCoords[0] = points[x][y][0] / 4.5f;
+			vertCoords[1] = points[x][y][1] / 4.5f;
+			vertCoords[2] = 1.0f;
+			vertCoords[3] = points[x][y + 1][0] / 4.5f;
+			vertCoords[4] = points[x][y + 1][1] / 4.5f;
+			vertCoords[5] = 1.0f;
+			vertCoords[6] = points[x + 1][y + 1][0] / 4.5f;
+			vertCoords[7] = points[x + 1][y + 1][1] / 4.5f;
+			vertCoords[8] = 1.0f;
+			vertCoords[9] = points[x + 1][y][0] / 4.5f;
+			vertCoords[10] = points[x + 1][y][1] / 4.5f;
+			vertCoords[11] = 1.0f;
 
 			pglVertexAttribPointer(LOC_POSITION, 3, GL_FLOAT, GL_FALSE, 0, vertCoords);
 
