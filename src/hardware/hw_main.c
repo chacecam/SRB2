@@ -5272,12 +5272,12 @@ static void HWR_DrawSkyBackground(player_t *player)
 		//  | /|
 		//  |/ |
 		//  0--1
-		v[0].x = v[3].x = -ZCLIP_PLANE-1;
-		v[1].x = v[2].x =  ZCLIP_PLANE+1;
-		v[0].y = v[1].y = -ZCLIP_PLANE-1;
-		v[2].y = v[3].y =  ZCLIP_PLANE+1;
+		v[0].x = v[3].x = -1.0f;
+		v[1].x = v[2].x =  1.0f;
+		v[0].y = v[1].y = -1.0f;
+		v[2].y = v[3].y =  1.0f;
 
-		v[0].z = v[1].z = v[2].z = v[3].z = ZCLIP_PLANE+1;
+		v[0].z = v[1].z = v[2].z = v[3].z = 1.0f;
 
 		// X
 

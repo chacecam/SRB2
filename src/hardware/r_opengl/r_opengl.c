@@ -2881,10 +2881,10 @@ EXPORT void HWRAPI(PostImgRedraw) (float points[SCREENVERTS][SCREENVERTS][2])
 
 	const float blackBack[16] =
 	{
-		-4.0f, -4.0f, 1.0f,
-		-4.0f, 4.0f, 1.0f,
-		4.0f, 4.0f, 1.0f,
-		4.0f, -4.0f, 1.0f
+		-1.0f, -1.0f, 1.0f,
+		-1.0f, 1.0f, 1.0f,
+		1.0f, 1.0f, 1.0f,
+		1.0f, -1.0f, 1.0f
 	};
 
 	if (shader_current == NULL)
